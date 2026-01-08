@@ -7,7 +7,7 @@ const Products = () => {
         {
             id: 1,
             name: "Oyster Mushroom Spawn",
-            price: 150,
+            price: 120,
             unit: "per packet",
             image: "https://images.unsplash.com/photo-1590483736622-39da8af75620?q=80&w=2127&auto=format&fit=crop",
             description: "High-yield, laboratory-grade spawn for premium oyster mushroom cultivation.",
@@ -15,9 +15,9 @@ const Products = () => {
         },
         {
             id: 2,
-            name: "Milky Mushroom Spawn",
-            price: 180,
-            unit: "per packet",
+            name: "oyster mushroom",
+            price: 50,
+            unit: "per 200g packet",
             image: "https://images.unsplash.com/photo-1504624244670-393bc746bc4b?q=80&w=2070&auto=format&fit=crop",
             description: "Summer-variety spawn known for thick, fleshy stems and long shelf life.",
             tag: "PREMIUM"
