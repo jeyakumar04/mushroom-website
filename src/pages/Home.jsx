@@ -27,25 +27,21 @@ const Home = () => {
           <img src={heroImage} alt="Mushroom Farm Hero" className="w-full h-full object-cover" />
         </div>
 
-        <div className="z-20 relative px-4 max-w-5xl ml-auto md:mr-12 animate-fade-in-up text-right flex flex-col items-end">
-          <h1 className="text-4xl sm:text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-gray-200 to-gray-500 mb-6 drop-shadow-2xl tracking-tighter leading-tight animate-float-slow uppercase">
-            NATURE'S <span className="text-tjp-gold">GOLD</span>
+        <div className="z-20 relative px-4 max-w-5xl mx-auto text-center flex flex-col items-center">
+          <div className="mb-8 w-40 h-40 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border-4 border-tjp-gold p-4 shadow-[0_0_50px_rgba(255,215,0,0.3)] animate-float">
+            <img src="/logo.png" alt="TJP Logo" className="w-full h-full object-contain" />
+          </div>
+          <h1 className="text-6xl md:text-9xl font-black text-white mb-6 tracking-tighter filter drop-shadow-2xl">
+            TJP <span className="text-tjp-gold uppercase italic">Mushrooms</span>
           </h1>
-
-          <div className="w-24 h-1.5 bg-tjp-gold mb-8 rounded-full shadow-[0_0_15px_rgba(255,215,0,0.5)] animate-pulse ml-auto"></div>
-
-          <div className="inline-block bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-12 max-w-2xl animate-float-medium hover:bg-white/10 transition-colors duration-300">
+          <div className="inline-block bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-12 max-w-2xl animate-float-medium">
             <p className="text-xl md:text-3xl text-[#CBCCCB] font-['Kavivanar'] leading-loose tracking-wide">
               "இயற்கையோடு இணைந்த சுவை, நாவிற்கு விருந்து, உடலிற்கு மருந்து!"
             </p>
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-6 justify-end">
-            <Link to="/products" className="px-10 py-4 bg-tjp-gold text-[#01221a] font-bold rounded-full text-lg shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.6)] hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3">
-              Order Fresh <FaArrowRight />
-            </Link>
-            <Link to="/products" className="px-10 py-4 bg-white/10 backdrop-blur-md border border-white/30 text-white font-bold rounded-full text-lg hover:bg-white hover:text-black hover:scale-105 transition-all duration-300">
-              View Products
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <Link to="/products" className="px-12 py-5 bg-tjp-gold text-[#01221a] font-black rounded-full text-xl shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:scale-105 transition-all duration-300 uppercase tracking-widest">
+              Order Fresh
             </Link>
           </div>
         </div>
