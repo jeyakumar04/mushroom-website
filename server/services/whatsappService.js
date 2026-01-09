@@ -55,4 +55,56 @@ const sendDigitalBill = async (contactNumber, imageDataBase64, customerName) => 
     }
 };
 
-module.exports = { sendDigitalBill };
+/**
+ * Send Loyalty Notification via WhatsApp
+ * When a customer reaches 10 pockets, send them a congratulatory message
+ */
+const sendLoyaltyNotification = async (contactNumber, message) => {
+    const accessToken = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_ID;
+
+    // Generate WhatsApp Web URL as fallback
+    const whatsappWebUrl = `https://wa.me/91${contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+
+    if (!accessToken || !phoneNumberId) {
+        console.log('⚠️ [MOCK] WhatsApp API not configured. Use WhatsApp Web URL:');
+        console.log(`📱 ${whatsappWebUrl}`);
+        return {
+            success: true,
+            message: 'Use WhatsApp Web URL to send notification',
+            whatsappWebUrl,
+            mock: true
+        };
+    }
+
+    try {
+        // Send text message via WhatsApp Cloud API
+        const response = await axios.post(
+            `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`,
+            {
+                messaging_product: 'whatsapp',
+                to: `91${contactNumber.replace(/\D/g, '')}`,
+                type: 'text',
+                text: { body: message }
+            },
+            {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            }
+        );
+
+        console.log(`✅ Loyalty notification sent to ${contactNumber}`);
+        return { success: true, data: response.data };
+    } catch (error) {
+        console.error('❌ WhatsApp API Error:', error.response?.data || error.message);
+        // Return fallback URL even on error
+        return {
+            success: false,
+            error: error.message,
+            whatsappWebUrl,
+            fallback: true
+        };
+    }
+};
+
+module.exports = { sendDigitalBill, sendLoyaltyNotification };
+

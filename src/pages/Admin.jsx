@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { FaUser, FaPhone, FaCalendarAlt, FaMoneyBillWave, FaShieldAlt, FaClock, FaCheckCircle, FaExclamationCircle, FaBox, FaChartBar, FaWarehouse, FaTrash, FaDownload, FaWhatsapp, FaArrowRight, FaImage, FaMapMarkerAlt, FaSearchPlus, FaGift, FaPlusCircle, FaHistory, FaEraser, FaShareAlt } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import { FaUser, FaPhone, FaCalendarAlt, FaMoneyBillWave, FaShieldAlt, FaClock, FaCheckCircle, FaExclamationCircle, FaBox, FaChartBar, FaWarehouse, FaTrash, FaDownload, FaWhatsapp, FaArrowRight, FaImage, FaMapMarkerAlt, FaSearchPlus, FaGift, FaPlusCircle, FaHistory, FaEraser, FaShareAlt, FaTachometerAlt } from 'react-icons/fa';
 import { toPng } from 'html-to-image';
 import Footer from '../Component/Footer';
 import DigitalBill from '../Component/DigitalBill';
@@ -345,6 +346,14 @@ const Admin = () => {
                         <h1 className="text-6xl md:text-9xl font-black italic tracking-tighter uppercase leading-[0.8]">
                             Business <span className="text-[#F4D03F]">Hub</span>
                         </h1>
+                        <Link
+                            to="/dashboard"
+                            className="inline-flex items-center gap-3 mt-4 px-8 py-4 bg-gradient-to-r from-[#F4D03F] to-[#DAA520] text-[#022C22] rounded-2xl font-black uppercase tracking-widest text-sm hover:shadow-[0_0_40px_rgba(244,208,63,0.4)] transition-all group"
+                        >
+                            <FaTachometerAlt className="group-hover:rotate-12 transition-transform" />
+                            Open New Dashboard
+                            <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
+                        </Link>
                     </div>
 
                     <div className="flex flex-wrap gap-3">

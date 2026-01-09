@@ -9,6 +9,7 @@ import Training from './pages/Training';
 import Products from './pages/Products';
 import Booking from './pages/Booking';
 import Admin from './pages/Admin';
+import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import ProtectedRoute from './Component/ProtectedRoute';
 import WhatsAppButton from './Component/WhatsAppButton';
@@ -33,6 +34,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
             </ProtectedRoute>
           }
         />
