@@ -28,9 +28,6 @@ const Home = () => {
         </div>
 
         <div className="z-20 relative px-4 max-w-5xl mx-auto text-center flex flex-col items-center">
-          <div className="mb-8 w-40 h-40 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border-4 border-tjp-gold p-4 shadow-[0_0_50px_rgba(255,215,0,0.3)] animate-float">
-            <img src="/logo.png" alt="TJP Logo" className="w-full h-full object-contain" />
-          </div>
           <h1 className="text-6xl md:text-9xl font-black text-white mb-6 tracking-tighter filter drop-shadow-2xl">
             TJP <span className="text-tjp-gold uppercase italic">Mushrooms</span>
           </h1>
