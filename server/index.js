@@ -1577,7 +1577,7 @@ app.get('/api/export/:section', async (req, res) => {
         } else if (section === 'climate') {
             data = await Climate.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
             data = data.map(d => ({
-                Date: new Date(d.date).toLocaleString(),
+                Date: new Date(d.date).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true }),
                 Temperature: d.temperature + '°C',
                 Moisture: d.moisture ? d.moisture + '%' : '-',
                 Humidity: d.humidity ? d.humidity + '%' : '-',

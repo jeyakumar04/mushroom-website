@@ -756,7 +756,7 @@ const Dashboard = () => {
                                             <div className="bg-white/10 p-5 rounded-2xl border border-white/10 backdrop-blur-md">
                                                 <p className="text-[10px] font-black uppercase text-blue-200 mb-2">Finish Alert (18 Hours Later)</p>
                                                 <p className="text-3xl font-black">
-                                                    {new Date(soakingStartTime.getTime() + 18 * 60 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    {new Date(soakingStartTime.getTime() + 18 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
                                                 </p>
                                                 <p className="text-[10px] font-bold text-blue-300 mt-1 uppercase italic">
                                                     Tomorrow • {new Date(soakingStartTime.getTime() + 18 * 60 * 60 * 1000).toLocaleDateString()}
@@ -810,7 +810,7 @@ const Dashboard = () => {
                                                 {log.type}
                                             </span>
                                             <span className="text-[10px] font-bold text-gray-400">
-                                                {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(log.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
                                             </span>
                                         </div>
                                         <p className="font-black text-gray-800 text-sm">{log.title}</p>
@@ -1976,7 +1976,7 @@ const Dashboard = () => {
                                     <p className="text-xs font-bold text-gray-400 uppercase mb-2">Last Checked</p>
                                     <p className="text-xl font-black text-gray-800">
                                         {lastWaterCheck ? new Date(lastWaterCheck).toLocaleDateString() : 'Not recorded'}
-                                        <span className="text-sm text-gray-400 block">{lastWaterCheck ? new Date(lastWaterCheck).toLocaleTimeString() : '-'}</span>
+                                        <span className="text-sm text-gray-400 block">{lastWaterCheck ? new Date(lastWaterCheck).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : '-'}</span>
                                     </p>
                                     <button
                                         onClick={async () => {
@@ -2162,7 +2162,7 @@ const Dashboard = () => {
                             </div>
                             <div className="text-right hidden md:block">
                                 <p className="text-xs font-bold text-gray-400 uppercase">Current Time</p>
-                                <p className="text-xl font-black">{currentTime.toLocaleTimeString()}</p>
+                                <p className="text-xl font-black">{currentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
                             </div>
                             <FaShieldAlt className="text-3xl md:text-4xl text-amber-500" />
                         </div>
