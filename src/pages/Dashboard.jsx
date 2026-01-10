@@ -5,7 +5,7 @@ import {
     FaGift, FaPlusCircle, FaHistory, FaEraser, FaBell, FaClock,
     FaLeaf, FaPlus, FaMinus, FaFileExcel, FaCalendarAlt, FaSeedling,
     FaLightbulb, FaWater, FaFan, FaRupeeSign, FaArrowUp, FaArrowDown,
-    FaReceipt, FaShoppingCart, FaTruck, FaStore, FaImage, FaLayerGroup, FaEnvelope, FaFileCsv
+    FaReceipt, FaShoppingCart, FaTruck, FaStore, FaImage, FaLayerGroup, FaEnvelope, FaFileCsv, FaBook
 } from 'react-icons/fa';
 import { toPng } from 'html-to-image';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -93,6 +93,7 @@ const Dashboard = () => {
 
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedDate, setSelectedDate] = useState(null); // null means show all dates
     const [lastWaterCheck, setLastWaterCheck] = useState(null);
     const [reportArchives, setReportArchives] = useState([]);
     const [notificationLogs, setNotificationLogs] = useState([]);
@@ -800,7 +801,7 @@ const Dashboard = () => {
                                     <span className="text-xs font-bold uppercase text-gray-400">Total Beds (YTD)</span>
                                 </div>
                                 <p className="text-4xl font-black text-gray-800">
-                                    {batches.filter(b => new Date(b.bedDate).getFullYear() === new Date().getFullYear()).length}
+                                    {stats?.ytdBeds || 0}
                                 </p>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase mt-2">Since Jan 1st, {new Date().getFullYear()}</p>
                             </div>
@@ -1044,6 +1045,94 @@ const Dashboard = () => {
                     </div >
                 );
 
+            case 'kadan':
+                // Use the kadanList state fetched from /api/sales/kadan
+                const totalUnpaid = kadanList.reduce((sum, s) => sum + s.totalAmount, 0);
+
+                return (
+                    <div className="space-y-8 animate-fadeIn">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-black uppercase text-gray-800 flex items-center gap-4">
+                                <FaBook className="text-red-500" /> Kadan Ledger (Credit Log)
+                            </h2>
+                            <div className="bg-red-100 px-6 py-3 rounded-2xl border-2 border-red-200">
+                                <span className="text-xs font-black uppercase text-red-400 block">Total Pending</span>
+                                <span className="text-3xl font-black text-red-600">₹{totalUnpaid}</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-3xl p-8 shadow-xl">
+                            {kadanList.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b-2 border-gray-100">
+                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Date</th>
+                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Customer</th>
+                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Product</th>
+                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Amount</th>
+                                                <th className="text-right py-4 text-xs font-black uppercase text-gray-400">Settle via</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {kadanList.map((k, idx) => (
+                                                <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
+                                                    <td className="py-4 text-sm font-bold text-gray-600">{formatDate(k.date)}</td>
+                                                    <td className="py-4">
+                                                        <p className="font-black text-gray-800 uppercase">{k.customerName}</p>
+                                                        <p className="text-[10px] text-gray-400">{k.contactNumber}</p>
+                                                    </td>
+                                                    <td className="py-4 text-sm font-black italic">{k.quantity} {k.unit} {k.productType}</td>
+                                                    <td className="py-4 text-lg font-black text-red-600">₹{k.totalAmount}</td>
+                                                    <td className="py-4 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (window.confirm(`Settle ₹${k.totalAmount} via CASH?`)) {
+                                                                        await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                            body: JSON.stringify({ settledBy: 'Cash' })
+                                                                        });
+                                                                        fetchData();
+                                                                    }
+                                                                }}
+                                                                className="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-green-700 transition-all"
+                                                            >
+                                                                💵 Cash
+                                                            </button>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (window.confirm(`Settle ₹${k.totalAmount} via GPAY?`)) {
+                                                                        await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                            body: JSON.stringify({ settledBy: 'GPay' })
+                                                                        });
+                                                                        fetchData();
+                                                                    }
+                                                                }}
+                                                                className="bg-purple-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-purple-700 transition-all"
+                                                            >
+                                                                📱 GPay
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="py-20 text-center">
+                                    <FaCheckCircle className="text-64px text-green-500 mx-auto mb-4 opacity-20" size={64} />
+                                    <p className="font-black uppercase text-gray-400 tracking-widest text-xl">All Credits Settled! No Kadan.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+
             case 'sales':
                 return (
                     <div className="space-y-8 animate-fadeIn">
@@ -1055,6 +1144,10 @@ const Dashboard = () => {
                                         <FaShoppingCart className="text-green-500" /> Record Sale
                                     </h3>
                                     <div className="flex items-center gap-2">
+                                        <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="text-xs font-bold border rounded-lg px-2 py-1">
+                                            <option value="">All Dates</option>
+                                            {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
                                         <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
                                         </select>
@@ -1190,7 +1283,10 @@ const Dashboard = () => {
                                         <p className="text-2xl font-black text-green-600">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
-                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear && s.paymentType === 'Cash';
+                                                const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                const matchesYear = d.getFullYear() === selectedYear;
+                                                const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                return matchesMonth && matchesYear && matchesDate && s.paymentType === 'Cash';
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
@@ -1242,6 +1338,7 @@ const Dashboard = () => {
                                                     <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Date</th>
                                                     <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Product</th>
                                                     <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Qty</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Price</th>
                                                     <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Pay</th>
                                                     <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Total</th>
                                                     <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Customer</th>
@@ -1251,16 +1348,33 @@ const Dashboard = () => {
                                             <tbody>
                                                 {sales.filter(s => {
                                                     const d = new Date(s.date);
-                                                    return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
+                                                    const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                    const matchesYear = d.getFullYear() === selectedYear;
+                                                    const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                    return matchesMonth && matchesYear && matchesDate;
                                                 }).map((sale, idx) => (
                                                     <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
                                                         <td className="py-4 text-sm font-bold text-gray-600">
                                                             {formatDate(sale.date)}
                                                         </td>
                                                         <td className="py-4">
-                                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">
-                                                                {sale.productType}
-                                                            </span>
+                                                            {editingSalesId === sale._id ? (
+                                                                <select
+                                                                    value={editedData[sale._id]?.productType || sale.productType}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [sale._id]: { ...prev[sale._id], productType: e.target.value }
+                                                                    }))}
+                                                                    className="w-full px-2 py-1 text-[10px] font-black border-2 border-blue-500 rounded"
+                                                                >
+                                                                    <option value="Mushroom">🍄 Mushroom</option>
+                                                                    <option value="Seeds">🌱 Seeds</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">
+                                                                    {sale.productType}
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td className="py-4 text-sm font-black italic">
                                                             {editingSalesId === sale._id ? (
@@ -1278,20 +1392,83 @@ const Dashboard = () => {
                                                                 `${sale.quantity} ${sale.unit}`
                                                             )}
                                                         </td>
-                                                        <td className="py-4">
-                                                            <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sale.paymentType === 'Cash' ? 'bg-green-100 text-green-700' :
-                                                                sale.paymentType === 'GPay' ? 'bg-purple-100 text-purple-700' :
-                                                                    'bg-red-100 text-red-700'
-                                                                }`}>
-                                                                {sale.paymentType === 'Credit' ? 'Kadan' : sale.paymentType}
-                                                            </span>
+                                                        <td className="py-4 text-sm font-black">
+                                                            {editingSalesId === sale._id ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={editedData[sale._id]?.pricePerUnit || sale.pricePerUnit}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [sale._id]: { ...prev[sale._id], pricePerUnit: Number(e.target.value) }
+                                                                    }))}
+                                                                    className="w-16 px-2 py-1 text-sm font-black border-2 border-blue-500 rounded"
+                                                                />
+                                                            ) : (
+                                                                `₹${sale.pricePerUnit}`
+                                                            )}
                                                         </td>
-                                                        <td className="py-4 text-sm font-black text-green-600">₹{sale.totalAmount}</td>
                                                         <td className="py-4">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-black text-gray-800 uppercase">{sale.customerName}</span>
-                                                                <span className="text-[10px] font-bold text-gray-400">{sale.contactNumber}</span>
-                                                            </div>
+                                                            {editingSalesId === sale._id ? (
+                                                                <select
+                                                                    value={editedData[sale._id]?.paymentType || sale.paymentType}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [sale._id]: { ...prev[sale._id], paymentType: e.target.value }
+                                                                    }))}
+                                                                    className="w-full px-2 py-1 text-[9px] font-black border-2 border-blue-500 rounded"
+                                                                >
+                                                                    <option value="Cash">Cash</option>
+                                                                    <option value="GPay">GPay</option>
+                                                                    <option value="Credit">Kadan</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sale.paymentType === 'Cash' ? 'bg-green-100 text-green-700' :
+                                                                    sale.paymentType === 'GPay' ? 'bg-purple-100 text-purple-700' :
+                                                                        'bg-red-100 text-red-700'
+                                                                    }`}>
+                                                                    {sale.paymentType === 'Credit' ? 'Kadan' : sale.paymentType}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-4 text-sm font-black text-green-600">
+                                                            {editingSalesId === sale._id ? (
+                                                                <span className="text-sm font-black text-green-600">
+                                                                    ₹{(editedData[sale._id]?.quantity || sale.quantity) * (editedData[sale._id]?.pricePerUnit || sale.pricePerUnit)}
+                                                                </span>
+                                                            ) : (
+                                                                `₹${sale.totalAmount}`
+                                                            )}
+                                                        </td>
+                                                        <td className="py-4">
+                                                            {editingSalesId === sale._id ? (
+                                                                <div className="flex flex-col gap-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editedData[sale._id]?.customerName || sale.customerName}
+                                                                        onChange={(e) => setEditedData(prev => ({
+                                                                            ...prev,
+                                                                            [sale._id]: { ...prev[sale._id], customerName: e.target.value }
+                                                                        }))}
+                                                                        className="w-full px-2 py-1 text-[10px] font-black border-2 border-blue-500 rounded"
+                                                                        placeholder="Customer Name"
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editedData[sale._id]?.contactNumber || sale.contactNumber}
+                                                                        onChange={(e) => setEditedData(prev => ({
+                                                                            ...prev,
+                                                                            [sale._id]: { ...prev[sale._id], contactNumber: e.target.value }
+                                                                        }))}
+                                                                        className="w-full px-2 py-1 text-[10px] font-black border-2 border-blue-500 rounded"
+                                                                        placeholder="Contact Number"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-black text-gray-800 uppercase">{sale.customerName}</span>
+                                                                    <span className="text-[10px] font-bold text-gray-400">{sale.contactNumber}</span>
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="py-4 text-right flex gap-2 justify-end">
                                                             {editingSalesId === sale._id ? (
@@ -1300,12 +1477,21 @@ const Dashboard = () => {
                                                                         onClick={async () => {
                                                                             const updatedData = editedData[sale._id];
                                                                             if (updatedData) {
+                                                                                const quantity = updatedData.quantity || sale.quantity;
+                                                                                const pricePerUnit = updatedData.pricePerUnit || sale.pricePerUnit;
+                                                                                const totalAmount = quantity * pricePerUnit;
+
                                                                                 await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
                                                                                     method: 'PATCH',
                                                                                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                     body: JSON.stringify({
-                                                                                        quantity: updatedData.quantity || sale.quantity,
-                                                                                        totalAmount: (updatedData.quantity || sale.quantity) * sale.pricePerUnit
+                                                                                        productType: updatedData.productType || sale.productType,
+                                                                                        quantity: quantity,
+                                                                                        pricePerUnit: pricePerUnit,
+                                                                                        paymentType: updatedData.paymentType || sale.paymentType,
+                                                                                        totalAmount: totalAmount,
+                                                                                        customerName: updatedData.customerName || sale.customerName,
+                                                                                        contactNumber: updatedData.contactNumber || sale.contactNumber
                                                                                     })
                                                                                 });
                                                                                 setEditingSalesId(null);
@@ -1788,7 +1974,74 @@ const Dashboard = () => {
                                                 <td className={`py-4 font-black ${h.type === 'add' ? 'text-green-600' : 'text-red-500'}`}>
                                                     {h.type === 'add' ? '+' : '-'}{h.quantity} kg
                                                 </td>
-                                                <td className="py-4 text-gray-400 text-xs italic">{h.notes || '-'}</td>
+                                                <td className="py-4 text-gray-400 text-xs italic">
+                                                    {editingSeedIdx === idx ? (
+                                                        <input
+                                                            type="text"
+                                                            value={editedData[`seed-${idx}`]?.notes || h.notes || ''}
+                                                            onChange={(e) => setEditedData(prev => ({
+                                                                ...prev,
+                                                                [`seed-${idx}`]: { ...prev[`seed-${idx}`], notes: e.target.value }
+                                                            }))}
+                                                            className={`w-full px-2 py-1 text-xs border-2 rounded ${editingSeedIdx === idx ? 'border-blue-500' : 'border-gray-300'}`}
+                                                            readOnly={editingSeedIdx !== idx}
+                                                        />
+                                                    ) : (
+                                                        h.notes || '-'
+                                                    )}
+                                                </td>
+                                                <td className="py-4 flex gap-2">
+                                                    {editingSeedIdx === idx ? (
+                                                        <>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const item = inventory.find(i => i.itemName === 'Seeds');
+                                                                    const updatedNote = editedData[`seed-${idx}`]?.notes;
+                                                                    if (item && updatedNote !== undefined) {
+                                                                        await fetch(`http://localhost:5000/api/inventory/${item._id}/usage/${h._id}`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                            body: JSON.stringify({
+                                                                                quantity: h.quantity,
+                                                                                notes: updatedNote
+                                                                            })
+                                                                        });
+                                                                        setEditingSeedIdx(null);
+                                                                        setEditedData(prev => {
+                                                                            const newData = { ...prev };
+                                                                            delete newData[`seed-${idx}`];
+                                                                            return newData;
+                                                                        });
+                                                                        fetchData();
+                                                                    }
+                                                                }}
+                                                                className="text-green-600 font-black text-[10px] uppercase hover:underline"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setEditingSeedIdx(null);
+                                                                    setEditedData(prev => {
+                                                                        const newData = { ...prev };
+                                                                        delete newData[`seed-${idx}`];
+                                                                        return newData;
+                                                                    });
+                                                                }}
+                                                                className="text-orange-500 font-black text-[10px] uppercase hover:underline"
+                                                            >
+                                                                Reset
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => setEditingSeedIdx(idx)}
+                                                            className="text-blue-500 font-black text-[10px] uppercase hover:underline"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -2546,6 +2799,7 @@ const Dashboard = () => {
                             { id: 'overview', label: 'Overview', icon: FaChartBar },
                             { id: 'batches', label: 'Production', icon: FaLayerGroup },
                             { id: 'sales', label: 'Sales', icon: FaShoppingCart },
+                            { id: 'kadan', label: 'Kadan Ledger', icon: FaBook },
                             { id: 'expenditure', label: 'Expenditure', icon: FaMoneyBillWave },
                             { id: 'inventory', label: 'Inventory', icon: FaWarehouse },
                             { id: 'water', label: 'Water Status', icon: FaWater },

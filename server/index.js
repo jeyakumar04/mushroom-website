@@ -1035,6 +1035,13 @@ app.get('/api/admin/stats', auth, async (req, res) => {
         const expenditures = await Expenditure.find();
         const totalExpenditure = expenditures.reduce((sum, e) => sum + e.amount, 0);
 
+        // Calculate YTD Beds
+        const currentYear = new Date().getFullYear();
+        const startOfYear = new Date(currentYear, 0, 1);
+        const ytdBeds = await Batch.countDocuments({
+            bedDate: { $gte: startOfYear }
+        });
+
         res.json({
             totalRevenue: totalRevenue + totalSalesAmount,
             bookingCount,
@@ -1042,12 +1049,59 @@ app.get('/api/admin/stats', auth, async (req, res) => {
             orderCount: orders.length,
             totalSales: totalSalesAmount,
             totalExpenditure,
+            ytdBeds,
             netProfit: totalSalesAmount - totalExpenditure
         });
     } catch (error) {
         res.status(500).json({ message: 'Stats failed' });
     }
 });
+
+// --- EXCEL UTILITIES ---
+const createSheetWithHeader = (json, sheetTitle, subtitleContext) => {
+    const headerTitle = "TJP MUSHROOM FARMING";
+    const subTitle = `REPORT - ${subtitleContext} - ${sheetTitle.toUpperCase()}`;
+
+    // create upper case headers for data
+    const rows = json.map(row => {
+        const newRow = {};
+        for (let key in row) {
+            newRow[key.toUpperCase()] = row[key];
+        }
+        return newRow;
+    });
+
+    // Styles
+    const titleStyle = { font: { bold: true, sz: 16 } };
+    const subTitleStyle = { font: { bold: true, sz: 12 } };
+    const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
+
+    // Create initial sheet with Styled Cells
+    const wsData = [
+        [{ v: headerTitle, s: titleStyle }],
+        [{ v: subTitle, s: subTitleStyle }],
+        [] // spacer
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Append JSON data starting from A4 (headers will be at A4)
+    XLSX.utils.sheet_add_json(worksheet, rows, { origin: "A4" });
+
+    // Apply style to the Header Row (Row 4 which is index 3)
+    const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : { s: { r: 0, c: 0 }, e: { r: 3, c: 0 } };
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_cell({ r: 3, c: C }); // Row 4
+        if (!worksheet[address]) continue;
+        worksheet[address].s = headerStyle;
+    }
+
+    // Adjust column widths (auto-width basic approx)
+    const wscols = Object.keys(rows[0] || {}).map(() => ({ wch: 20 }));
+    if (wscols.length > 0) worksheet['!cols'] = wscols;
+
+    return worksheet;
+};
 
 // Initialize default alerts
 const initializeAlerts = async () => {
@@ -1569,51 +1623,7 @@ app.get('/api/export/:section', async (req, res) => {
             fileName = `TJP_Master_Report_${isYearly ? 'YEAR_' + year : month + '_' + year}.xlsx`;
             const workbook = XLSX.utils.book_new();
 
-            const createSheetWithHeader = (json, sheetTitle) => {
-                const headerTitle = "TJP MUSHROOM FARMING";
-                const subTitle = `MASTER REPORT - ${isYearly ? 'YEAR ' + year : month + '/' + year} - ${sheetTitle.toUpperCase()}`;
-
-                // create upper case headers for data
-                const rows = json.map(row => {
-                    const newRow = {};
-                    for (let key in row) {
-                        newRow[key.toUpperCase()] = row[key];
-                    }
-                    return newRow;
-                });
-
-                // Styles
-                const titleStyle = { font: { bold: true, sz: 16 } };
-                const subTitleStyle = { font: { bold: true, sz: 12 } };
-                const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
-
-                // Create initial sheet with Styled Cells
-                const wsData = [
-                    [{ v: headerTitle, s: titleStyle }],
-                    [{ v: subTitle, s: subTitleStyle }],
-                    [] // spacer
-                ];
-
-                const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-
-                // Append JSON data starting from A4 (headers will be at A4)
-                XLSX.utils.sheet_add_json(worksheet, rows, { origin: "A4" });
-
-                // Apply style to the Header Row (Row 4 which is index 3)
-                // We need to know the range to style the headers
-                const range = XLSX.utils.decode_range(worksheet['!ref']);
-                for (let C = range.s.c; C <= range.e.c; ++C) {
-                    const address = XLSX.utils.encode_cell({ r: 3, c: C }); // Row 4
-                    if (!worksheet[address]) continue;
-                    worksheet[address].s = headerStyle;
-                }
-
-                // Adjust column widths (auto-width basic approx)
-                const wscols = Object.keys(rows[0] || {}).map(() => ({ wch: 20 }));
-                worksheet['!cols'] = wscols;
-
-                return worksheet;
-            };
+            const subtitleContext = isYearly ? 'YEAR ' + year : month + '/' + year;
 
             // 1. SALES SHEET
             const salesData = await Sales.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
@@ -1627,7 +1637,7 @@ app.get('/api/export/:section', async (req, res) => {
                 Total: s.totalAmount,
                 Payment: s.paymentType,
                 Status: s.paymentStatus
-            })), "Sales");
+            })), "Sales", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, salesSheet, "Sales");
 
             // 2. EXPENDITURE SHEET
@@ -1639,7 +1649,7 @@ app.get('/api/export/:section', async (req, res) => {
                 Amount: e.amount,
                 Qty: e.quantity,
                 Unit: e.unit
-            })), "Expenses");
+            })), "Expenses", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, expSheet, "Expenses");
 
             // 3. INVENTORY & SEEDS
@@ -1653,7 +1663,7 @@ app.get('/api/export/:section', async (req, res) => {
                     }
                 });
             });
-            const invSheet = createSheetWithHeader(invLog, "Inventory Log");
+            const invSheet = createSheetWithHeader(invLog, "Inventory Log", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, invSheet, "Inventory Log");
 
             // 4. CLIMATE
@@ -1663,14 +1673,14 @@ app.get('/api/export/:section', async (req, res) => {
                 Temp: c.temperature,
                 Moist: c.moisture,
                 Notes: c.notes
-            })), "Climate");
+            })), "Climate", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, climSheet, "Climate");
 
             // 5. LOYALTY (Current Snapshot)
             const custData = await Customer.find();
             const loyalSheet = createSheetWithHeader(custData.map(c => ({
                 Name: c.name, Phone: c.contactNumber, Cycle: c.loyaltyCycleCount, Lifetime: c.lifetimePockets
-            })), "Loyalty Snapshot");
+            })), "Loyalty Snapshot", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, loyalSheet, "Loyalty Snapshot");
 
             // 6. WATER LOGS
@@ -1682,7 +1692,7 @@ app.get('/api/export/:section', async (req, res) => {
                 RemainingLevel: d.remainingLevel,
                 Percentage: d.percentage + '%',
                 Notes: d.notes || '-'
-            })), "Water Logs");
+            })), "Water Logs", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, waterSheet, "Water Logs");
 
             // 7. SEED SPECIFIC USAGE
@@ -1696,7 +1706,7 @@ app.get('/api/export/:section', async (req, res) => {
                     }
                 });
             }
-            const seedSheet = createSheetWithHeader(seedLog, "Seed Usage");
+            const seedSheet = createSheetWithHeader(seedLog, "Seed Usage", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, seedSheet, "Seed Usage");
 
             // Send
@@ -1752,29 +1762,7 @@ app.get('/api/export/:section', async (req, res) => {
             // Since createSheetWithHeader is defined inside the 'master' block, I should probably copy logic or refactor. 
             // For safety and speed, I will use standard styled creation here.
 
-            const ws = XLSX.utils.json_to_sheet(dailyData);
-
-            // Apply Styles manually for now or use a basic header
-            // Add Title
-            XLSX.utils.sheet_add_aoa(ws, [["TJP MUSHROOM FARMING"], [`MONTHLY REPORT - ${month}/${year}`]], { origin: "A1" });
-            XLSX.utils.sheet_add_json(ws, dailyData, { origin: "A4" });
-
-            // Styles
-            const titleStyle = { font: { bold: true, sz: 16 } };
-            const subStyle = { font: { bold: true, sz: 12 } };
-            const headStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
-
-            if (!ws['!rows']) ws['!rows'] = [];
-            ws['A1'].s = titleStyle;
-            ws['A2'].s = subStyle;
-
-            // Header row at A4 (index 3)
-            const range = XLSX.utils.decode_range(ws['!ref']);
-            for (let C = range.s.c; C <= range.e.c; ++C) {
-                const addr = XLSX.utils.encode_cell({ r: 3, c: C });
-                if (ws[addr]) ws[addr].s = headStyle;
-            }
-
+            const ws = createSheetWithHeader(dailyData, "Daily Breakdown", `${month}/${year}`);
             XLSX.utils.book_append_sheet(workbook, ws, "Daily Breakdown");
 
             const buffer = XLSX.write(workbook, { type: 'buffer' });
@@ -1816,25 +1804,7 @@ app.get('/api/export/:section', async (req, res) => {
                 });
             }
 
-            const ws = XLSX.utils.json_to_sheet(monthlyData);
-
-            // Styles
-            XLSX.utils.sheet_add_aoa(ws, [["TJP MUSHROOM FARMING"], [`YEARLY SUMMARY REPORT - ${year}`]], { origin: "A1" });
-            XLSX.utils.sheet_add_json(ws, monthlyData, { origin: "A4" });
-
-            const titleStyle = { font: { bold: true, sz: 16 } };
-            const subStyle = { font: { bold: true, sz: 12 } };
-            const headStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
-
-            ws['A1'].s = titleStyle;
-            ws['A2'].s = subStyle;
-
-            const range = XLSX.utils.decode_range(ws['!ref']);
-            for (let C = range.s.c; C <= range.e.c; ++C) {
-                const addr = XLSX.utils.encode_cell({ r: 3, c: C });
-                if (ws[addr]) ws[addr].s = headStyle;
-            }
-
+            const ws = createSheetWithHeader(monthlyData, "Yearly Summary", `${year}`);
             XLSX.utils.book_append_sheet(workbook, ws, "Yearly Summary");
 
             const buffer = XLSX.write(workbook, { type: 'buffer' });
