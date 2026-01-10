@@ -1627,29 +1627,39 @@ app.get('/api/export/:section', async (req, res) => {
 
             // 1. SALES SHEET
             const salesData = await Sales.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
-            const salesSheet = createSheetWithHeader(salesData.map(s => ({
-                Date: new Date(s.date).toLocaleDateString(),
-                Customer: s.customerName,
-                Product: s.productType,
-                Qty: s.quantity,
-                Unit: s.unit,
-                Price: s.pricePerUnit,
-                Total: s.totalAmount,
-                Payment: s.paymentType,
-                Status: s.paymentStatus
-            })), "Sales", subtitleContext);
+            const salesSheet = createSheetWithHeader(salesData.map(s => {
+                const d = new Date(s.date);
+                return {
+                    Date: d.getDate(),
+                    Month: d.getMonth() + 1,
+                    Year: d.getFullYear(),
+                    Customer: s.customerName,
+                    Product: s.productType,
+                    Qty: s.quantity,
+                    Unit: s.unit,
+                    Price: s.pricePerUnit,
+                    Total: s.totalAmount,
+                    Payment: s.paymentType,
+                    Status: s.paymentStatus
+                };
+            }), "Sales", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, salesSheet, "Sales");
 
             // 2. EXPENDITURE SHEET
             const expData = await Expenditure.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
-            const expSheet = createSheetWithHeader(expData.map(e => ({
-                Date: new Date(e.date).toLocaleDateString(),
-                Category: e.category,
-                Desc: e.description,
-                Amount: e.amount,
-                Qty: e.quantity,
-                Unit: e.unit
-            })), "Expenses", subtitleContext);
+            const expSheet = createSheetWithHeader(expData.map(e => {
+                const d = new Date(e.date);
+                return {
+                    Date: d.getDate(),
+                    Month: d.getMonth() + 1,
+                    Year: d.getFullYear(),
+                    Category: e.category,
+                    Desc: e.description,
+                    Amount: e.amount,
+                    Qty: e.quantity,
+                    Unit: e.unit
+                };
+            }), "Expenses", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, expSheet, "Expenses");
 
             // 3. INVENTORY & SEEDS
@@ -1659,7 +1669,15 @@ app.get('/api/export/:section', async (req, res) => {
                 inv.usageHistory.forEach(h => {
                     const hDate = new Date(h.date);
                     if (hDate >= startDate && hDate <= endDate) {
-                        invLog.push({ Date: hDate.toLocaleDateString(), Item: inv.itemName, Type: h.type, Qty: h.quantity, Notes: h.notes });
+                        invLog.push({
+                            Date: hDate.getDate(),
+                            Month: hDate.getMonth() + 1,
+                            Year: hDate.getFullYear(),
+                            Item: inv.itemName,
+                            Type: h.type,
+                            Qty: h.quantity,
+                            Notes: h.notes
+                        });
                     }
                 });
             });
@@ -1668,12 +1686,17 @@ app.get('/api/export/:section', async (req, res) => {
 
             // 4. CLIMATE
             const climData = await Climate.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
-            const climSheet = createSheetWithHeader(climData.map(c => ({
-                Date: new Date(c.date).toLocaleString(),
-                Temp: c.temperature,
-                Moist: c.moisture,
-                Notes: c.notes
-            })), "Climate", subtitleContext);
+            const climSheet = createSheetWithHeader(climData.map(c => {
+                const d = new Date(c.date);
+                return {
+                    Date: d.getDate(),
+                    Month: d.getMonth() + 1,
+                    Year: d.getFullYear(),
+                    Temp: c.temperature,
+                    Moist: c.moisture,
+                    Notes: c.notes
+                };
+            }), "Climate", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, climSheet, "Climate");
 
             // 5. LOYALTY (Current Snapshot)
@@ -1685,14 +1708,19 @@ app.get('/api/export/:section', async (req, res) => {
 
             // 6. WATER LOGS
             const waterData = await WaterLog.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
-            const waterSheet = createSheetWithHeader(waterData.map(d => ({
-                Date: new Date(d.date).toLocaleDateString(),
-                Type: d.type,
-                Liters: d.liters,
-                RemainingLevel: d.remainingLevel,
-                Percentage: d.percentage + '%',
-                Notes: d.notes || '-'
-            })), "Water Logs", subtitleContext);
+            const waterSheet = createSheetWithHeader(waterData.map(d => {
+                const dt = new Date(d.date);
+                return {
+                    Date: dt.getDate(),
+                    Month: dt.getMonth() + 1,
+                    Year: dt.getFullYear(),
+                    Type: d.type,
+                    Liters: d.liters,
+                    RemainingLevel: d.remainingLevel,
+                    Percentage: d.percentage + '%',
+                    Notes: d.notes || '-'
+                };
+            }), "Water Logs", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, waterSheet, "Water Logs");
 
             // 7. SEED SPECIFIC USAGE
@@ -1702,7 +1730,15 @@ app.get('/api/export/:section', async (req, res) => {
                 seedInv.usageHistory.forEach(h => {
                     const hDate = new Date(h.date);
                     if (hDate >= startDate && hDate <= endDate) {
-                        seedLog.push({ Date: hDate.toLocaleDateString(), Type: h.type, Qty: h.quantity, Unit: seedInv.unit, Notes: h.notes });
+                        seedLog.push({
+                            Date: hDate.getDate(),
+                            Month: hDate.getMonth() + 1,
+                            Year: hDate.getFullYear(),
+                            Type: h.type,
+                            Qty: h.quantity,
+                            Unit: seedInv.unit,
+                            Notes: h.notes
+                        });
                     }
                 });
             }

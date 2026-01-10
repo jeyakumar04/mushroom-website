@@ -1295,7 +1295,10 @@ const Dashboard = () => {
                                         <p className="text-2xl font-black text-purple-600">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
-                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear && s.paymentType === 'GPay';
+                                                const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                const matchesYear = d.getFullYear() === selectedYear;
+                                                const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                return matchesMonth && matchesYear && matchesDate && s.paymentType === 'GPay';
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
@@ -1304,7 +1307,10 @@ const Dashboard = () => {
                                         <p className="text-2xl font-black text-red-600">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
-                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear && s.paymentType === 'Credit';
+                                                const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                const matchesYear = d.getFullYear() === selectedYear;
+                                                const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                return matchesMonth && matchesYear && matchesDate && s.paymentType === 'Credit';
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
@@ -1313,7 +1319,10 @@ const Dashboard = () => {
                                         <p className="text-2xl font-black">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
-                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
+                                                const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                const matchesYear = d.getFullYear() === selectedYear;
+                                                const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                return matchesMonth && matchesYear && matchesDate;
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
@@ -1534,10 +1543,13 @@ const Dashboard = () => {
                                                     </tr>
                                                 ))}
                                                 <tr className="bg-gray-800 text-white font-black text-xs">
-                                                    <td colSpan="3" className="py-4 px-6 uppercase tracking-widest">Total Sales ({selectedMonth}/{selectedYear})</td>
+                                                    <td colSpan="3" className="py-4 px-6 uppercase tracking-widest">Total Sales ({selectedDate ? `${selectedDate}/` : ''}{selectedMonth}/{selectedYear})</td>
                                                     <td className="py-4">₹{sales.filter(s => {
                                                         const d = new Date(s.date);
-                                                        return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
+                                                        const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                        const matchesYear = d.getFullYear() === selectedYear;
+                                                        const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                        return matchesMonth && matchesYear && matchesDate;
                                                     }).reduce((sum, s) => sum + s.totalAmount, 0)}</td>
                                                     <td></td>
                                                     <td></td>
@@ -1562,6 +1574,10 @@ const Dashboard = () => {
                                         <FaReceipt className="text-red-500" /> Record Expense
                                     </h3>
                                     <div className="flex items-center gap-2">
+                                        <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="text-xs font-bold border rounded-lg px-2 py-1">
+                                            <option value="">All Dates</option>
+                                            {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
                                         <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
                                         </select>
@@ -2234,10 +2250,14 @@ const Dashboard = () => {
                                         <FaCalendarAlt className="text-blue-500" /> Climate Table
                                     </h3>
                                     <div className="flex items-center gap-2">
-                                        <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
+                                        <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
+                                            <option value="">All Dates</option>
+                                            {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                        <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
                                         </select>
-                                        <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
+                                        <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
                                             {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                                         </select>
                                         <button
@@ -2260,7 +2280,13 @@ const Dashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {climateData.map((c, idx) => (
+                                            {climateData.filter(c => {
+                                                const d = new Date(c.date);
+                                                const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                const matchesYear = d.getFullYear() === selectedYear;
+                                                const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                return matchesMonth && matchesYear && matchesDate;
+                                            }).map((c, idx) => (
                                                 <tr key={idx} className="border-b border-gray-50">
                                                     <td className="py-4 font-bold text-gray-600">{formatDate(c.date)}</td>
                                                     <td className="py-4 font-black text-red-500">{c.temperature}°C</td>
