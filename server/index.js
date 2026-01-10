@@ -5,6 +5,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// --- SYSTEM TIMEZONE ---
+process.env.TZ = 'Asia/Kolkata';
+
 const Booking = require('./models/Booking');
 const Admin = require('./models/Admin');
 const Order = require('./models/Order');
@@ -16,6 +19,7 @@ const Alert = require('./models/Alert');
 const Batch = require('./models/Batch');
 const Climate = require('./models/Climate');
 const Contact = require('./models/Contact');
+const WaterLog = require('./models/WaterLog');
 const Settings = mongoose.model('Settings', new mongoose.Schema({ key: String, value: mongoose.Schema.Types.Mixed }));
 
 // --- NOTIFICATION HISTORY TRACKING ---
@@ -57,6 +61,12 @@ const auth = async (req, res, next) => {
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
 app.use('/public', express.static('public'));
 
 // --- SETTINGS (Water Check & Others) ---
@@ -82,33 +92,111 @@ app.get('/api/settings/water-check', auth, async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch settings' });
     }
 });
+
+// --- WATER SYSTEM ENDPOINTS ---
+app.get('/api/water/status', auth, async (req, res) => {
+    try {
+        const capacity = 5000;
+        const levelSetting = await Settings.findOne({ key: 'currentWaterLevel' });
+        const lastCheck = await Settings.findOne({ key: 'lastWaterCheck' });
+
+        const currentLevel = levelSetting ? Number(levelSetting.value) : capacity;
+        const percentage = (currentLevel / capacity) * 100;
+
+        res.json({
+            currentLevel,
+            capacity,
+            percentage: Math.round(percentage),
+            lastCheck: lastCheck ? lastCheck.value : null,
+            isLow: percentage < 20
+        });
+    } catch (err) {
+        res.status(500).json({ message: 'Water status failed' });
+    }
+});
+
+app.post('/api/water/refill', auth, async (req, res) => {
+    try {
+        const capacity = 5000;
+        await Settings.findOneAndUpdate({ key: 'currentWaterLevel' }, { value: capacity }, { upsert: true });
+
+        // Log refill
+        const log = new WaterLog({
+            type: 'refill',
+            liters: capacity,
+            remainingLevel: capacity,
+            percentage: 100,
+            notes: 'Manual Tank Refill to 5000L'
+        });
+        await log.save();
+
+        res.json({ message: 'Tank Refilled to 5000L', currentLevel: capacity });
+    } catch (err) {
+        res.status(500).json({ message: 'Refill failed' });
+    }
+});
+
+app.get('/api/water/logs', auth, async (req, res) => {
+    try {
+        const logs = await WaterLog.find().sort({ date: -1 }).limit(100);
+        res.json(logs);
+    } catch (err) {
+        res.status(500).json({ message: 'Fetch logs failed' });
+    }
+});
 const fs = require('fs');
 const path = require('path');
 
 
 
 // --- CLIMATE TRACKING ---
-app.post('/api/climate', auth, async (req, res) => {
-    try {
-        const { temperature, humidity, lightStatus, coolingSystem } = req.body;
-        const newClimate = new Climate({ temperature, humidity, lightStatus, coolingSystem });
-        await newClimate.save();
-        res.status(201).json(newClimate);
-    } catch (error) {
-        res.status(500).json({ message: 'Climate record failed' });
-    }
-});
-
-app.get('/api/climate', auth, async (req, res) => {
-    try {
-        const data = await Climate.find().sort({ timestamp: -1 }).limit(50);
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ message: 'Fetch climate failed' });
-    }
-});
+// Duplicate removed. Unified with endpoint at line 426.
 
 // --- AUTH & ADMIN ---
+const { getLatestQr, isClientReady, sendImage } = require('./services/whatsappService');
+
+// ... (other routes)
+
+// --- SEND DIGITAL BILL (SERVER-SIDE) ---
+app.post('/api/send-digital-bill', async (req, res) => {
+    try {
+        const { image, contactNumber, customerName } = req.body;
+
+        if (!image || !contactNumber) {
+            return res.status(400).json({ success: false, message: 'Missing image or contact' });
+        }
+
+        const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${customerName}! 👋\n\n(Generated Automatically 🤖)\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄`;
+
+        const result = await sendImage(contactNumber, image, caption);
+
+        if (result.success) {
+            res.json({ success: true, message: 'Bill Sent Successfully' });
+        } else {
+            res.status(500).json({ success: false, message: result.error || 'Failed to send' });
+        }
+    } catch (error) {
+        console.error("Bill Send API Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+app.get('/api/admin/whatsapp-status', async (req, res) => {
+    try {
+        if (isClientReady()) {
+            return res.json({ status: 'connected', message: 'WhatsApp is active' });
+        }
+
+        const qr = getLatestQr();
+        if (qr) {
+            return res.json({ status: 'scan_needed', qrCode: qr });
+        }
+
+        res.json({ status: 'initializing', message: 'Please wait for QR generation...' });
+    } catch (err) {
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
 app.post('/api/admin/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -156,7 +244,7 @@ app.patch('/api/bookings/:id/status', auth, async (req, res) => {
 // --- SALES TRACKING ---
 app.post('/api/sales', auth, async (req, res) => {
     try {
-        const { productType, quantity, unit, pricePerUnit, customerName, contactNumber } = req.body;
+        const { productType, quantity, unit, pricePerUnit, customerName, contactNumber, date } = req.body;
         const totalAmount = quantity * pricePerUnit;
 
         const newSale = new Sales({
@@ -166,7 +254,8 @@ app.post('/api/sales', auth, async (req, res) => {
             pricePerUnit,
             totalAmount,
             customerName,
-            contactNumber
+            contactNumber,
+            date: date || Date.now()
         });
         await newSale.save();
 
@@ -274,10 +363,20 @@ app.post('/api/customers/:id/reset-loyalty', auth, async (req, res) => {
 // --- CLIMATE TRACKING ---
 app.post('/api/climate', auth, async (req, res) => {
     try {
+        const { temperature, humidity, co2, notes } = req.body;
         const newEntry = new Climate(req.body);
+
+        // --- AUTOMATION ALERTS ---
+        if (temperature > 32) {
+            const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+            const msg = `🛑 *HIGH TEMP ALERT*\n\nTemp: ${temperature}°C\nNotes: ${notes || 'No data'}\n\nPlease check the farm!`;
+            for (const p of adminPhones) await sendMessage(p.trim(), msg);
+        }
+
         await newEntry.save();
         res.status(201).json(newEntry);
     } catch (error) {
+        console.error("Climate Save Error:", error);
         res.status(500).json({ message: 'Climate entry failed' });
     }
 });
@@ -299,6 +398,9 @@ app.patch('/api/edit/:model/:id', auth, async (req, res) => {
         if (model === 'sales') Model = Sales;
         else if (model === 'expenditure') Model = Expenditure;
         else if (model === 'inventory') Model = Inventory;
+        else if (model === 'climate') Model = Climate;
+        else if (model === 'alerts') Model = Alert;
+        else if (model === 'batches') Model = Batch;
         else return res.status(400).json({ message: 'Invalid model' });
 
         const updated = await Model.findByIdAndUpdate(id, req.body, { new: true });
@@ -314,6 +416,9 @@ app.delete('/api/delete/:model/:id', auth, async (req, res) => {
         let Model;
         if (model === 'sales') Model = Sales;
         else if (model === 'expenditure') Model = Expenditure;
+        else if (model === 'climate') Model = Climate;
+        else if (model === 'alerts') Model = Alert;
+        else if (model === 'batches') Model = Batch;
         else return res.status(400).json({ message: 'Invalid model' });
 
         await Model.findByIdAndDelete(id);
@@ -527,6 +632,59 @@ app.patch('/api/inventory/:id/starting-stock', auth, async (req, res) => {
     }
 });
 
+// Delete Usage History Item
+app.delete('/api/inventory/:id/usage/:usageId', auth, async (req, res) => {
+    try {
+        const item = await Inventory.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+
+        const usageIndex = item.usageHistory.findIndex(h => h._id.toString() === req.params.usageId);
+        if (usageIndex === -1) return res.status(404).json({ message: 'Usage record not found' });
+
+        const usage = item.usageHistory[usageIndex];
+        // Reverse stock change
+        if (usage.type === 'use') item.currentStock += usage.quantity;
+        else if (usage.type === 'add') item.currentStock -= usage.quantity;
+
+        item.usageHistory.splice(usageIndex, 1);
+        await item.save();
+        res.json({ message: 'Usage record deleted and stock adjusted', item });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Delete failed' });
+    }
+});
+
+// Update Usage History Item
+app.patch('/api/inventory/:id/usage/:usageId', auth, async (req, res) => {
+    try {
+        const item = await Inventory.findById(req.params.id);
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+
+        const usage = item.usageHistory.id(req.params.usageId);
+        if (!usage) return res.status(404).json({ message: 'Usage record not found' });
+
+        const { quantity, notes } = req.body;
+        const newQty = Number(quantity);
+
+        // Adjust stock based on OLD and NEW quantity
+        if (usage.type === 'use') {
+            item.currentStock += usage.quantity; // undo old
+            item.currentStock -= newQty; // apply new
+        } else if (usage.type === 'add') {
+            item.currentStock -= usage.quantity; // undo old
+            item.currentStock += newQty; // apply new
+        }
+
+        usage.quantity = newQty;
+        usage.notes = notes;
+        await item.save();
+        res.json({ message: 'Usage record updated and stock adjusted', item });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Update failed' });
+    }
+});
 // --- ROUTINE ALERTS ---
 app.get('/api/alerts', auth, async (req, res) => {
     try {
@@ -844,6 +1002,13 @@ const initializeInventory = async () => {
             { itemName: 'Hanging Bags (Pockets)', startingStock: 100, currentStock: 100, unit: 'pockets' }
         ]);
         console.log('✅ Default inventory items created');
+    }
+
+    // Initialize Water Level (5000L)
+    const waterSetting = await Settings.findOne({ key: 'currentWaterLevel' });
+    if (!waterSetting) {
+        await new Settings({ key: 'currentWaterLevel', value: 5000 }).save();
+        console.log('✅ Default water level (5000L) initialized');
     }
 };
 
@@ -1196,6 +1361,32 @@ app.get('/api/admin/notification-logs', auth, async (req, res) => {
 });
 
 // --- TEST ALARM ENDPOINT ---
+app.get('/api/test/fan', async (req, res) => {
+    try {
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+        const scenarios = [
+            { title: "💨 FAN STATUS: INTAKE ON", msg: "✅ Fresh Air Fan (Fan In) has been turned ON.\nReason: CO2 levels high." },
+            { title: "🛑 FAN STATUS: EXHAUST ON", msg: "⚠️ Exhaust Fan (Fan Out) has been turned ON.\nReason: Temperature above limit (30°C)." },
+            { title: "🔕 FAN STATUS: ALL OFF", msg: "✅ All Fans have been turned OFF.\nClimate conditions are stable." }
+        ];
+
+        console.log("🚀 Manually triggering Fan Notification Test...");
+
+        for (const phone of adminPhones) {
+            const p = phone.trim();
+            for (const scenario of scenarios) {
+                const waMessage = `🔔 *TJP ALERT: ${scenario.title}*\n\n${scenario.msg}\n\nTime: ${new Date().toLocaleTimeString()}`;
+                await sendMessage(p, waMessage);
+                await new Promise(r => setTimeout(r, 2000));
+            }
+        }
+        res.json({ success: true, message: "Fan notifications sent to " + adminPhones.join(', ') });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/test-alarm', async (req, res) => {
     const adminPhones = (process.env.ADMIN_PHONE || '9500591897').split(',').map(p => p.trim());
     const message = `🔔 *TJP TEST ALARM* 🔔\n\nThis is a sample notification test.\nTime: ${new Date().toLocaleTimeString()}\n\nStatus: System working perfectly! 🍄`;
@@ -1207,6 +1398,40 @@ app.get('/api/test-alarm', async (req, res) => {
         res.json({ message: 'Test alarm sent to all phones!' });
     } catch (error) {
         res.status(500).json({ message: 'Test failed' });
+    }
+});
+
+app.get('/api/test-all', async (req, res) => {
+    const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',').map(p => p.trim());
+
+    const scenarios = [
+        {
+            msg: "🛑 *CRITICAL: Climate Control*\n\n⚠️ High Temperature Alert! (32°C)\nAction: Exhaust Fan Turned ON automatically.\nMist system activated."
+        },
+        {
+            msg: "💧 *WATER LEVEL LOW*\n\n⚠️ Water Drum 1 is below 20%.\nPlease refill immediately to ensure misting works."
+        },
+        {
+            msg: "🍄 *BED TRACKING*\n\n📅 Batch A-1 Recommendation:\nIt is Day 16. Inspect beds for pinhead formation today."
+        },
+        {
+            msg: "🎉 *LOYALTY REWARD*\n\nUser *Ravi* has reached 10 pockets!\nEligible for 1 FREE pocket."
+        }
+    ];
+
+    try {
+        let count = 0;
+        for (const phone of adminPhones) {
+            for (const scenario of scenarios) {
+                await sendMessage(phone, scenario.msg);
+                // Small delay to prevent spam block
+                await new Promise(r => setTimeout(r, 2000));
+            }
+            count++;
+        }
+        res.json({ message: `Sent ${scenarios.length} sample alerts to ${count} admins!` });
+    } catch (error) {
+        res.status(500).json({ message: 'Full test failed' });
     }
 });
 
@@ -1229,6 +1454,50 @@ app.get('/api/test-ifttt', async (req, res) => {
     const { sendIFTTTCall } = require('./services/voiceService');
     const result = await sendIFTTTCall("TJP System Test: Free Voice Call via IFTTT working!");
     res.json(result);
+});
+
+// --- DAILY WATER USAGE CALCULATION ---
+// Deducts 260L daily based on 13 sprays * 2 mins * 10 LPM assumption
+cron.schedule('0 0 * * *', async () => {
+    try {
+        const capacity = 5000;
+        const dailyUsage = 13 * 2 * 10; // 260 Liters
+
+        let levelSetting = await Settings.findOne({ key: 'currentWaterLevel' });
+        let currentLevel = levelSetting ? Number(levelSetting.value) : capacity;
+
+        currentLevel = Math.max(0, currentLevel - dailyUsage);
+
+        await Settings.findOneAndUpdate(
+            { key: 'currentWaterLevel' },
+            { value: currentLevel },
+            { upsert: true }
+        );
+
+        const WaterLog = require('./models/WaterLog');
+        const log = new WaterLog({
+            type: 'usage',
+            liters: dailyUsage,
+            remainingLevel: currentLevel,
+            percentage: (currentLevel / capacity) * 100,
+            notes: 'Daily Automated Spray Usage (13 cycles)'
+        });
+        await log.save();
+
+        console.log(`💧 Daily Water Deducted: ${dailyUsage}L. Current: ${currentLevel}L`);
+
+        // Alert if below 20%
+        if (currentLevel < (capacity * 0.2)) {
+            const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+            const msg = `⚠️ *TJP WATER ALERT*\n\nTank Level is Low: *${Math.round((currentLevel / capacity) * 100)}%* (${currentLevel}L).\nPlease Refill Soon!`;
+            const { sendMessage } = require('./services/whatsappService');
+            for (const phone of adminPhones) {
+                await sendMessage(phone.trim(), msg);
+            }
+        }
+    } catch (err) {
+        console.error('Water Cron Error:', err);
+    }
 });
 
 // --- MONTHLY AUTOMATED REPORT SCHEDULER ---
@@ -1264,17 +1533,28 @@ cron.schedule('59 23 28-31 * *', async () => {
 
 
 const MONGODB_URI = process.env.MONGODB_URI;
-mongoose.connect(MONGODB_URI)
+
+mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 30000, // Increased to 30s
+    socketTimeoutMS: 45000,
+    family: 4 // Force IPv4 to avoid DNS issues
+})
     .then(async () => {
         console.log('✅ Connected to managementDB');
         const adminCount = await Admin.countDocuments();
         if (adminCount === 0) await new Admin({ username: 'admin', password: 'password123' }).save();
         await initializeAlerts();
         await initializeInventory();
-        startAlarmScheduler(); // Start the background phone alarm
-        app.listen(PORT, () => console.log(`🚀 Server is live on port ${PORT}`));
+        startAlarmScheduler();
+        app.listen(PORT, () => {
+            console.log(`🚀 Server is live on port ${PORT}`);
+            console.log(`📱 NOTE: Check terminal for WhatsApp QR Code if not connected yet.`);
+        });
     })
     .catch(err => {
         console.error('❌ MongoDB Connection Error:', err.message);
+        if (err.message.includes('IP whitelist')) {
+            console.error('👉 ACTION REQUIRED: Add 0.0.0.0/0 or your current IP to MongoDB Atlas Access List.');
+        }
         process.exit(1);
     });

@@ -31,7 +31,14 @@ const Dashboard = () => {
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const [climateData, setClimateData] = useState([]);
-    const [climateForm, setClimateForm] = useState({ temperature: 28, moisture: 80, notes: '' });
+    const [cTemp, setCTemp] = useState('');
+    const [cMoist, setCMoist] = useState('');
+    const [cNotes, setCNotes] = useState('');
+    const [entryDate, setEntryDate] = useState({
+        day: new Date().getDate(),
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear()
+    });
 
     // Form States
     const [saleForm, setSaleForm] = useState({
@@ -270,17 +277,44 @@ const Dashboard = () => {
                 customer: { loyaltyCount: loyaltyUpdate?.currentCycle || 0 }
             });
 
-            // Brief pause for render
-            await new Promise(r => setTimeout(r, 600));
+            // 1. Generate the image blob
+            await new Promise(r => setTimeout(r, 600)); // Wait for render
+            const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            const file = new File([blob], `TJP_Bill_${sale.customerName}.png`, { type: 'image/png' });
 
-            const dataUrl = await toPng(billRef.current, {
-                cacheBust: true,
-                backgroundColor: '#CBCCCB',
-                pixelRatio: 3
-            });
+            // 2. Try Native Sharing (Works best on Mobile - Sends actual IMAGE, not link)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'TJP Mushroom Bill',
+                        text: `வணக்கம் ${sale.customerName}! TJP மஷ்ரூம் பார்மிங்-லிருந்து உங்கள் டிஜிட்டல் பில். 🍄`
+                    });
+                    setIsGeneratingBill(false);
+                    return; // Stop here if share worked
+                } catch (err) {
+                    console.log('Share cancelled or failed, falling back...');
+                }
+            }
 
-            // 1. Upload to server to get a public URL
-            const uploadRes = await fetch('http://localhost:5000/api/upload-bill', {
+            // 3. Desktop Fallback: Copy to Clipboard + Open Chat
+            try {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+                alert("✨ Bill Image Copied! \n\nWhatsApp will open now.\nJust PASTE (Ctrl+V) to send.");
+            } catch (err) {
+                console.log('Clipboard failed');
+            }
+
+            // Open WhatsApp Chat (Ready for Paste)
+            const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${sale.customerName}! 👋\n\n(Image Attached Above 🖼️)\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄`;
+            window.open(`https://wa.me/91${sale.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(caption)}`, '_blank');
+
+            // Fallback: Also download/upload just in case
+            await fetch('http://localhost:5000/api/upload-bill', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -288,21 +322,10 @@ const Dashboard = () => {
                     customerName: sale.customerName
                 })
             });
-            const { imageUrl } = await uploadRes.json();
-
-            // 2. Open WhatsApp with image link
-            const message = `✅ *TJP MUSHROOM FARM - DIGITAL BILL*\n\nவணக்கம் *${sale.customerName}*! 👋\nTJP மஷ்ரூம் பார்மிங் லிருந்து உங்கள் டிஜிட்டல் பில் இதோ.\n\n📄 *Bill Link:* ${imageUrl}\n\nநன்றி! மீண்டும் வருக! 🙏✨`;
-            window.open(`https://wa.me/91${sale.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
-
-            // 3. Fallback Download
-            const link = document.createElement('a');
-            link.download = `TJP_Bill_${sale.customerName}.png`;
-            link.href = dataUrl;
-            link.click();
 
         } catch (err) {
             console.error('Bill Error:', err);
-            alert('Bill image generation failed');
+            alert('Bill generation failed');
         } finally {
             setIsGeneratingBill(false);
         }
@@ -358,17 +381,36 @@ const Dashboard = () => {
     // Climate Submit
     const handleClimateSubmit = async (e) => {
         e.preventDefault();
+        const temp = Number(cTemp);
+        const moist = Number(cMoist);
+        const notesValue = cNotes.trim();
+
+        if (!cTemp || !cMoist || !notesValue) {
+            alert("🛑 ALL FIELDS REQUIRED: Temp, Moisture, and Observations cannot be empty!");
+            return;
+        }
+
+        const payload = {
+            temperature: temp,
+            moisture: moist,
+            humidity: moist,
+            notes: notesValue,
+            date: new Date(entryDate.year, entryDate.month - 1, entryDate.day)
+        };
+
         try {
             const res = await fetch('http://localhost:5000/api/climate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(climateForm)
+                body: JSON.stringify(payload)
             });
             if (res.ok) {
-                setClimateForm({ temperature: 28, moisture: 80, notes: '' });
+                setCTemp(''); setCMoist(''); setCNotes('');
                 fetchData();
+            } else {
+                alert('Server rejected entry');
             }
-        } catch (err) { alert('Entry failed'); }
+        } catch (err) { alert('Entry failed: Connection Issue'); }
     };
 
     // ALERT HANDLERS
@@ -1404,31 +1446,55 @@ const Dashboard = () => {
                     <div className="space-y-8 animate-fadeIn">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="bg-white rounded-3xl p-8 shadow-xl">
-                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
-                                    <FaFan className="text-blue-400" /> Climate Capture
-                                </h3>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                        <FaFan className="text-blue-400" /> Climate Capture
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <select value={entryDate.day} onChange={e => setEntryDate({ ...entryDate, day: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
+                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                        <select value={entryDate.month} onChange={e => setEntryDate({ ...entryDate, month: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
+                                            {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
                                 <form onSubmit={handleClimateSubmit} className="space-y-5">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Temp (°C)</label>
                                             <input
-                                                type="number"
-                                                value={climateForm.temperature}
-                                                onChange={e => setClimateForm({ ...climateForm, temperature: Number(e.target.value) })}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800"
+                                                type="text"
+                                                value={cTemp}
+                                                onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCTemp(e.target.value) }}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                                placeholder="28.0"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Moisture (%)</label>
+                                            <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Moist (%)</label>
                                             <input
-                                                type="number"
-                                                value={climateForm.moisture}
-                                                onChange={e => setClimateForm({ ...climateForm, moisture: Number(e.target.value) })}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800"
+                                                type="text"
+                                                value={cMoist}
+                                                onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCMoist(e.target.value) }}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                                placeholder="80"
                                             />
                                         </div>
                                     </div>
-                                    <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg">
+                                    <div className="mt-4">
+                                        <label className="text-xs font-black uppercase text-blue-600 block mb-2 flex items-center gap-2">
+                                            <FaHistory className="text-[10px]" /> Observations
+                                        </label>
+                                        <textarea
+                                            value={cNotes}
+                                            onChange={(e) => setCNotes(e.target.value)}
+                                            className="w-full bg-white border-2 border-blue-50 rounded-xl px-4 py-3 font-bold text-gray-800 h-32 focus:border-blue-400 outline-none transition-all"
+                                            placeholder="Detailed observations..."
+                                        />
+                                        <p className="text-[9px] font-bold text-blue-400 mt-1 uppercase tracking-widest italic">Status: <span className="text-green-500 font-black">ACTIVE & SYNCED</span></p>
+                                    </div>
+                                    <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all">
                                         Add Reading
                                     </button>
                                 </form>
@@ -1443,8 +1509,9 @@ const Dashboard = () => {
                                             <tr className="border-b text-xs text-gray-400 font-black">
                                                 <th className="py-4 text-left">Date</th>
                                                 <th className="py-4 text-left">Temp</th>
-                                                <th className="py-4 text-left">Moisture</th>
-                                                <th className="py-4 text-left">Notes</th>
+                                                <th className="py-4 text-left">Moist</th>
+                                                <th className="py-4 text-left">Observations</th>
+                                                <th className="py-4 text-left">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1452,8 +1519,31 @@ const Dashboard = () => {
                                                 <tr key={idx} className="border-b border-gray-50">
                                                     <td className="py-4 font-bold text-gray-600">{formatDate(c.date)}</td>
                                                     <td className="py-4 font-black text-red-500">{c.temperature}°C</td>
-                                                    <td className="py-4 font-black text-blue-600">{c.moisture}%</td>
-                                                    <td className="py-4 text-gray-400">{c.notes || '-'}</td>
+                                                    <td className="py-4 font-black text-blue-600">{c.moisture || c.humidity}%</td>
+                                                    <td className="py-4 text-gray-700 font-medium text-sm border-l border-gray-50 pl-4 bg-gray-50/10">
+                                                        <div className="max-w-[300px] break-words">
+                                                            {c.notes || <span className="text-gray-300 italic">No notes</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 flex gap-2">
+                                                        <button
+                                                            onClick={async () => {
+                                                                const nt = prompt("Edit Temp:", c.temperature);
+                                                                const nm = prompt("Edit Moist:", c.moisture);
+                                                                const nn = prompt("Edit Notes:", c.notes);
+                                                                if (nt && nm && nn) {
+                                                                    await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
+                                                                        method: 'PATCH',
+                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                        body: JSON.stringify({ temperature: Number(nt), moisture: Number(nm), notes: nn })
+                                                                    });
+                                                                    fetchData();
+                                                                }
+                                                            }}
+                                                            className="text-blue-600 font-black text-[10px] uppercase"
+                                                        >Edit</button>
+                                                        <button onClick={() => handleDelete('climate', c._id)} className="text-red-500 font-black text-[10px] uppercase">Del</button>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -1826,18 +1916,19 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen bg-[#CBCCCB]">
             {/* Header */}
-            <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white py-8 shadow-2xl">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight">
+            {/* Header */}
+            <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white py-6 md:py-8 shadow-2xl">
+                <div className="max-w-7xl mx-auto px-4 md:px-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="text-center md:text-left">
+                            <h1 className="text-2xl md:text-5xl font-black uppercase tracking-tight">
                                 TJP MUSHROOM FARMING
                             </h1>
-                            <p className="text-gray-400 font-bold mt-1">Management Dashboard v5.0</p>
+                            <p className="text-gray-400 font-bold mt-1 text-xs md:text-base">Management Dashboard v5.0</p>
                         </div>
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center justify-center md:justify-end gap-4 md:gap-6">
                             <div className="hidden lg:flex items-center gap-2 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-full">
                                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
                                 <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">System Live & Monitoring</span>
@@ -1846,7 +1937,7 @@ const Dashboard = () => {
                                 <p className="text-xs font-bold text-gray-400 uppercase">Current Time</p>
                                 <p className="text-xl font-black">{currentTime.toLocaleTimeString()}</p>
                             </div>
-                            <FaShieldAlt className="text-4xl text-amber-500" />
+                            <FaShieldAlt className="text-3xl md:text-4xl text-amber-500" />
                         </div>
                     </div>
                 </div>
