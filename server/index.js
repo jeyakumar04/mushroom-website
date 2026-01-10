@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const XLSX = require('xlsx');
+const XLSX = require('xlsx-js-style');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
@@ -145,6 +145,38 @@ app.get('/api/water/logs', auth, async (req, res) => {
         res.json(logs);
     } catch (err) {
         res.status(500).json({ message: 'Fetch logs failed' });
+    }
+});
+
+app.post('/api/water/spray', auth, async (req, res) => {
+    try {
+        const capacity = 5000;
+        const sprayUsage = 20;
+
+        let levelSetting = await Settings.findOne({ key: 'currentWaterLevel' });
+        let currentLevel = levelSetting ? Number(levelSetting.value) : capacity;
+
+        currentLevel = Math.max(0, currentLevel - sprayUsage);
+
+        await Settings.findOneAndUpdate(
+            { key: 'currentWaterLevel' },
+            { value: currentLevel },
+            { upsert: true }
+        );
+
+        // Log the manual spray
+        const log = new WaterLog({
+            type: 'usage',
+            liters: sprayUsage,
+            remainingLevel: currentLevel,
+            percentage: Math.round((currentLevel / capacity) * 100),
+            notes: 'Manual Spray Trigger'
+        });
+        await log.save();
+
+        res.json({ message: 'Manual spray triggered', currentLevel, percentage: Math.round((currentLevel / capacity) * 100) });
+    } catch (err) {
+        res.status(500).json({ message: 'Spray failed' });
     }
 });
 
@@ -1522,7 +1554,295 @@ app.get('/api/export/:section', async (req, res) => {
         let sheetName = '';
         let fileName = '';
 
-        if (section === 'water') {
+        if (section === 'master' || section === 'master-year') {
+            const isYearly = section === 'master-year';
+            if (isYearly) {
+                // Override dates for full year (Jan 1 to Dec 31)
+                month = 'Full Year';
+                startDate.setMonth(0); startDate.setDate(1);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setMonth(11); endDate.setDate(31);
+                endDate.setHours(23, 59, 59, 999);
+            }
+
+            sheetName = 'Master Report';
+            fileName = `TJP_Master_Report_${isYearly ? 'YEAR_' + year : month + '_' + year}.xlsx`;
+            const workbook = XLSX.utils.book_new();
+
+            const createSheetWithHeader = (json, sheetTitle) => {
+                const headerTitle = "TJP MUSHROOM FARMING";
+                const subTitle = `MASTER REPORT - ${isYearly ? 'YEAR ' + year : month + '/' + year} - ${sheetTitle.toUpperCase()}`;
+
+                // create upper case headers for data
+                const rows = json.map(row => {
+                    const newRow = {};
+                    for (let key in row) {
+                        newRow[key.toUpperCase()] = row[key];
+                    }
+                    return newRow;
+                });
+
+                // Styles
+                const titleStyle = { font: { bold: true, sz: 16 } };
+                const subTitleStyle = { font: { bold: true, sz: 12 } };
+                const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
+
+                // Create initial sheet with Styled Cells
+                const wsData = [
+                    [{ v: headerTitle, s: titleStyle }],
+                    [{ v: subTitle, s: subTitleStyle }],
+                    [] // spacer
+                ];
+
+                const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+
+                // Append JSON data starting from A4 (headers will be at A4)
+                XLSX.utils.sheet_add_json(worksheet, rows, { origin: "A4" });
+
+                // Apply style to the Header Row (Row 4 which is index 3)
+                // We need to know the range to style the headers
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const address = XLSX.utils.encode_cell({ r: 3, c: C }); // Row 4
+                    if (!worksheet[address]) continue;
+                    worksheet[address].s = headerStyle;
+                }
+
+                // Adjust column widths (auto-width basic approx)
+                const wscols = Object.keys(rows[0] || {}).map(() => ({ wch: 20 }));
+                worksheet['!cols'] = wscols;
+
+                return worksheet;
+            };
+
+            // 1. SALES SHEET
+            const salesData = await Sales.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+            const salesSheet = createSheetWithHeader(salesData.map(s => ({
+                Date: new Date(s.date).toLocaleDateString(),
+                Customer: s.customerName,
+                Product: s.productType,
+                Qty: s.quantity,
+                Unit: s.unit,
+                Price: s.pricePerUnit,
+                Total: s.totalAmount,
+                Payment: s.paymentType,
+                Status: s.paymentStatus
+            })), "Sales");
+            XLSX.utils.book_append_sheet(workbook, salesSheet, "Sales");
+
+            // 2. EXPENDITURE SHEET
+            const expData = await Expenditure.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+            const expSheet = createSheetWithHeader(expData.map(e => ({
+                Date: new Date(e.date).toLocaleDateString(),
+                Category: e.category,
+                Desc: e.description,
+                Amount: e.amount,
+                Qty: e.quantity,
+                Unit: e.unit
+            })), "Expenses");
+            XLSX.utils.book_append_sheet(workbook, expSheet, "Expenses");
+
+            // 3. INVENTORY & SEEDS
+            const invData = await Inventory.find();
+            let invLog = [];
+            invData.forEach(inv => {
+                inv.usageHistory.forEach(h => {
+                    const hDate = new Date(h.date);
+                    if (hDate >= startDate && hDate <= endDate) {
+                        invLog.push({ Date: hDate.toLocaleDateString(), Item: inv.itemName, Type: h.type, Qty: h.quantity, Notes: h.notes });
+                    }
+                });
+            });
+            const invSheet = createSheetWithHeader(invLog, "Inventory Log");
+            XLSX.utils.book_append_sheet(workbook, invSheet, "Inventory Log");
+
+            // 4. CLIMATE
+            const climData = await Climate.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+            const climSheet = createSheetWithHeader(climData.map(c => ({
+                Date: new Date(c.date).toLocaleString(),
+                Temp: c.temperature,
+                Moist: c.moisture,
+                Notes: c.notes
+            })), "Climate");
+            XLSX.utils.book_append_sheet(workbook, climSheet, "Climate");
+
+            // 5. LOYALTY (Current Snapshot)
+            const custData = await Customer.find();
+            const loyalSheet = createSheetWithHeader(custData.map(c => ({
+                Name: c.name, Phone: c.contactNumber, Cycle: c.loyaltyCycleCount, Lifetime: c.lifetimePockets
+            })), "Loyalty Snapshot");
+            XLSX.utils.book_append_sheet(workbook, loyalSheet, "Loyalty Snapshot");
+
+            // 6. WATER LOGS
+            const waterData = await WaterLog.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+            const waterSheet = createSheetWithHeader(waterData.map(d => ({
+                Date: new Date(d.date).toLocaleDateString(),
+                Type: d.type,
+                Liters: d.liters,
+                RemainingLevel: d.remainingLevel,
+                Percentage: d.percentage + '%',
+                Notes: d.notes || '-'
+            })), "Water Logs");
+            XLSX.utils.book_append_sheet(workbook, waterSheet, "Water Logs");
+
+            // 7. SEED SPECIFIC USAGE
+            const seedInv = await Inventory.findOne({ itemName: 'Seeds' });
+            let seedLog = [];
+            if (seedInv) {
+                seedInv.usageHistory.forEach(h => {
+                    const hDate = new Date(h.date);
+                    if (hDate >= startDate && hDate <= endDate) {
+                        seedLog.push({ Date: hDate.toLocaleDateString(), Type: h.type, Qty: h.quantity, Unit: seedInv.unit, Notes: h.notes });
+                    }
+                });
+            }
+            const seedSheet = createSheetWithHeader(seedLog, "Seed Usage");
+            XLSX.utils.book_append_sheet(workbook, seedSheet, "Seed Usage");
+
+            // Send
+            const buffer = XLSX.write(workbook, { type: 'buffer' });
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            return res.send(buffer);
+
+        } else if (section === 'month-end') {
+            // DAILY BREAKDOWN FOR THE MONTH
+            sheetName = 'Month End Report';
+            fileName = `TJP_Month_End_Report_${month}_${year}.xlsx`;
+            const workbook = XLSX.utils.book_new();
+
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const dailyData = [];
+
+            // Fetch Data Range
+            const start = new Date(year, month - 1, 1);
+            const end = new Date(year, month, 0, 23, 59, 59);
+
+            const sales = await Sales.find({ date: { $gte: start, $lte: end } });
+            const batches = await Batch.find({ bedDate: { $gte: start, $lte: end } });
+            // For Yield, we check harvestedDate.
+            const harvests = await Batch.find({ harvestedDate: { $gte: start, $lte: end } });
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDate = new Date(year, month - 1, i);
+                const dateStr = dayDate.toLocaleDateString();
+
+                // 1. Bed Count (batches made this day)
+                const bedsMade = batches.filter(b => new Date(b.bedDate).getDate() === i).length;
+
+                // 2. Yield (harvested this day)
+                const dayYield = harvests
+                    .filter(h => h.harvestedDate && new Date(h.harvestedDate).getDate() === i)
+                    .reduce((sum, h) => sum + (h.harvestedQuantity || 0), 0);
+
+                // 3. Sales
+                const daySales = sales
+                    .filter(s => new Date(s.date).getDate() === i)
+                    .reduce((sum, s) => sum + s.totalAmount, 0);
+
+                dailyData.push({
+                    Date: dateStr,
+                    'Beds Made': bedsMade,
+                    'Yield (Qty)': dayYield,
+                    'Sales (₹)': daySales
+                });
+            }
+
+            // Helper function logic duplicated here or accessible from scope? 
+            // Since createSheetWithHeader is defined inside the 'master' block, I should probably copy logic or refactor. 
+            // For safety and speed, I will use standard styled creation here.
+
+            const ws = XLSX.utils.json_to_sheet(dailyData);
+
+            // Apply Styles manually for now or use a basic header
+            // Add Title
+            XLSX.utils.sheet_add_aoa(ws, [["TJP MUSHROOM FARMING"], [`MONTHLY REPORT - ${month}/${year}`]], { origin: "A1" });
+            XLSX.utils.sheet_add_json(ws, dailyData, { origin: "A4" });
+
+            // Styles
+            const titleStyle = { font: { bold: true, sz: 16 } };
+            const subStyle = { font: { bold: true, sz: 12 } };
+            const headStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
+
+            if (!ws['!rows']) ws['!rows'] = [];
+            ws['A1'].s = titleStyle;
+            ws['A2'].s = subStyle;
+
+            // Header row at A4 (index 3)
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const addr = XLSX.utils.encode_cell({ r: 3, c: C });
+                if (ws[addr]) ws[addr].s = headStyle;
+            }
+
+            XLSX.utils.book_append_sheet(workbook, ws, "Daily Breakdown");
+
+            const buffer = XLSX.write(workbook, { type: 'buffer' });
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            return res.send(buffer);
+
+        } else if (section === 'year-end') {
+            // MONTHLY BREAKDOWN FOR THE YEAR
+            sheetName = 'Yearly Summary';
+            fileName = `TJP_Yearly_Summary_${year}.xlsx`;
+            const workbook = XLSX.utils.book_new();
+
+            const start = new Date(year, 0, 1);
+            const end = new Date(year, 11, 31, 23, 59, 59);
+
+            const sales = await Sales.find({ date: { $gte: start, $lte: end } });
+            const batches = await Batch.find({ bedDate: { $gte: start, $lte: end } });
+            const harvests = await Batch.find({ harvestedDate: { $gte: start, $lte: end } });
+
+            const monthlyData = [];
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            for (let i = 0; i < 12; i++) {
+                // Filter by month (0-indexed)
+                const bedsCount = batches.filter(b => new Date(b.bedDate).getMonth() === i).length;
+                const yieldTotal = harvests
+                    .filter(h => h.harvestedDate && new Date(h.harvestedDate).getMonth() === i)
+                    .reduce((sum, h) => sum + (h.harvestedQuantity || 0), 0);
+                const salesTotal = sales
+                    .filter(s => new Date(s.date).getMonth() === i)
+                    .reduce((sum, s) => sum + s.totalAmount, 0);
+
+                monthlyData.push({
+                    Month: months[i],
+                    'Total Beds': bedsCount,
+                    'Total Yield (Qty)': yieldTotal,
+                    'Total Sales (₹)': salesTotal
+                });
+            }
+
+            const ws = XLSX.utils.json_to_sheet(monthlyData);
+
+            // Styles
+            XLSX.utils.sheet_add_aoa(ws, [["TJP MUSHROOM FARMING"], [`YEARLY SUMMARY REPORT - ${year}`]], { origin: "A1" });
+            XLSX.utils.sheet_add_json(ws, monthlyData, { origin: "A4" });
+
+            const titleStyle = { font: { bold: true, sz: 16 } };
+            const subStyle = { font: { bold: true, sz: 12 } };
+            const headStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EEEEEE" } } };
+
+            ws['A1'].s = titleStyle;
+            ws['A2'].s = subStyle;
+
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const addr = XLSX.utils.encode_cell({ r: 3, c: C });
+                if (ws[addr]) ws[addr].s = headStyle;
+            }
+
+            XLSX.utils.book_append_sheet(workbook, ws, "Yearly Summary");
+
+            const buffer = XLSX.write(workbook, { type: 'buffer' });
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            return res.send(buffer);
+
+        } else if (section === 'water') {
             data = await WaterLog.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
             data = data.map(d => ({
                 Date: new Date(d.date).toLocaleDateString(),
@@ -1626,17 +1946,17 @@ app.get('/api/export/:section', async (req, res) => {
     }
 });
 
-// --- DAILY WATER USAGE CALCULATION ---
-// Deducts 260L daily based on 13 sprays * 2 mins * 10 LPM assumption
-cron.schedule('0 0 * * *', async () => {
+// --- WATER SPRAY CALCULATION ---
+// Deducts 20L per spray, 13 times daily
+cron.schedule('0 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
     try {
         const capacity = 5000;
-        const dailyUsage = 13 * 2 * 10; // 260 Liters
+        const sprayUsage = 20; // 20 Liters per spray
 
         let levelSetting = await Settings.findOne({ key: 'currentWaterLevel' });
         let currentLevel = levelSetting ? Number(levelSetting.value) : capacity;
 
-        currentLevel = Math.max(0, currentLevel - dailyUsage);
+        currentLevel = Math.max(0, currentLevel - sprayUsage);
 
         await Settings.findOneAndUpdate(
             { key: 'currentWaterLevel' },

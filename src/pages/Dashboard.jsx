@@ -8,6 +8,7 @@ import {
     FaReceipt, FaShoppingCart, FaTruck, FaStore, FaImage, FaLayerGroup, FaEnvelope, FaFileCsv
 } from 'react-icons/fa';
 import { toPng } from 'html-to-image';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import Footer from '../Component/Footer';
 import DigitalBill from '../Component/DigitalBill';
 
@@ -44,6 +45,15 @@ const Dashboard = () => {
 
     const [exportMonth, setExportMonth] = useState(new Date().getMonth() + 1);
     const [exportYear, setExportYear] = useState(new Date().getFullYear());
+    const [waterLevel, setWaterLevel] = useState(70);
+    const [lowWaterAlert, setLowWaterAlert] = useState(false);
+    const [nextSprayTime, setNextSprayTime] = useState(null);
+    const [customerSuggestions, setCustomerSuggestions] = useState([]);
+    const [editingSalesId, setEditingSalesId] = useState(null);
+    const [editingInventoryId, setEditingInventoryId] = useState(null);
+    const [editingClimateId, setEditingClimateId] = useState(null);
+    const [editingSeedIdx, setEditingSeedIdx] = useState(null);
+    const [editedData, setEditedData] = useState({});
 
     // Form States
     const [saleForm, setSaleForm] = useState({
@@ -65,11 +75,11 @@ const Dashboard = () => {
     });
 
     const [inventoryForm, setInventoryForm] = useState({
-        itemId: '',
-        quantity: 0,
-        type: 'use',
-        notes: ''
+        itemName: '',
+        startingStock: 0,
+        unit: 'bags'
     });
+    const [showAddItem, setShowAddItem] = useState(false);
 
     // Alert Form State
     const [alertForm, setAlertForm] = useState({
@@ -159,8 +169,30 @@ const Dashboard = () => {
             setClimateData(Array.isArray(clmD) ? clmD : []);
             setKadanList(Array.isArray(kdnL) ? kdnL : []);
             setLastWaterCheck(wtrR?.lastCheck || null);
+            setWaterLevel(wtrR?.percentage || 70);
+            setLowWaterAlert(wtrR?.isLow || false);
+
+            // Calculate next spray time
+            const getNextSprayTime = () => {
+                const now = new Date();
+                const currentHour = now.getHours();
+                const sprayHours = [0, 1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20, 22];
+                for (let hour of sprayHours) {
+                    if (hour > currentHour) {
+                        const next = new Date(now);
+                        next.setHours(hour, 0, 0, 0);
+                        return next;
+                    }
+                }
+                // Next day
+                const next = new Date(now);
+                next.setDate(next.getDate() + 1);
+                next.setHours(0, 0, 0, 0);
+                return next;
+            };
+            setNextSprayTime(getNextSprayTime());
+
             setReportArchives(Array.isArray(rptL) ? rptL : []);
-            setNotificationLogs(Array.isArray(nLog) ? nLog : []);
         } catch (err) {
             setError('Backend Connection Error');
             console.error(err);
@@ -210,6 +242,28 @@ const Dashboard = () => {
         return [...activeRoutine, ...soakAlerts];
     }, [currentTime, soakingStartTime]);
 
+    const handleCreateInventoryItem = async (e) => {
+        e.preventDefault();
+        try {
+            // Use the global 'token' variable
+            const res = await fetch('http://localhost:5000/api/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(inventoryForm)
+            });
+            if (res.ok) {
+                alert('✅ New Item Added!');
+                setInventoryForm({ itemName: '', startingStock: 0, unit: 'bags' });
+                setShowAddItem(false);
+                fetchData();
+            } else {
+                alert('Failed to add item');
+            }
+        } catch (error) {
+            console.error('Add item error:', error);
+        }
+    };
+
     // SALES HANDLER
     const handleSaleSubmit = async (e) => {
         e.preventDefault();
@@ -247,6 +301,7 @@ const Dashboard = () => {
                 await handleSendBill(data.sale, data.loyaltyUpdate);
 
                 setSaleForm({ productType: 'Mushroom', quantity: 1, pricePerUnit: 50, customerName: '', contactNumber: '', paymentType: 'Cash' });
+                setCustomerSuggestions([]);
                 fetchData();
             }
         } catch (err) {
@@ -257,24 +312,33 @@ const Dashboard = () => {
 
     const handleCustomerNameChange = async (name) => {
         setSaleForm({ ...saleForm, customerName: name });
-        if (name.length > 2) {
+        if (name.length > 1) {
             try {
                 const res = await fetch(`http://localhost:5000/api/customers/search?name=${encodeURIComponent(name)}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 if (data && data.length > 0) {
-                    // Auto-fill only if exact match or very close match
-                    const exactMatch = data.find(c => c.name.toLowerCase() === name.toLowerCase());
-                    const customer = exactMatch || data[0];
-                    setSaleForm(prev => ({
-                        ...prev,
-                        customerName: customer.name,
-                        contactNumber: customer.contactNumber
-                    }));
+                    setCustomerSuggestions(data);
+                } else {
+                    setCustomerSuggestions([]);
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                console.error(err);
+                setCustomerSuggestions([]);
+            }
+        } else {
+            setCustomerSuggestions([]);
         }
+    };
+
+    const selectCustomer = (customer) => {
+        setSaleForm({
+            ...saleForm,
+            customerName: customer.name,
+            contactNumber: customer.contactNumber
+        });
+        setCustomerSuggestions([]);
     };
 
     const handleSendBill = async (sale, loyaltyUpdate) => {
@@ -729,6 +793,17 @@ const Dashboard = () => {
                                 </div>
                                 <p className="text-4xl font-black text-gray-800">{customers.length}</p>
                             </div>
+                            {/* JANUARY BED COUNTER */}
+                            <div className="bg-white rounded-3xl p-8 shadow-xl border-l-4 border-amber-500">
+                                <div className="flex items-center justify-between mb-4">
+                                    <FaLayerGroup className="text-amber-500 text-2xl" />
+                                    <span className="text-xs font-bold uppercase text-gray-400">Total Beds (YTD)</span>
+                                </div>
+                                <p className="text-4xl font-black text-gray-800">
+                                    {batches.filter(b => new Date(b.bedDate).getFullYear() === new Date().getFullYear()).length}
+                                </p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase mt-2">Since Jan 1st, {new Date().getFullYear()}</p>
+                            </div>
                         </div>
 
                         {/* TJP SMART HUB (Alarms & Soaking) */}
@@ -966,7 +1041,7 @@ const Dashboard = () => {
                                 ))}
                             </div>
                         </div>
-                    </div>
+                    </div >
                 );
 
             case 'sales':
@@ -1031,9 +1106,24 @@ const Dashboard = () => {
                                             required
                                             value={saleForm.customerName}
                                             onChange={e => handleCustomerNameChange(e.target.value)}
+                                            onBlur={() => setTimeout(() => setCustomerSuggestions([]), 200)}
                                             className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800"
                                             placeholder="Enter name (Auto-fill)"
                                         />
+                                        {customerSuggestions.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl z-10 max-h-40 overflow-y-auto mt-1">
+                                                {customerSuggestions.map((customer, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => selectCustomer(customer)}
+                                                        className="px-6 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                    >
+                                                        <div className="font-black text-gray-800">{customer.name}</div>
+                                                        <div className="text-sm text-gray-500">{customer.contactNumber}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="text-sm font-black uppercase text-gray-600 block mb-3">Phone Number</label>
@@ -1172,7 +1262,22 @@ const Dashboard = () => {
                                                                 {sale.productType}
                                                             </span>
                                                         </td>
-                                                        <td className="py-4 text-sm font-black italic">{sale.quantity} {sale.unit}</td>
+                                                        <td className="py-4 text-sm font-black italic">
+                                                            {editingSalesId === sale._id ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={editedData[sale._id]?.quantity || sale.quantity}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [sale._id]: { ...prev[sale._id], quantity: Number(e.target.value) }
+                                                                    }))}
+                                                                    className={`w-16 px-2 py-1 text-sm font-black border-2 rounded ${editingSalesId === sale._id ? 'border-blue-500' : 'border-gray-300'}`}
+                                                                    readOnly={editingSalesId !== sale._id}
+                                                                />
+                                                            ) : (
+                                                                `${sale.quantity} ${sale.unit}`
+                                                            )}
+                                                        </td>
                                                         <td className="py-4">
                                                             <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sale.paymentType === 'Cash' ? 'bg-green-100 text-green-700' :
                                                                 sale.paymentType === 'GPay' ? 'bg-purple-100 text-purple-700' :
@@ -1188,23 +1293,56 @@ const Dashboard = () => {
                                                                 <span className="text-[10px] font-bold text-gray-400">{sale.contactNumber}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-4 text-right flex gap-3 justify-end">
-                                                            <button
-                                                                onClick={async () => {
-                                                                    const newQty = prompt("Edit Quantity:", sale.quantity);
-                                                                    if (newQty) {
-                                                                        await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
-                                                                            method: 'PATCH',
-                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                            body: JSON.stringify({ quantity: Number(newQty), totalAmount: Number(newQty) * sale.pricePerUnit })
-                                                                        });
-                                                                        fetchData();
-                                                                    }
-                                                                }}
-                                                                className="text-blue-500 font-black text-[10px] hover:underline"
-                                                            >
-                                                                EDIT
-                                                            </button>
+                                                        <td className="py-4 text-right flex gap-2 justify-end">
+                                                            {editingSalesId === sale._id ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            const updatedData = editedData[sale._id];
+                                                                            if (updatedData) {
+                                                                                await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
+                                                                                    method: 'PATCH',
+                                                                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                                    body: JSON.stringify({
+                                                                                        quantity: updatedData.quantity || sale.quantity,
+                                                                                        totalAmount: (updatedData.quantity || sale.quantity) * sale.pricePerUnit
+                                                                                    })
+                                                                                });
+                                                                                setEditingSalesId(null);
+                                                                                setEditedData(prev => {
+                                                                                    const newData = { ...prev };
+                                                                                    delete newData[sale._id];
+                                                                                    return newData;
+                                                                                });
+                                                                                fetchData();
+                                                                            }
+                                                                        }}
+                                                                        className="text-green-500 font-black text-[10px] hover:underline"
+                                                                    >
+                                                                        SAVE
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setEditingSalesId(null);
+                                                                            setEditedData(prev => {
+                                                                                const newData = { ...prev };
+                                                                                delete newData[sale._id];
+                                                                                return newData;
+                                                                            });
+                                                                        }}
+                                                                        className="text-orange-500 font-black text-[10px] hover:underline"
+                                                                    >
+                                                                        RESET
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => setEditingSalesId(sale._id)}
+                                                                    className="text-blue-500 font-black text-[10px] hover:underline"
+                                                                >
+                                                                    EDIT
+                                                                </button>
+                                                            )}
                                                             <button onClick={() => handleDelete('sales', sale._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
                                                         </td>
                                                     </tr>
@@ -1395,6 +1533,92 @@ const Dashboard = () => {
                     </div>
                 );
 
+            case 'analytics':
+                // 1. Prepare Data for Sales vs Expenses (Monthly)
+                const monthlyData = [];
+                sales.forEach(s => {
+                    const date = new Date(s.date);
+                    const key = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+                    let entry = monthlyData.find(d => d.name === key);
+                    if (!entry) {
+                        entry = { name: key, Sales: 0, Expenses: 0 };
+                        monthlyData.push(entry);
+                    }
+                    entry.Sales += s.totalAmount;
+                });
+                expenditures.forEach(e => {
+                    const date = new Date(e.date);
+                    const key = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+                    let entry = monthlyData.find(d => d.name === key);
+                    if (!entry) {
+                        entry = { name: key, Sales: 0, Expenses: 0 };
+                        monthlyData.push(entry);
+                    }
+                    entry.Expenses += e.amount;
+                });
+                // Sort by earliest date (using a dummy date comparison would be better but simple string match for now assumes standard entry order or small dataset)
+
+                // 2. Prepare Data for Expense Breakdown
+                const expenseMap = {};
+                expenditures.forEach(e => {
+                    expenseMap[e.category] = (expenseMap[e.category] || 0) + e.amount;
+                });
+                const expensePieData = Object.keys(expenseMap).map(key => ({ name: key, value: expenseMap[key] }));
+                const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+                return (
+                    <div className="space-y-8 animate-fadeIn">
+                        <h2 className="text-2xl font-black uppercase text-gray-800">Farm Analytics</h2>
+
+                        {/* Charts Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* 1. Revenue vs Expenses */}
+                            <div className="bg-white p-6 rounded-3xl shadow-xl">
+                                <h3 className="text-lg font-black text-gray-700 mb-4">💰 Sales vs Expenses Trend</h3>
+                                <div className="h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={monthlyData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Legend />
+                                            <Bar dataKey="Sales" fill="#82ca9d" name="Sales (₹)" />
+                                            <Bar dataKey="Expenses" fill="#ff7f7f" name="Expenses (₹)" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* 2. Expense Category Breakdown */}
+                            <div className="bg-white p-6 rounded-3xl shadow-xl">
+                                <h3 className="text-lg font-black text-gray-700 mb-4">💸 Expense Breakdown</h3>
+                                <div className="h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={expensePieData}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                                outerRadius={100}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {expensePieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+
             case 'inventory':
                 return (
                     <div className="space-y-8 animate-fadeIn">
@@ -1420,8 +1644,64 @@ const Dashboard = () => {
                                 >
                                     <FaSeedling /> Seeds
                                 </button>
+                                <button
+                                    onClick={() => setShowAddItem(!showAddItem)}
+                                    className="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-amber-600 transition-all flex items-center gap-2"
+                                >
+                                    <FaPlusCircle /> Add New Item
+                                </button>
                             </div>
                         </div>
+
+                        {showAddItem && (
+                            <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-6 mb-8 animate-fadeIn">
+                                <h3 className="text-lg font-black uppercase text-amber-800 mb-4">Create New Inventory Item</h3>
+                                <form onSubmit={handleCreateInventoryItem} className="flex flex-wrap gap-4 items-end">
+                                    <div className="flex-1 min-w-[200px]">
+                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Item Name</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={inventoryForm.itemName}
+                                            onChange={e => setInventoryForm({ ...inventoryForm, itemName: e.target.value })}
+                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                            placeholder="e.g. Total Active Bags"
+                                        />
+                                    </div>
+                                    <div className="w-[120px]">
+                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Initial Stock</label>
+                                        <input
+                                            type="number"
+                                            required
+                                            value={inventoryForm.startingStock}
+                                            onChange={e => setInventoryForm({ ...inventoryForm, startingStock: Number(e.target.value) })}
+                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="w-[120px]">
+                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Unit</label>
+                                        <select
+                                            value={inventoryForm.unit}
+                                            onChange={e => setInventoryForm({ ...inventoryForm, unit: e.target.value })}
+                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                        >
+                                            <option value="bags">Bags</option>
+                                            <option value="pockets">Pockets</option>
+                                            <option value="kg">Kg</option>
+                                            <option value="liters">Liters</option>
+                                            <option value="nos">Nos</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="bg-amber-600 text-white px-8 py-3 rounded-xl font-black uppercase hover:bg-amber-700 transition-all shadow-lg"
+                                    >
+                                        Create
+                                    </button>
+                                </form>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {inventory.map(item => (
                                 <div key={item._id} className="bg-white rounded-3xl p-8 shadow-xl">
@@ -1493,6 +1773,7 @@ const Dashboard = () => {
                                             <th className="py-4 text-left">Update Type</th>
                                             <th className="py-4 text-left">Quantity (kg)</th>
                                             <th className="py-4 text-left">Notes</th>
+                                            <th className="py-4 text-left">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1733,26 +2014,69 @@ const Dashboard = () => {
                                                     <td className="py-4 font-black text-blue-600">{c.moisture || c.humidity}%</td>
                                                     <td className="py-4 text-gray-700 font-medium text-sm border-l border-gray-50 pl-4 bg-gray-50/10">
                                                         <div className="max-w-[300px] break-words">
-                                                            {c.notes || <span className="text-gray-300 italic">No notes</span>}
+                                                            {editingClimateId === c._id ? (
+                                                                <textarea
+                                                                    value={editedData[c._id]?.notes || c.notes || ''}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [c._id]: { ...prev[c._id], notes: e.target.value }
+                                                                    }))}
+                                                                    className={`w-full px-2 py-1 text-sm border-2 rounded ${editingClimateId === c._id ? 'border-blue-500' : 'border-gray-300'}`}
+                                                                    rows="2"
+                                                                    readOnly={editingClimateId !== c._id}
+                                                                />
+                                                            ) : (
+                                                                c.notes || <span className="text-gray-300 italic">No notes</span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="py-4 flex gap-2">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const nt = prompt("Edit Temp:", c.temperature);
-                                                                const nm = prompt("Edit Moist:", c.moisture);
-                                                                const nn = prompt("Edit Notes:", c.notes);
-                                                                if (nt && nm && nn) {
-                                                                    await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
-                                                                        method: 'PATCH',
-                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                        body: JSON.stringify({ temperature: Number(nt), moisture: Number(nm), notes: nn })
-                                                                    });
-                                                                    fetchData();
-                                                                }
-                                                            }}
-                                                            className="text-blue-600 font-black text-[10px] uppercase"
-                                                        >Edit</button>
+                                                        {editingClimateId === c._id ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        const updatedData = editedData[c._id];
+                                                                        if (updatedData) {
+                                                                            await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
+                                                                                method: 'PATCH',
+                                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                                body: JSON.stringify({ notes: updatedData.notes })
+                                                                            });
+                                                                            setEditingClimateId(null);
+                                                                            setEditedData(prev => {
+                                                                                const newData = { ...prev };
+                                                                                delete newData[c._id];
+                                                                                return newData;
+                                                                            });
+                                                                            fetchData();
+                                                                        }
+                                                                    }}
+                                                                    className="text-green-600 font-black text-[10px] uppercase"
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingClimateId(null);
+                                                                        setEditedData(prev => {
+                                                                            const newData = { ...prev };
+                                                                            delete newData[c._id];
+                                                                            return newData;
+                                                                        });
+                                                                    }}
+                                                                    className="text-orange-600 font-black text-[10px] uppercase"
+                                                                >
+                                                                    Reset
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => setEditingClimateId(c._id)}
+                                                                className="text-blue-600 font-black text-[10px] uppercase"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                        )}
                                                         <button onClick={() => handleDelete('climate', c._id)} className="text-red-500 font-black text-[10px] uppercase">Del</button>
                                                     </td>
                                                 </tr>
@@ -1797,7 +2121,31 @@ const Dashboard = () => {
                                         onClick={exportToExcel}
                                         className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
                                     >
-                                        <FaFileExcel /> Export Excel
+                                        <FaFileExcel /> Export Finance Overview
+                                    </button>
+                                    <button
+                                        onClick={() => exportMonthlyReport('master')}
+                                        className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+                                    >
+                                        <FaFileExcel /> ⭐ Monthly Master Report
+                                    </button>
+                                    <button
+                                        onClick={() => exportMonthlyReport('month-end')}
+                                        className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+                                    >
+                                        <FaFileExcel /> Month-End Sheet
+                                    </button>
+                                    <button
+                                        onClick={() => exportMonthlyReport('year-end')}
+                                        className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+                                    >
+                                        <FaFileExcel /> Yearly Summary
+                                    </button>
+                                    <button
+                                        onClick={() => exportMonthlyReport('master-year')}
+                                        className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+                                    >
+                                        <FaFileExcel /> 📅 Yearly Master Report
                                     </button>
                                     <button
                                         onClick={async () => {
@@ -1929,6 +2277,15 @@ const Dashboard = () => {
             case 'water':
                 return (
                     <div className="space-y-8 animate-fadeIn">
+                        {lowWaterAlert && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-2xl mb-6 flex items-center gap-3">
+                                <FaBell className="text-red-500" />
+                                <div>
+                                    <p className="font-black text-sm">2-Day Refill Reminder</p>
+                                    <p className="text-xs">Water level is low. Please refill the tank soon.</p>
+                                </div>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="bg-white rounded-3xl p-8 shadow-xl text-center">
                                 <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center justify-center gap-3">
@@ -1950,26 +2307,18 @@ const Dashboard = () => {
                                         <FaFileExcel /> Export Monthly Report
                                     </button>
                                 </div>
-                                <div className="flex justify-center gap-10">
-                                    {/* Drum 1 */}
+                                <div className="flex justify-center">
+                                    {/* Main Water Drum */}
                                     <div className="relative group">
-                                        <div className="w-32 h-48 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
-                                            <div className="absolute bottom-0 left-0 w-full h-[70%] bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000 group-hover:h-[65%]"></div>
+                                        <div className="w-40 h-60 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
+                                            <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000" style={{ height: `${waterLevel}%` }}></div>
                                             <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                                                <span className="text-2xl font-black text-white drop-shadow-md">70%</span>
+                                                <span className="text-3xl font-black text-white drop-shadow-md">{waterLevel}%</span>
                                             </div>
                                         </div>
-                                        <p className="mt-4 font-black text-gray-600 uppercase">Drum 1</p>
-                                    </div>
-                                    {/* Drum 2 */}
-                                    <div className="relative group">
-                                        <div className="w-32 h-48 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
-                                            <div className="absolute bottom-0 left-0 w-full h-[40%] bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000 group-hover:h-[35%]"></div>
-                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                                                <span className="text-2xl font-black text-white drop-shadow-md">40%</span>
-                                            </div>
-                                        </div>
-                                        <p className="mt-4 font-black text-gray-600 uppercase">Drum 2</p>
+                                        <p className="mt-4 font-black text-gray-600 uppercase text-center">Main Water Drum</p>
+                                        <p className="text-xs text-gray-500 text-center">Capacity: 5000L</p>
+                                        <p className="text-xs text-gray-500 text-center">Next Spray: {nextSprayTime ? nextSprayTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</p>
                                     </div>
                                 </div>
                                 <div className="mt-8">
@@ -1994,6 +2343,25 @@ const Dashboard = () => {
                                         className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase hover:bg-blue-700 transition-all shadow-lg text-sm"
                                     >
                                         Mark as Checked / Filled
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const res = await fetch('http://localhost:5000/api/water/spray', {
+                                                    method: 'POST',
+                                                    headers: { 'Authorization': `Bearer ${token}` }
+                                                });
+                                                if (res.ok) {
+                                                    alert('✅ Manual Spray Triggered! 20L deducted.');
+                                                    fetchData();
+                                                } else {
+                                                    alert('Spray failed');
+                                                }
+                                            } catch (err) { alert('Update failed'); }
+                                        }}
+                                        className="mt-4 px-8 py-3 bg-green-600 text-white rounded-xl font-black uppercase hover:bg-green-700 transition-all shadow-lg text-sm"
+                                    >
+                                        Manual Spray
                                     </button>
                                 </div>
                             </div>
@@ -2183,7 +2551,8 @@ const Dashboard = () => {
                             { id: 'water', label: 'Water Status', icon: FaWater },
                             { id: 'climate', label: 'Climate', icon: FaFan },
                             { id: 'loyalty', label: 'Loyalty Hub', icon: FaGift },
-                            { id: 'finance', label: 'Finance Report', icon: FaFileExcel }
+                            { id: 'finance', label: 'Finance Report', icon: FaFileExcel },
+                            { id: 'analytics', label: 'Analytics', icon: FaChartBar }
                         ].map(tab => (
                             <button
                                 key={tab.id}
