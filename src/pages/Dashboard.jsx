@@ -1837,7 +1837,11 @@ const Dashboard = () => {
                             </h1>
                             <p className="text-gray-400 font-bold mt-1">Management Dashboard v5.0</p>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-6">
+                            <div className="hidden lg:flex items-center gap-2 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-full">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+                                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">System Live & Monitoring</span>
+                            </div>
                             <div className="text-right hidden md:block">
                                 <p className="text-xs font-bold text-gray-400 uppercase">Current Time</p>
                                 <p className="text-xl font-black">{currentTime.toLocaleTimeString()}</p>

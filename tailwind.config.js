@@ -9,6 +9,7 @@ module.exports = {
         'tjp-green': '#2E7D32',
         'tjp-red': '#C0392B',
         'tjp-dark': '#022C22',
+        'tjp-silver': '#CBCCCB',
       },
     },
   },
