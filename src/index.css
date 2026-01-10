@@ -13,7 +13,10 @@
 
 @layer base {
   body {
-    @apply bg-tjp-silver text-tjp-dark font-['Outfit'] selection:bg-tjp-gold/30;
+    @apply text-tjp-dark font-['Outfit'] selection:bg-tjp-gold/30;
+    background: linear-gradient(to bottom, #022C22, #011812);
+    background-attachment: fixed;
+    min-height: 100vh;
   }
 }
 
@@ -89,4 +92,30 @@
 
 .mask-linear-gradient {
   mask-image: linear-gradient(to right, transparent, black, transparent);
+}
+
+@keyframes wave {
+  0% {
+    transform: translateX(0) translateZ(0) scaleY(1);
+  }
+
+  50% {
+    transform: translateX(-15%) translateZ(0) scaleY(0.9);
+  }
+
+  100% {
+    transform: translateX(-30%) translateZ(0) scaleY(1);
+  }
+}
+
+.water-wave {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 400%;
+  height: 20px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 80%);
+  border-radius: 50%;
+  animation: wave 8s linear infinite;
+  filter: blur(2px);
 }

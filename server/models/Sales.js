@@ -12,7 +12,7 @@ const salesSchema = new mongoose.Schema({
     },
     unit: {
         type: String,
-        default: 'pockets' // pockets for mushroom, kg for seeds
+        default: 'pockets'
     },
     pricePerUnit: {
         type: Number,
@@ -33,6 +33,24 @@ const salesSchema = new mongoose.Schema({
     isLoyaltyCustomer: {
         type: Boolean,
         default: false
+    },
+    // --- KADAN/CREDIT MANAGEMENT ---
+    paymentType: {
+        type: String,
+        enum: ['Cash', 'GPay', 'Credit'],
+        default: 'Cash'
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['Paid', 'Unpaid'],
+        default: 'Paid'
+    },
+    settledDate: {
+        type: Date
+    },
+    settledBy: {
+        type: String,
+        enum: ['Cash', 'GPay']
     },
     date: {
         type: Date,

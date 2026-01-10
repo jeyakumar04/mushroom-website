@@ -34,7 +34,7 @@ const notificationLogSchema = new mongoose.Schema({
 });
 const NotificationLog = mongoose.model('NotificationLog', notificationLogSchema);
 
-const { sendDigitalBill, sendLoyaltyNotification, sendMessage } = require('./services/whatsappService');
+const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage } = require('./services/whatsappService');
 const { sendVoiceCall } = require('./services/voiceService');
 const { sendMonthlyReport } = require('./services/reportService');
 const cron = require('node-cron');
@@ -244,8 +244,11 @@ app.patch('/api/bookings/:id/status', auth, async (req, res) => {
 // --- SALES TRACKING ---
 app.post('/api/sales', auth, async (req, res) => {
     try {
-        const { productType, quantity, unit, pricePerUnit, customerName, contactNumber, date } = req.body;
+        const { productType, quantity, unit, pricePerUnit, customerName, contactNumber, date, paymentType } = req.body;
         const totalAmount = quantity * pricePerUnit;
+
+        // Auto-set payment status based on payment type
+        const paymentStatus = (paymentType === 'Credit') ? 'Unpaid' : 'Paid';
 
         const newSale = new Sales({
             productType,
@@ -255,6 +258,8 @@ app.post('/api/sales', auth, async (req, res) => {
             totalAmount,
             customerName,
             contactNumber,
+            paymentType: paymentType || 'Cash',
+            paymentStatus,
             date: date || Date.now()
         });
         await newSale.save();
@@ -269,17 +274,13 @@ app.post('/api/sales', auth, async (req, res) => {
             // TJP 10-Pocket Cycle Logic (10 Pockets = 1 Free)
             const qty = Number(quantity) || 0;
             customer.loyaltyCycleCount = (Number(customer.loyaltyCycleCount) || 0) + qty;
-            customer.loyaltyCount = (Number(customer.loyaltyCount) || 0) + qty; // Syncing both fields
+            customer.loyaltyCount = (Number(customer.loyaltyCount) || 0) + qty;
             customer.lifetimePockets = (Number(customer.lifetimePockets) || 0) + qty;
             customer.totalOrders = (Number(customer.totalOrders) || 0) + 1;
 
-            // Bulk Offer: 10 pockets in one go = 1 Free Pocket
             let bulkOffer = qty >= 10;
-
-            // Cycle Reset Logic: Every 10 pockets reset counter for next cycle
             let reachedCycle = customer.loyaltyCount >= 10;
             if (reachedCycle) {
-                // We keep the remainder if they order more than 10
                 customer.loyaltyCount = customer.loyaltyCount % 10;
                 customer.loyaltyCycleCount = customer.loyaltyCount;
             }
@@ -308,28 +309,39 @@ app.post('/api/sales', auth, async (req, res) => {
     }
 });
 
-// --- BILL UPLOAD & HOSTING ---
+// --- GOOGLE DRIVE / WHATSAPP BILL UPLOAD ---
 app.post('/api/upload-bill', async (req, res) => {
     try {
-        const { image, customerName } = req.body;
-        if (!image) return res.status(400).json({ message: 'No image provided' });
-
-        const base64Data = image.replace(/^data:image\/png;base64,/, "");
-        const fileName = `bill_${Date.now()}.png`;
-        const filePath = path.join(__dirname, 'public', 'uploads', fileName);
-
-        if (!fs.existsSync(path.join(__dirname, 'public', 'uploads'))) {
-            fs.mkdirSync(path.join(__dirname, 'public', 'uploads'), { recursive: true });
+        const { image, customerName, contactNumber } = req.body;
+        if (!image || !contactNumber) {
+            return res.status(400).json({ message: 'Missing Image or Phone Number' });
         }
 
+        // 1. Save Image Locally
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+        const fileName = `bill_${Date.now()}.png`;
+        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        const filePath = path.join(uploadDir, fileName);
+        const fs = require('fs');
         fs.writeFileSync(filePath, base64Data, 'base64');
+
+        // 2. Send via WhatsApp
+        const caption = `🧾 *TJP DIGITAL BILL*\n\nவணக்கம் ${customerName}! 👋\nஉங்கள் மஷ்ரூம் பில் இங்கே இணைக்கப்பட்டுள்ளது.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌿\n📍 Location: TJP Farm`;
+        const result = await sendImage(contactNumber, image, caption);
 
         const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
         const imageUrl = `${baseUrl}/public/uploads/${fileName}`;
-        res.json({ imageUrl });
+
+        res.json({
+            success: true,
+            message: result.success ? 'Bill sent to WhatsApp!' : 'Bill saved but WhatsApp not ready',
+            imageUrl,
+            waResult: result
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Upload failed' });
+        console.error('Bill Process Error:', error);
+        res.status(500).json({ message: 'Server error processing bill' });
     }
 });
 
@@ -341,6 +353,42 @@ app.get('/api/customers/search', auth, async (req, res) => {
         res.json(customers);
     } catch (error) {
         res.status(500).json({ message: 'Search failed' });
+    }
+});
+
+// --- KADAN/CREDIT SETTLEMENT ---
+app.patch('/api/sales/:id/settle', auth, async (req, res) => {
+    try {
+        const { settledBy } = req.body;
+        const sale = await Sales.findById(req.params.id);
+
+        if (!sale) {
+            return res.status(404).json({ message: 'Sale not found' });
+        }
+
+        if (sale.paymentStatus === 'Paid') {
+            return res.status(400).json({ message: 'Already settled' });
+        }
+
+        sale.paymentStatus = 'Paid';
+        sale.settledDate = new Date();
+        sale.settledBy = settledBy;
+        await sale.save();
+
+        res.json({ message: 'Kadan settled successfully', sale });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Settlement failed' });
+    }
+});
+
+// --- GET KADAN LIST (Unpaid Sales) ---
+app.get('/api/sales/kadan', auth, async (req, res) => {
+    try {
+        const kadanList = await Sales.find({ paymentStatus: 'Unpaid' }).sort({ date: -1 });
+        res.json(kadanList);
+    } catch (error) {
+        res.status(500).json({ message: 'Fetch kadan failed' });
     }
 });
 

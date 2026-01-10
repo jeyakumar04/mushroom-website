@@ -51,7 +51,7 @@ const Navbar = () => {
             <Link to="/" onClick={() => setIsOpen(false)}>
               <img
                 src={logo}
-                className="h-[140px] md:h-[220px] w-auto object-contain antialiased filter brightness-110 contrast-125 mix-blend-screen drop-shadow-2xl -ml-2 md:-ml-4 transition-transform hover:scale-105"
+                className="h-[100px] md:h-[160px] w-auto object-contain antialiased filter brightness-110 contrast-125 mix-blend-screen drop-shadow-2xl -ml-2 md:-ml-4 transition-transform hover:scale-105"
                 alt="TJP Mushroom Farm Logo"
               />
             </Link>

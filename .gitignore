@@ -25,6 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 .wwebjs_auth
 .wwebjs_cache
+wwebjs_auth/
 *.png
 *.jpg
 *.jpeg

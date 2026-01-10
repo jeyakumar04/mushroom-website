@@ -10,9 +10,12 @@ const sendVoiceCall = async (toPhone, message) => {
     const fromPhone = process.env.TWILIO_PHONE;
 
     if (!accountSid || !authToken || !fromPhone) {
-        // Fallback to IFTTT if Twilio is not configured
+        // Fallback to Pipedream/IFTTT if Twilio is not configured
+        if (process.env.PIPEDREAM_WEBHOOK_URL) {
+            return await sendPipedreamWebhook(toPhone, message);
+        }
         if (process.env.IFTTT_WEBHOOK_KEY) {
-            return await sendIFTTTCall(message);
+            return await sendIFTTTCall(toPhone, message);
         }
         console.log(`⚠️ [MOCK CALL] To: ${toPhone}, Msg: ${message}`);
         return { success: true, mock: true };
@@ -33,12 +36,35 @@ const sendVoiceCall = async (toPhone, message) => {
     }
 };
 
+const sendPipedreamWebhook = async (toPhone, message) => {
+    const url = process.env.PIPEDREAM_WEBHOOK_URL;
+
+    if (!url) {
+        console.log(`⚠️ [PIPEDREAM MOCK] Msg: ${message}`);
+        return { success: true, mock: true };
+    }
+
+    try {
+        await axios.post(url, {
+            phone: toPhone,
+            message: message,
+            timestamp: new Date().toISOString(),
+            source: 'TJP Mushroom Farm'
+        });
+        console.log(`✅ Pipedream Webhook Triggered for ${toPhone}`);
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Pipedream Error:', error.message);
+        return { success: false, error: error.message };
+    }
+};
+
 /**
  * Technical Trigger: Sends a Voice Call alert via IFTTT Webhook (Free solution).
  * The user must set up an IFTTT Applet: 
  * If Webhook 'tjp_alert', then Phone Call (VoIP).
  */
-const sendIFTTTCall = async (message) => {
+const sendIFTTTCall = async (toPhone, message) => {
     const key = process.env.IFTTT_WEBHOOK_KEY;
     const event = process.env.IFTTT_EVENT_NAME || 'tjp_alert';
 
@@ -49,10 +75,12 @@ const sendIFTTTCall = async (message) => {
 
     try {
         // IFTTT allows value1, value2, value3 to be passed
+        // Inclusion of toPhone in value2 to allow Applets to use dynamic numbers
         await axios.post(`https://maker.ifttt.com/trigger/${event}/with/key/${key}`, {
-            value1: message
+            value1: message,
+            value2: toPhone
         });
-        console.log(`✅ IFTTT Alert Triggered: ${event}`);
+        console.log(`✅ IFTTT Alert Triggered for ${toPhone}: ${event}`);
         return { success: true };
     } catch (error) {
         console.error('❌ IFTTT Error:', error.message);
@@ -60,4 +88,4 @@ const sendIFTTTCall = async (message) => {
     }
 };
 
-module.exports = { sendVoiceCall, sendIFTTTCall };
+module.exports = { sendVoiceCall, sendIFTTTCall, sendPipedreamWebhook };

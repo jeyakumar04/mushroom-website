@@ -31,6 +31,8 @@ const Dashboard = () => {
     const [error, setError] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     const [climateData, setClimateData] = useState([]);
+    const [kadanList, setKadanList] = useState([]);
+    const [settlePopup, setSettlePopup] = useState({ open: false, saleId: null });
     const [cTemp, setCTemp] = useState('');
     const [cMoist, setCMoist] = useState('');
     const [cNotes, setCNotes] = useState('');
@@ -46,7 +48,8 @@ const Dashboard = () => {
         quantity: 1,
         pricePerUnit: 50,
         customerName: '',
-        contactNumber: ''
+        contactNumber: '',
+        paymentType: 'Cash'
     });
 
     const [expenditureForm, setExpenditureForm] = useState({
@@ -115,7 +118,7 @@ const Dashboard = () => {
         setIsLoading(true);
         try {
             const headers = { 'Authorization': `Bearer ${token}` };
-            const [bookRes, orderRes, invRes, statRes, custRes, salesRes, expRes, alertRes, finRes, batchRes, climateRes, waterCheckRes, reportsRes, logsRes] = await Promise.all([
+            const [bookRes, orderRes, invRes, statRes, custRes, salesRes, expRes, alertRes, finRes, batchRes, climateRes, waterCheckRes, reportsRes, logsRes, kadanRes] = await Promise.all([
                 fetch('http://localhost:5000/api/bookings', { headers }),
                 fetch('http://localhost:5000/api/orders', { headers }),
                 fetch('http://localhost:5000/api/inventory', { headers }),
@@ -129,14 +132,15 @@ const Dashboard = () => {
                 fetch('http://localhost:5000/api/climate', { headers }),
                 fetch('http://localhost:5000/api/settings/water-check', { headers }),
                 fetch('http://localhost:5000/api/admin/reports-list', { headers }),
-                fetch('http://localhost:5000/api/admin/notification-logs', { headers })
+                fetch('http://localhost:5000/api/admin/notification-logs', { headers }),
+                fetch('http://localhost:5000/api/sales/kadan', { headers })
             ]);
 
-            const [bData, oData, iData, sData, cData, sld, exd, ald, finD, bthD, clmD, wtrR, rptL, nLog] = await Promise.all([
+            const [bData, oData, iData, sData, cData, sld, exd, ald, finD, bthD, clmD, wtrR, rptL, nLog, kdnL] = await Promise.all([
                 bookRes.json(), orderRes.json(), invRes.json(), statRes.json(),
                 custRes.json(), salesRes.json(), expRes.json(), alertRes.json(),
                 finRes.json(), batchRes.json(), climateRes.json(), waterCheckRes.json(),
-                reportsRes.json(), logsRes.json()
+                reportsRes.json(), logsRes.json(), kadanRes.json()
             ]);
 
             setBookings(Array.isArray(bData) ? bData : []);
@@ -150,6 +154,7 @@ const Dashboard = () => {
             setFinanceData(finD);
             setBatches(Array.isArray(bthD) ? bthD : []);
             setClimateData(Array.isArray(clmD) ? clmD : []);
+            setKadanList(Array.isArray(kdnL) ? kdnL : []);
             setLastWaterCheck(wtrR?.lastCheck || null);
             setReportArchives(Array.isArray(rptL) ? rptL : []);
             setNotificationLogs(Array.isArray(nLog) ? nLog : []);
@@ -238,7 +243,7 @@ const Dashboard = () => {
                 // TRIGGER DIGITAL BILL GEN & UPLOAD
                 await handleSendBill(data.sale, data.loyaltyUpdate);
 
-                setSaleForm({ productType: 'Mushroom', quantity: 1, pricePerUnit: 50, customerName: '', contactNumber: '' });
+                setSaleForm({ productType: 'Mushroom', quantity: 1, pricePerUnit: 50, customerName: '', contactNumber: '', paymentType: 'Cash' });
                 fetchData();
             }
         } catch (err) {
@@ -251,15 +256,18 @@ const Dashboard = () => {
         setSaleForm({ ...saleForm, customerName: name });
         if (name.length > 2) {
             try {
-                const res = await fetch(`http://localhost:5000/api/customers/search?name=${name}`, {
+                const res = await fetch(`http://localhost:5000/api/customers/search?name=${encodeURIComponent(name)}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
                 if (data && data.length > 0) {
+                    // Auto-fill only if exact match or very close match
+                    const exactMatch = data.find(c => c.name.toLowerCase() === name.toLowerCase());
+                    const customer = exactMatch || data[0];
                     setSaleForm(prev => ({
                         ...prev,
-                        customerName: data[0].name,
-                        contactNumber: data[0].contactNumber
+                        customerName: customer.name,
+                        contactNumber: customer.contactNumber
                     }));
                 }
             } catch (err) { console.error(err); }
@@ -277,55 +285,45 @@ const Dashboard = () => {
                 customer: { loyaltyCount: loyaltyUpdate?.currentCycle || 0 }
             });
 
-            // 1. Generate the image blob
-            await new Promise(r => setTimeout(r, 600)); // Wait for render
+            // Wait for render and generate image
+            await new Promise(r => setTimeout(r, 600));
             const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
             const response = await fetch(dataUrl);
             const blob = await response.blob();
-            const file = new File([blob], `TJP_Bill_${sale.customerName}.png`, { type: 'image/png' });
 
-            // 2. Try Native Sharing (Works best on Mobile - Sends actual IMAGE, not link)
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'TJP Mushroom Bill',
-                        text: `வணக்கம் ${sale.customerName}! TJP மஷ்ரூம் பார்மிங்-லிருந்து உங்கள் டிஜிட்டல் பில். 🍄`
-                    });
-                    setIsGeneratingBill(false);
-                    return; // Stop here if share worked
-                } catch (err) {
-                    console.log('Share cancelled or failed, falling back...');
-                }
-            }
-
-            // 3. Desktop Fallback: Copy to Clipboard + Open Chat
+            // Copy image to clipboard (for easy paste)
             try {
                 await navigator.clipboard.write([
                     new ClipboardItem({ 'image/png': blob })
                 ]);
-                alert("✨ Bill Image Copied! \n\nWhatsApp will open now.\nJust PASTE (Ctrl+V) to send.");
+                console.log('✅ Image copied to clipboard');
             } catch (err) {
-                console.log('Clipboard failed');
+                console.log('⚠️ Clipboard copy failed:', err);
             }
 
-            // Open WhatsApp Chat (Ready for Paste)
-            const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${sale.customerName}! 👋\n\n(Image Attached Above 🖼️)\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄`;
-            window.open(`https://wa.me/91${sale.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(caption)}`, '_blank');
-
-            // Fallback: Also download/upload just in case
+            // Upload to server (backup)
             await fetch('http://localhost:5000/api/upload-bill', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     image: dataUrl,
-                    customerName: sale.customerName
+                    customerName: sale.customerName,
+                    contactNumber: sale.contactNumber
                 })
             });
 
+            // Direct WhatsApp open with message
+            const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${sale.customerName}! 👋\n\n📋 Bill Amount: ₹${sale.totalAmount}\n🍄 Product: ${sale.quantity} ${sale.unit} ${sale.productType}\n\n💡 Image copied! Just paste in chat.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌿`;
+
+            // Open WhatsApp App directly (not web)
+            const whatsappUrl = `https://wa.me/91${sale.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(caption)}`;
+            window.open(whatsappUrl, '_blank');
+
+            alert('✅ Bill Ready!\n\n📱 WhatsApp App opening...\n📋 Image copied to clipboard\n\n👉 Just PASTE in the chat!');
+
         } catch (err) {
             console.error('Bill Error:', err);
-            alert('Bill generation failed');
+            alert('❌ Bill generation failed');
         } finally {
             setIsGeneratingBill(false);
         }
@@ -614,6 +612,26 @@ const Dashboard = () => {
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", `TJP_Expenditure_Report_${new Date().getTime()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const exportClimateToExcel = () => {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "TJP MUSHROOM FARMING - CLIMATE REPORT\n";
+        csvContent += `Generated Date: ${formatDate(new Date())}\n\n`;
+        csvContent += "Date,Temperature (°C),Moisture (%),Observations\n";
+        climateData.forEach(c => {
+            const notes = (c.notes || '-').replace(/,/g, ';'); // Replace commas to avoid CSV issues
+            csvContent += `${formatDate(c.date)},${c.temperature},${c.moisture || c.humidity},"${notes}"\n`;
+        });
+        csvContent += `\nTOTAL RECORDS:,${climateData.length}\n`;
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `TJP_Climate_Report_${new Date().getTime()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -988,6 +1006,21 @@ const Dashboard = () => {
                                             className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800"
                                             placeholder="Auto-fills from name"
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">💳 Payment Type</label>
+                                        <select
+                                            value={saleForm.paymentType}
+                                            onChange={e => setSaleForm({ ...saleForm, paymentType: e.target.value })}
+                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all appearance-none"
+                                        >
+                                            <option value="Cash">💵 Cash</option>
+                                            <option value="GPay">📱 GPay</option>
+                                            <option value="Credit">🔴 Credit (Kadan)</option>
+                                        </select>
+                                        {saleForm.paymentType === 'Credit' && (
+                                            <p className="text-xs font-black text-red-600 mt-2 uppercase tracking-wide animate-pulse">⚠️ Will be added to Kadan Ledger (Unpaid)</p>
+                                        )}
                                     </div>
                                     <div className="bg-green-100 rounded-2xl p-6 border-2 border-green-200 shadow-inner">
                                         <p className="text-sm font-black text-green-700 uppercase mb-1">Total Amount</p>
@@ -1494,15 +1527,36 @@ const Dashboard = () => {
                                         />
                                         <p className="text-[9px] font-bold text-blue-400 mt-1 uppercase tracking-widest italic">Status: <span className="text-green-500 font-black">ACTIVE & SYNCED</span></p>
                                     </div>
-                                    <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all">
-                                        Add Reading
-                                    </button>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setCTemp('');
+                                                setCMoist('');
+                                                setCNotes('');
+                                            }}
+                                            className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-gray-300 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <FaEraser /> Reset
+                                        </button>
+                                        <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all">
+                                            Add Reading
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
                             <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl">
-                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-2">
-                                    <FaCalendarAlt className="text-blue-500" /> Climate Table
-                                </h3>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-2">
+                                        <FaCalendarAlt className="text-blue-500" /> Climate Table
+                                    </h3>
+                                    <button
+                                        onClick={exportClimateToExcel}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
+                                    >
+                                        <FaFileExcel /> Export Excel
+                                    </button>
+                                </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
