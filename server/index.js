@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const XLSX = require('xlsx');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 // --- SYSTEM TIMEZONE ---
@@ -144,8 +147,6 @@ app.get('/api/water/logs', auth, async (req, res) => {
         res.status(500).json({ message: 'Fetch logs failed' });
     }
 });
-const fs = require('fs');
-const path = require('path');
 
 
 
@@ -1502,6 +1503,127 @@ app.get('/api/test-ifttt', async (req, res) => {
     const { sendIFTTTCall } = require('./services/voiceService');
     const result = await sendIFTTTCall("TJP System Test: Free Voice Call via IFTTT working!");
     res.json(result);
+});
+
+// --- EXPORT MONTHLY REPORTS ---
+app.get('/api/export/:section', async (req, res) => {
+    try {
+        const { section } = req.params;
+        const { month, year } = req.query;
+
+        if (!month || !year) {
+            return res.status(400).json({ message: 'Month and year required' });
+        }
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59);
+
+        let data = [];
+        let sheetName = '';
+        let fileName = '';
+
+        if (section === 'water') {
+            data = await WaterLog.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+            data = data.map(d => ({
+                Date: new Date(d.date).toLocaleDateString(),
+                Type: d.type,
+                Liters: d.liters,
+                RemainingLevel: d.remainingLevel,
+                Percentage: d.percentage + '%',
+                Notes: d.notes || '-'
+            }));
+            sheetName = 'Water Logs';
+            fileName = `TJP_Water_Report_${month}_${year}.xlsx`;
+        } else if (section === 'inventory') {
+            // For Seed Taken, perhaps filter inventory with usageHistory in the month
+            const inventories = await Inventory.find();
+            data = [];
+            inventories.forEach(inv => {
+                inv.usageHistory.forEach(h => {
+                    const hDate = new Date(h.date);
+                    if (hDate >= startDate && hDate <= endDate) {
+                        data.push({
+                            Date: hDate.toLocaleDateString(),
+                            Item: inv.itemName,
+                            Type: h.type,
+                            Quantity: h.quantity,
+                            Unit: inv.unit,
+                            Notes: h.notes || '-'
+                        });
+                    }
+                });
+            });
+            sheetName = 'Inventory Usage';
+            fileName = `TJP_Inventory_Report_${month}_${year}.xlsx`;
+        } else if (section === 'seed') {
+            const seedInv = await Inventory.findOne({ itemName: 'Seeds' });
+            data = [];
+            if (seedInv) {
+                seedInv.usageHistory.forEach(h => {
+                    const hDate = new Date(h.date);
+                    if (hDate >= startDate && hDate <= endDate) {
+                        data.push({
+                            Date: hDate.toLocaleDateString(),
+                            Type: h.type,
+                            Quantity: h.quantity,
+                            Unit: seedInv.unit,
+                            Notes: h.notes || '-'
+                        });
+                    }
+                });
+            }
+            sheetName = 'Seed Usage';
+            fileName = `TJP_Seed_Report_${month}_${year}.xlsx`;
+        } else if (section === 'climate') {
+            data = await Climate.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
+            data = data.map(d => ({
+                Date: new Date(d.date).toLocaleString(),
+                Temperature: d.temperature + '°C',
+                Moisture: d.moisture ? d.moisture + '%' : '-',
+                Humidity: d.humidity ? d.humidity + '%' : '-',
+                CO2: d.co2 ? d.co2 + ' ppm' : '-',
+                FanStatus: d.fanStatus,
+                Notes: d.notes || '-'
+            }));
+            sheetName = 'Climate Data';
+            fileName = `TJP_Climate_Report_${month}_${year}.xlsx`;
+        } else if (section === 'loyalty') {
+            // For loyalty, perhaps customers with activity in the month, but since it's hub, all customers
+            data = await Customer.find();
+            data = data.map(d => ({
+                CustomerID: d.customerId,
+                Name: d.name,
+                Phone: d.contactNumber,
+                LoyaltyCycleCount: d.loyaltyCycleCount,
+                LifetimePockets: d.lifetimePockets,
+                TotalOrders: d.totalOrders,
+                FreePocketsRedeemed: d.freePocketsRedeemed,
+                CreatedAt: new Date(d.createdAt).toLocaleDateString()
+            }));
+            sheetName = 'Loyalty Hub';
+            fileName = `TJP_Loyalty_Report_${month}_${year}.xlsx`;
+        } else {
+            return res.status(400).json({ message: 'Invalid section' });
+        }
+
+        // if (data.length === 0) {
+        //     return res.status(404).json({ message: 'No data found for the selected month' });
+        // }
+
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+        const buffer = XLSX.write(workbook, { type: 'buffer' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.send(buffer);
+
+    } catch (err) {
+        console.error('Export error:', err);
+        res.status(500).json({ message: 'Export failed' });
+    }
 });
 
 // --- DAILY WATER USAGE CALCULATION ---

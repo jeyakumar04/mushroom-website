@@ -42,6 +42,9 @@ const Dashboard = () => {
         year: new Date().getFullYear()
     });
 
+    const [exportMonth, setExportMonth] = useState(new Date().getMonth() + 1);
+    const [exportYear, setExportYear] = useState(new Date().getFullYear());
+
     // Form States
     const [saleForm, setSaleForm] = useState({
         productType: 'Mushroom',
@@ -635,6 +638,36 @@ const Dashboard = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    const exportMonthlyReport = async (section) => {
+        const month = prompt('Enter month (1-12):', exportMonth);
+        const year = prompt('Enter year:', exportYear);
+        if (!month || !year) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/export/${section}?month=${month}&year=${year}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `TJP_${section.charAt(0).toUpperCase() + section.slice(1)}_Report_${month}_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert('No data found or export failed');
+            }
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Export failed');
+        }
     };
 
     const activeAlerts = getActiveAlerts();
@@ -1359,6 +1392,23 @@ const Dashboard = () => {
             case 'inventory':
                 return (
                     <div className="space-y-8 animate-fadeIn">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-2xl font-black uppercase text-gray-800">Inventory Management</h2>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => exportMonthlyReport('inventory')}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2"
+                                >
+                                    <FaFileExcel /> Export All Inventory
+                                </button>
+                                <button
+                                    onClick={() => exportMonthlyReport('seed')}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
+                                >
+                                    <FaSeedling /> Export Seed Report
+                                </button>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {inventory.map(item => (
                                 <div key={item._id} className="bg-white rounded-3xl p-8 shadow-xl">
@@ -1461,6 +1511,12 @@ const Dashboard = () => {
                             <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
                                 <FaGift className="text-amber-500" /> Smart Loyalty Hub
                             </h3>
+                            <button
+                                onClick={() => exportMonthlyReport('loyalty')}
+                                className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2 mb-6"
+                            >
+                                <FaFileExcel /> Export Monthly Report
+                            </button>
                             <p className="text-sm text-gray-500 mb-8">
                                 Track regular customers. 10 Pockets = 1 Free Pocket! Points auto-update with each sale.
                             </p>
@@ -1620,10 +1676,10 @@ const Dashboard = () => {
                                         <FaCalendarAlt className="text-blue-500" /> Climate Table
                                     </h3>
                                     <button
-                                        onClick={exportClimateToExcel}
+                                        onClick={() => exportMonthlyReport('climate')}
                                         className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
                                     >
-                                        <FaFileExcel /> Export Excel
+                                        <FaFileExcel /> Export Monthly Report
                                     </button>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -1846,6 +1902,12 @@ const Dashboard = () => {
                                 <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center justify-center gap-3">
                                     <FaWater className="text-blue-500" /> Water Drum Status
                                 </h3>
+                                <button
+                                    onClick={() => exportMonthlyReport('water')}
+                                    className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2 mb-6"
+                                >
+                                    <FaFileExcel /> Export Monthly Report
+                                </button>
                                 <div className="flex justify-center gap-10">
                                     {/* Drum 1 */}
                                     <div className="relative group">
