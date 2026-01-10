@@ -14,11 +14,24 @@ const Contact = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Handle form submission logic here
-        console.log('Form submitted:', formData);
-        alert('Thank you for your message! We will get back to you soon.');
+        try {
+            const res = await fetch('http://localhost:5000/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            if (res.ok) {
+                alert('TJP Mushroom Farming-க்கு உங்கள் செய்தி அனுப்பப்பட்டது! விரைவில் உங்களைத் தொடர்பு கொள்கிறோம். ✨');
+                setFormData({ name: '', email: '', subject: '', message: '' });
+            } else {
+                alert('Message send panna mudiyala. Dayavu seidhu apram try pannunga.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Something went wrong!');
+        }
     };
 
     return (

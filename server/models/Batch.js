@@ -4,6 +4,8 @@ const batchSchema = new mongoose.Schema({
     batchName: { type: String, required: true },
     bedDate: { type: Date, required: true },
     soakingTime: { type: Date }, // Time of soaking
+    soakingStatus: { type: String, enum: ['Not Started', 'Soaking', 'Completed'], default: 'Not Started' },
+    soakingAlertSent: { type: Boolean, default: false },
     harvestAlertDate: { type: Date }, // Day 10-13
     roomChangeDate: { type: Date }, // Day 19-20
     lifetimeFinishDate: { type: Date }, // Day 20 or specific date

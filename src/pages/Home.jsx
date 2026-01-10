@@ -4,6 +4,8 @@ import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWat
 import heroImage from '../assets/home-hero.png';
 import Footer from '../Component/Footer';
 
+import logo from '../assets/logo-final.png';
+
 const Home = () => {
   const [offset, setOffset] = useState(0);
 
@@ -28,6 +30,9 @@ const Home = () => {
         </div>
 
         <div className="z-20 relative px-4 max-w-5xl mx-auto text-center flex flex-col items-center">
+          {/* Centered Logo */}
+          <img src={logo} alt="TJP Logo" className="h-32 mb-8 animate-float-slow filter drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]" />
+
           <h1 className="text-6xl md:text-9xl font-black text-white mb-6 tracking-tighter filter drop-shadow-2xl">
             TJP <span className="text-tjp-gold uppercase italic">Mushrooms</span>
           </h1>

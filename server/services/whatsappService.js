@@ -106,5 +106,37 @@ const sendLoyaltyNotification = async (contactNumber, message) => {
     }
 };
 
-module.exports = { sendDigitalBill, sendLoyaltyNotification };
+/**
+ * Generic sendMessage function for Alarms/Reminders
+ */
+const sendMessage = async (contactNumber, message) => {
+    const accessToken = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_ID;
+
+    if (!accessToken || !phoneNumberId) {
+        console.log(`⚠️ [MOCK ALARM] To: ${contactNumber}, Msg: ${message}`);
+        return { success: true, mock: true };
+    }
+
+    try {
+        await axios.post(
+            `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`,
+            {
+                messaging_product: 'whatsapp',
+                to: contactNumber.startsWith('91') ? contactNumber : `91${contactNumber.replace(/\D/g, '')}`,
+                type: 'text',
+                text: { body: message }
+            },
+            {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            }
+        );
+        return { success: true };
+    } catch (error) {
+        console.error('❌ WhatsApp API Error:', error.response?.data || error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+module.exports = { sendDigitalBill, sendLoyaltyNotification, sendMessage };
 

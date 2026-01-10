@@ -100,28 +100,21 @@ const Admin = () => {
             link.href = dataUrl;
             link.click();
 
-            // 2. Automated WhatsApp API Trigger via Backend
-            const billRes = await fetch('http://localhost:5000/api/bills/send', {
+            // 2. Upload to server to get a URL
+            const uploadRes = await fetch('http://localhost:5000/api/upload-bill', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contactNumber: sale.contactNumber,
-                    customerName: sale.customerName,
-                    imageData: dataUrl
+                    image: dataUrl,
+                    customerName: sale.customerName
                 })
             });
+            const { imageUrl } = await uploadRes.json();
 
-            if (billRes.ok) {
-                console.log("Bill sent to backend for WhatsApp distribution");
-            }
+            // 3. Prepare Premium Message
+            const message = `✅ *TJP MUSHROOM FARM - DIGITAL BILL*\n\nவணக்கம் *${sale.customerName}*! 👋\nTJP மஷ்ரூம் பார்மிங் லிருந்து உங்கள் டிஜிட்டல் பில் இதோ.\n\n📄 *Bill Link:* ${imageUrl}\n\nநன்றி! மீண்டும் வருக! 🙏✨`;
 
-            const message = `வணக்கம் ${sale.customerName}! TJP மஷ்ரூம் பார்மிங் இலிருந்து உங்கள் டிஜிட்டல் பில் இதோ. 🍄`;
-            alert("Digital Bill Generated & Sent! (A copy has been downloaded for your records)");
-
-            // Fallback: Open WhatsApp as well
+            alert("Digital Bill Generated! (A copy has been downloaded for your records)");
             window.open(`https://wa.me/91${sale.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
 
         } catch (err) {

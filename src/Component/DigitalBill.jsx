@@ -16,77 +16,85 @@ const DigitalBill = forwardRef(({ saleData, customerData }, ref) => {
     return (
         <div
             ref={ref}
-            className="w-[500px] bg-[#022C22] p-10 text-white font-sans relative overflow-hidden"
+            className="w-[500px] bg-[#CBCCCB] p-10 text-gray-800 font-sans relative overflow-hidden"
             style={{
-                background: 'linear-gradient(135deg, #022C22 0%, #059669 100%)',
-                border: '1px solid rgba(255,255,255,0.1)'
+                border: '1px solid rgba(0,0,0,0.1)'
             }}
         >
-            {/* Background Decorative Elements */}
-            <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-[-50px] left-[-50px] w-40 h-40 bg-[#F4D03F]/5 rounded-full blur-3xl"></div>
-
-            {/* Header Logo */}
-            <div className="flex justify-center mb-8">
-                <img src={logo} alt="TJP Logo" className="h-20 object-contain brightness-110" />
+            {/* Header Section */}
+            <div className="flex flex-col items-center mb-8">
+                <img
+                    src={logo}
+                    alt="TJP Logo"
+                    className="w-[380px] object-contain mb-4 filter drop-shadow-md"
+                />
+                <h1 className="text-2xl font-black uppercase tracking-tighter text-gray-900">
+                    TJP Mushroom Farming
+                </h1>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500 mt-1">
+                    Quality • Freshness • Health
+                </p>
             </div>
 
             {/* Top Info */}
-            <div className="flex justify-between items-center mb-10 border-b border-white/10 pb-6">
+            <div className="flex justify-between items-center mb-8 border-y border-gray-400/30 py-6">
                 <div>
-                    <p className="text-[10px] uppercase tracking-widest text-[#F4D03F] font-bold">Customer</p>
-                    <h3 className="text-xl font-black italic">{saleData.customerName}</h3>
+                    <p className="text-[10px] uppercase tracking-widest text-green-700 font-black">Customer</p>
+                    <h3 className="text-xl font-bold">{saleData.customerName}</h3>
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-widest text-[#F4D03F] font-bold">Date</p>
-                    <h3 className="text-xl font-black italic">{date}</h3>
+                    <p className="text-[10px] uppercase tracking-widest text-green-700 font-black">Date</p>
+                    <h3 className="text-xl font-bold">{date}</h3>
                 </div>
             </div>
 
             {/* Order Details */}
-            <div className="bg-white/5 rounded-3xl p-8 mb-8 border border-white/10 backdrop-blur-sm">
-                <h4 className="text-[10px] uppercase tracking-widest text-gray-400 font-black mb-6">Order Details</h4>
+            <div className="bg-white/40 rounded-3xl p-8 mb-8 border border-white/60 backdrop-blur-sm shadow-inner">
+                <h4 className="text-[10px] uppercase tracking-widest text-gray-500 font-black mb-6">Order Summary</h4>
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-300 font-medium">Product</span>
-                        <span className="font-bold">Mushroom Pocket</span>
+                        <span className="text-gray-600 font-bold">Product</span>
+                        <span className="font-black">Oyster Mushroom</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-300 font-medium">Quantity</span>
-                        <span className="font-bold">{saleData.quantity} Pockets</span>
+                        <span className="text-gray-600 font-bold">Quantity</span>
+                        <span className="font-black">{saleData.quantity} Pockets</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-300 font-medium">Price</span>
-                        <span className="font-bold">₹{saleData.pricePerPocket} / pocket</span>
+                        <span className="text-gray-600 font-bold">Price per Unit</span>
+                        <span className="font-black">₹{saleData.pricePerPocket}</span>
                     </div>
-                    <div className="pt-4 border-t border-white/10 mt-4 flex justify-between items-center">
-                        <span className="text-lg font-black uppercase italic text-[#F4D03F]">Total Amount</span>
-                        <span className="text-3xl font-black text-white">₹{totalAmount}</span>
+                    <div className="pt-4 border-t border-gray-300 mt-4 flex justify-between items-center">
+                        <span className="text-lg font-black uppercase text-green-800 italic">Total Paid</span>
+                        <span className="text-4xl font-black text-gray-900">₹{totalAmount}</span>
                     </div>
                 </div>
             </div>
 
             {/* Loyalty Section */}
-            <div className="bg-[#F4D03F]/10 rounded-3xl p-8 mb-10 border border-[#F4D03F]/20">
+            <div className="bg-green-800 text-white rounded-3xl p-8 mb-10 shadow-lg border border-green-700">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="w-2 h-2 bg-[#F4D03F] rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[#F4D03F]">Loyalty Track</span>
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-green-200">Loyalty Tracker</span>
                 </div>
-                <p className="text-sm font-bold leading-relaxed text-gray-100">
-                    நீங்கள் இப்போது <span className="text-[#F4D03F]">{customerData.loyaltyCount}</span> பாக்கெட்டுகள் வாங்கியுள்ளீர்கள்.
-                    இன்னும் <span className="text-[#F4D03F]">{remainingQty}</span> பாக்கெட்டுகள் வாங்கினால், 1 பாக்கெட் இலவசமாக பெறுவீர்கள்!
+                <p className="text-sm font-bold leading-relaxed">
+                    வணக்கம் <span className="text-yellow-400">{saleData.customerName}</span>! நீங்கள் இதுவரை <span className="text-yellow-400">{customerData.loyaltyCount}</span> பாக்கெட்டுகள் வாங்கியுள்ளீர்கள்.
                 </p>
+                <div className="mt-4 pt-4 border-t border-green-700">
+                    <p className="text-xs font-medium text-green-100 italic">
+                        இன்னும் <span className="text-yellow-400 font-black">{remainingQty}</span> பாக்கெட்டுகள் வாங்கினால், 1 பாக்கெட் முற்றிலும் இலவசம்!
+                    </p>
+                </div>
             </div>
 
             {/* Footer */}
             <div className="text-center">
-                <div className="bg-white/5 py-4 px-6 rounded-2xl inline-block mb-4 border border-white/5">
-                    <p className="text-[10px] font-bold italic text-gray-300">
-                        TJP மஷ்ரூம் பார்மிங் உடன் இணைந்ததற்கு நன்றி!<br />
-                        <span className="text-[#F4D03F]">உங்கள் வளர்ச்சி எங்கள் மகிழ்ச்சி!</span>
-                    </p>
+                <p className="text-[11px] font-black text-gray-600 italic mb-4">
+                    "இயற்கையோடு இணைந்த சுவை, நாவிற்கு விருந்து, உடலிற்கு மருந்து!"
+                </p>
+                <div className="border-t border-gray-400/30 pt-6">
+                    <p className="text-[9px] uppercase tracking-[0.5em] font-black text-gray-500">Official Digital Bill • TJP Farms</p>
                 </div>
-                <p className="text-[8px] uppercase tracking-[0.3em] font-black text-gray-500">Digital Bill • TJP Mushroom Farming</p>
             </div>
         </div>
     );

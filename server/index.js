@@ -14,15 +14,61 @@ const Sales = require('./models/Sales');
 const Expenditure = require('./models/Expenditure');
 const Alert = require('./models/Alert');
 const Batch = require('./models/Batch');
-const { sendDigitalBill, sendLoyaltyNotification } = require('./services/whatsappService');
+const Climate = require('./models/Climate');
+const Contact = require('./models/Contact');
+const Settings = mongoose.model('Settings', new mongoose.Schema({ key: String, value: mongoose.Schema.Types.Mixed }));
+
+// --- NOTIFICATION HISTORY TRACKING ---
+const notificationLogSchema = new mongoose.Schema({
+    timestamp: { type: Date, default: Date.now },
+    type: { type: String, enum: ['WhatsApp', 'VoiceCall', 'Email'] },
+    recipient: String,
+    title: String,
+    message: String,
+    status: { type: String, default: 'Sent' },
+    error: String
+});
+const NotificationLog = mongoose.model('NotificationLog', notificationLogSchema);
+
+const { sendDigitalBill, sendLoyaltyNotification, sendMessage } = require('./services/whatsappService');
+const { sendVoiceCall } = require('./services/voiceService');
+const { sendMonthlyReport } = require('./services/reportService');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'tjp_secret_key_2026';
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/public', express.static('public'));
+
+// --- SETTINGS (Water Check & Others) ---
+app.post('/api/settings/water-check', auth, async (req, res) => {
+    try {
+        const now = new Date();
+        await Settings.findOneAndUpdate(
+            { key: 'lastWaterCheck' },
+            { value: now },
+            { upsert: true, new: true }
+        );
+        res.json({ message: 'Water check recorded', date: now });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to record water check' });
+    }
+});
+
+app.get('/api/settings/water-check', auth, async (req, res) => {
+    try {
+        const setting = await Settings.findOne({ key: 'lastWaterCheck' });
+        res.json({ lastCheck: setting ? setting.value : null });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch settings' });
+    }
+});
+const fs = require('fs');
+const path = require('path');
 
 const auth = async (req, res, next) => {
     try {
@@ -37,6 +83,27 @@ const auth = async (req, res, next) => {
         res.status(401).send({ error: 'Please authenticate.' });
     }
 };
+
+// --- CLIMATE TRACKING ---
+app.post('/api/climate', auth, async (req, res) => {
+    try {
+        const { temperature, humidity, lightStatus, coolingSystem } = req.body;
+        const newClimate = new Climate({ temperature, humidity, lightStatus, coolingSystem });
+        await newClimate.save();
+        res.status(201).json(newClimate);
+    } catch (error) {
+        res.status(500).json({ message: 'Climate record failed' });
+    }
+});
+
+app.get('/api/climate', auth, async (req, res) => {
+    try {
+        const data = await Climate.find().sort({ timestamp: -1 }).limit(50);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ message: 'Fetch climate failed' });
+    }
+});
 
 // --- AUTH & ADMIN ---
 app.post('/api/admin/login', async (req, res) => {
@@ -107,18 +174,22 @@ app.post('/api/sales', auth, async (req, res) => {
                 customer = new Customer({ name: customerName, contactNumber });
             }
 
-            // TJP 20-Pocket Cycle Logic
-            customer.loyaltyCycleCount += quantity;
-            customer.lifetimePockets += quantity; // Permanent record
-            customer.totalOrders += 1;
+            // TJP 10-Pocket Cycle Logic (10 Pockets = 1 Free)
+            const qty = Number(quantity) || 0;
+            customer.loyaltyCycleCount = (Number(customer.loyaltyCycleCount) || 0) + qty;
+            customer.loyaltyCount = (Number(customer.loyaltyCount) || 0) + qty; // Syncing both fields
+            customer.lifetimePockets = (Number(customer.lifetimePockets) || 0) + qty;
+            customer.totalOrders = (Number(customer.totalOrders) || 0) + 1;
 
-            // Bulk Offer: 20 pockets in one go = 2 Free Pockets
-            let bulkOffer = quantity >= 20;
+            // Bulk Offer: 10 pockets in one go = 1 Free Pocket
+            let bulkOffer = qty >= 10;
 
-            // Cycle Reset Logic: Every 20 pockets reset counter
-            let reachedCycle = customer.loyaltyCycleCount >= 20;
+            // Cycle Reset Logic: Every 10 pockets reset counter for next cycle
+            let reachedCycle = customer.loyaltyCount >= 10;
             if (reachedCycle) {
-                customer.loyaltyCycleCount = customer.loyaltyCycleCount % 20;
+                // We keep the remainder if they order more than 10
+                customer.loyaltyCount = customer.loyaltyCount % 10;
+                customer.loyaltyCycleCount = customer.loyaltyCount;
             }
 
             await customer.save();
@@ -127,7 +198,7 @@ app.post('/api/sales', auth, async (req, res) => {
             await newSale.save();
 
             loyaltyUpdate = {
-                currentCycle: customer.loyaltyCycleCount,
+                currentCycle: customer.loyaltyCount,
                 lifetime: customer.lifetimePockets,
                 reachedCycle,
                 bulkOffer
@@ -145,6 +216,31 @@ app.post('/api/sales', auth, async (req, res) => {
     }
 });
 
+// --- BILL UPLOAD & HOSTING ---
+app.post('/api/upload-bill', async (req, res) => {
+    try {
+        const { image, customerName } = req.body;
+        if (!image) return res.status(400).json({ message: 'No image provided' });
+
+        const base64Data = image.replace(/^data:image\/png;base64,/, "");
+        const fileName = `bill_${Date.now()}.png`;
+        const filePath = path.join(__dirname, 'public', 'uploads', fileName);
+
+        if (!fs.existsSync(path.join(__dirname, 'public', 'uploads'))) {
+            fs.mkdirSync(path.join(__dirname, 'public', 'uploads'), { recursive: true });
+        }
+
+        fs.writeFileSync(filePath, base64Data, 'base64');
+
+        const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+        const imageUrl = `${baseUrl}/public/uploads/${fileName}`;
+        res.json({ imageUrl });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Upload failed' });
+    }
+});
+
 // Customer search for auto-fill
 app.get('/api/customers/search', auth, async (req, res) => {
     try {
@@ -153,6 +249,42 @@ app.get('/api/customers/search', auth, async (req, res) => {
         res.json(customers);
     } catch (error) {
         res.status(500).json({ message: 'Search failed' });
+    }
+});
+
+// Loyalty Reset (Free Pocket Given)
+app.post('/api/customers/:id/reset-loyalty', auth, async (req, res) => {
+    try {
+        const customer = await Customer.findById(req.params.id);
+        if (!customer) return res.status(404).json({ message: 'Customer not found' });
+
+        // Reset the cycle count to 0, but KEEP lifetime history
+        customer.loyaltyCycleCount = 0;
+        await customer.save();
+
+        res.json({ message: 'Loyalty cycle reset to 0', customer });
+    } catch (error) {
+        res.status(500).json({ message: 'Reset failed' });
+    }
+});
+
+// --- CLIMATE TRACKING ---
+app.post('/api/climate', auth, async (req, res) => {
+    try {
+        const newEntry = new Climate(req.body);
+        await newEntry.save();
+        res.status(201).json(newEntry);
+    } catch (error) {
+        res.status(500).json({ message: 'Climate entry failed' });
+    }
+});
+
+app.get('/api/climate', auth, async (req, res) => {
+    try {
+        const data = await Climate.find().sort({ date: -1 }).limit(30);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ message: 'Fetch failed' });
     }
 });
 
@@ -185,6 +317,18 @@ app.delete('/api/delete/:model/:id', auth, async (req, res) => {
         res.json({ message: 'Deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Delete failed' });
+    }
+});
+
+// --- PUBLIC CONTACT FORM ---
+app.post('/api/contact', async (req, res) => {
+    try {
+        const newMessage = new Contact(req.body);
+        await newMessage.save();
+        res.status(201).json({ message: 'Message sent successfully!' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to send message' });
     }
 });
 
@@ -411,6 +555,24 @@ app.patch('/api/alerts/:id/toggle', auth, async (req, res) => {
     }
 });
 
+app.patch('/api/alerts/:id', auth, async (req, res) => {
+    try {
+        const updatedAlert = await Alert.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(updatedAlert);
+    } catch (error) {
+        res.status(500).json({ message: 'Alert update failed' });
+    }
+});
+
+app.delete('/api/alerts/:id', auth, async (req, res) => {
+    try {
+        await Alert.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Alert deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Alert deletion failed' });
+    }
+});
+
 // --- LOYALTY (Customer Tracking) ---
 app.get('/api/customers', auth, async (req, res) => {
     try {
@@ -476,6 +638,50 @@ app.get('/api/finance/summary', auth, async (req, res) => {
     }
 });
 
+// --- MANUAL REPORT TRIGGER (For testing) ---
+app.post('/api/admin/send-monthly-report', auth, async (req, res) => {
+    try {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59);
+
+        const sales = await Sales.find({ date: { $gte: startDate, $lte: endDate } });
+        const expenditures = await Expenditure.find({ date: { $gte: startDate, $lte: endDate } });
+        const inventory = await Inventory.find();
+        const climate = await Climate.find({ date: { $gte: startDate, $lte: endDate } });
+        const customers = await Customer.find();
+
+        await sendMonthlyReport(sales, expenditures, inventory, climate, customers, month, year);
+        res.json({ message: 'Monthly report generation triggered' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to trigger report' });
+    }
+});
+
+app.get('/api/admin/reports-list', auth, async (req, res) => {
+    try {
+        const reportsDir = path.join(__dirname, 'public', 'reports');
+        if (!fs.existsSync(reportsDir)) return res.json([]);
+
+        const files = fs.readdirSync(reportsDir)
+            .filter(file => file.endsWith('.xlsx'))
+            .map(file => ({
+                name: file,
+                url: `/public/reports/${file}`,
+                date: fs.statSync(path.join(reportsDir, file)).birthtime
+            }))
+            .sort((a, b) => b.date - a.date);
+
+        res.json(files);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch reports list' });
+    }
+});
+
 // --- SHOP & LOYALTY (Legacy Support) ---
 app.post('/api/orders', async (req, res) => {
     try {
@@ -520,17 +726,21 @@ app.patch('/api/orders/:id/status', auth, async (req, res) => {
 app.post('/api/sales/manual', auth, async (req, res) => {
     try {
         const { customerName, contactNumber, pricePerPocket, quantity } = req.body;
-
-        const loyaltyIncrement = pricePerPocket >= 50 ? quantity : 0;
+        const qty = Number(quantity) || 0;
+        const loyaltyIncrement = pricePerPocket >= 50 ? qty : 0;
 
         let customer = await Customer.findOne({ contactNumber });
         if (!customer) {
             customer = new Customer({ name: customerName, contactNumber });
         }
 
-        const oldLoyalty = customer.loyaltyCount;
-        customer.loyaltyCount += loyaltyIncrement;
-        customer.totalOrders += 1;
+        const oldLoyalty = Number(customer.loyaltyCount) || 0;
+        customer.loyaltyCount = oldLoyalty + loyaltyIncrement;
+        customer.loyaltyCycleCount = customer.loyaltyCount; // Syncing
+        customer.totalOrders = (Number(customer.totalOrders) || 0) + 1;
+
+        const reachedTen = oldLoyalty < 10 && customer.loyaltyCount >= 10;
+
         await customer.save();
 
         // Also create a Sales record
@@ -545,8 +755,6 @@ app.post('/api/sales/manual', auth, async (req, res) => {
             isLoyaltyCustomer: loyaltyIncrement > 0
         });
         await newSale.save();
-
-        const reachedTen = oldLoyalty < 10 && customer.loyaltyCount >= 10;
 
         res.json({
             message: 'Sale recorded',
@@ -601,26 +809,26 @@ app.get('/api/admin/stats', auth, async (req, res) => {
 
 // Initialize default alerts
 const initializeAlerts = async () => {
-    const alertCount = await Alert.countDocuments();
-    if (alertCount === 0) {
-        await Alert.insertMany([
-            {
-                title: 'Morning Mushroom Check',
-                message: 'Mushroom Check & Water Spray',
-                scheduledTime: '06:00',
-                type: 'daily',
-                icon: '🍄💧'
-            },
-            {
-                title: 'Exhaust Fan Status',
-                message: 'Exhaust Fan Status Change',
-                scheduledTime: '06:30',
-                type: 'daily',
-                icon: '🌀'
-            }
-        ]);
-        console.log('✅ Default alerts created');
-    }
+    // Cleanup old default alerts to prevent duplicates/confusion
+    await Alert.deleteMany({ scheduledTime: { $in: ['06:00', '06:30'] } });
+
+    await Alert.insertMany([
+        {
+            title: 'FAN IN (ON)',
+            message: 'Farming Fan IN - Turn ON now!',
+            scheduledTime: '06:00',
+            type: 'daily',
+            icon: '🌀'
+        },
+        {
+            title: 'FAN OUT (OFF)',
+            message: 'Farming Fan OUT - Turn OFF now!',
+            scheduledTime: '07:00',
+            type: 'daily',
+            icon: '🌀'
+        }
+    ]);
+    console.log('✅ Fan IN/OUT alerts re-initialized');
 };
 
 // Initialize default inventory items
@@ -729,6 +937,23 @@ app.patch('/api/batches/:id/harvest', auth, async (req, res) => {
         res.json(batch);
     } catch (error) {
         res.status(500).json({ message: 'Harvest update failed' });
+    }
+});
+
+// Start Soaking Route
+app.post('/api/batches/:id/start-soak', auth, async (req, res) => {
+    try {
+        const batch = await Batch.findById(req.params.id);
+        if (!batch) return res.status(404).json({ message: 'Batch not found' });
+
+        batch.soakingTime = new Date();
+        batch.soakingStatus = 'Soaking';
+        batch.soakingAlertSent = false;
+        await batch.save();
+
+        res.json({ message: 'Soaking started', soakingTime: batch.soakingTime });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to start soaking' });
     }
 });
 
@@ -885,6 +1110,156 @@ app.get('/api/webhook/check-loyalty', auth, async (req, res) => {
     }
 });
 
+// --- BACKGROUND ALARM SCHEDULER ---
+const startAlarmScheduler = () => {
+    console.log('⏰ Alarm Scheduler started...');
+    setInterval(async () => {
+        const now = new Date();
+        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        // Supports multiple numbers separated by comma (e.g., "9500591897,9159659711")
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897').split(',').map(p => p.trim());
+
+        try {
+            // 1. Check Daily Alerts (HH:MM)
+            const activeAlerts = await Alert.find({ scheduledTime: currentTime, isActive: true, type: 'daily' });
+            for (const alert of activeAlerts) {
+                const message = `🔔 *TJP ALARM* 🔔\n\nTitle: ${alert.title}\nMessage: ${alert.message}\nTime: ${alert.scheduledTime}`;
+                for (const phone of adminPhones) {
+                    try {
+                        await sendMessage(phone, message);
+                        await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: alert.title, message: alert.message });
+                        if (alert.title.includes('FAN') || alert.title.includes('WATER')) {
+                            await sendVoiceCall(phone, `Sir, TJP Mushroom Alert. ${alert.title}. ${alert.message}`);
+                            await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: alert.title, message: `System Call triggered` });
+                        }
+                    } catch (e) {
+                        await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: alert.title, status: 'Failed', error: e.message });
+                    }
+                }
+            }
+
+            // 2. Check Water Drum Cycle (Every 2 days)
+            if (currentTime === '08:00') {
+                const setting = await Settings.findOne({ key: 'lastWaterCheck' });
+                if (setting && setting.value) {
+                    const lastCheck = new Date(setting.value);
+                    const diffDays = Math.ceil(Math.abs(now - lastCheck) / (1000 * 60 * 60 * 24));
+
+                    if (diffDays >= 2) {
+                        const msg = `💧 TJP WATER ALERT 💧\nWater Drum Check is due today!`;
+                        for (const phone of adminPhones) {
+                            await sendMessage(phone, msg);
+                            await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: 'Water Check', message: msg });
+                            await sendVoiceCall(phone, "Sir, TJP Water Alert. Please check the water drum level today.");
+                            await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: 'Water Check', message: 'Cycle Alert' });
+                        }
+                    }
+                }
+            }
+
+            // 3. Check Soaking Alert (18 hours check)
+            const soakingBatches = await Batch.find({ soakingStatus: 'Soaking', soakingAlertSent: false });
+            for (const batch of soakingBatches) {
+                const alertTime = new Date(new Date(batch.soakingTime).getTime() + 18 * 60 * 60 * 1000);
+                if (now >= alertTime) {
+                    const msg = `🚨 TJP SOAKING ALERT! 🚨\nBatch: ${batch.batchName}\ncompleted 18 hours.`;
+
+                    // Trigger IFTTT Webhook for Voice Call
+                    const { sendIFTTTCall } = require('./services/voiceService');
+                    await sendIFTTTCall(`Sir, TJP Soaking Alert for Batch ${batch.batchName} is complete.`);
+
+                    for (const phone of adminPhones) {
+                        await sendMessage(phone, msg);
+                        await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: 'Soaking Alert', message: msg });
+                        // Also doing standard voice call if configured
+                        await sendVoiceCall(phone, `Sir, TJP Mushroom Soaking Alert. Batch ${batch.batchName} has completed 18 hours.`);
+                        await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: 'Soaking Alert', message: `Call for batch ${batch.batchName}` });
+                    }
+                    batch.soakingAlertSent = true;
+                    batch.soakingStatus = 'Completed';
+                    await batch.save();
+                }
+            }
+        } catch (error) { console.error('Scheduler Error:', error); }
+    }, 60000);
+};
+
+app.get('/api/admin/notification-logs', auth, async (req, res) => {
+    try {
+        const logs = await NotificationLog.find().sort({ timestamp: -1 }).limit(10);
+        res.json(logs);
+    } catch (error) { res.status(500).json({ message: 'Failed to fetch logs' }); }
+});
+
+// --- TEST ALARM ENDPOINT ---
+app.get('/api/test-alarm', async (req, res) => {
+    const adminPhones = (process.env.ADMIN_PHONE || '9500591897').split(',').map(p => p.trim());
+    const message = `🔔 *TJP TEST ALARM* 🔔\n\nThis is a sample notification test.\nTime: ${new Date().toLocaleTimeString()}\n\nStatus: System working perfectly! 🍄`;
+
+    try {
+        for (const phone of adminPhones) {
+            await sendMessage(phone, message);
+        }
+        res.json({ message: 'Test alarm sent to all phones!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Test failed' });
+    }
+});
+
+// --- TEST CALL ENDPOINT ---
+app.get('/api/test-call', async (req, res) => {
+    const adminPhones = (process.env.ADMIN_PHONE || '9500591897').split(',').map(p => p.trim());
+    const message = "Sir, this is a TJP Mushroom Farming test call alert. The system is working perfectly.";
+
+    try {
+        for (const phone of adminPhones) {
+            await sendVoiceCall(phone, message);
+        }
+        res.json({ message: 'Test voice call triggered for all phones!' });
+    } catch (error) {
+        res.status(500).json({ message: 'Call test failed' });
+    }
+});
+
+app.get('/api/test-ifttt', async (req, res) => {
+    const { sendIFTTTCall } = require('./services/voiceService');
+    const result = await sendIFTTTCall("TJP System Test: Free Voice Call via IFTTT working!");
+    res.json(result);
+});
+
+// --- MONTHLY AUTOMATED REPORT SCHEDULER ---
+// Runs at 11:59 PM (23:59) on the last day of every month
+cron.schedule('59 23 28-31 * *', async () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    // If tomorrow is the 1st, then today is the last day of the month
+    if (tomorrow.getDate() === 1) {
+        console.log('📅 Last day of the month detected. Generating automated report...');
+        try {
+            const month = today.getMonth() + 1;
+            const year = today.getFullYear();
+
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0, 23, 59, 59);
+
+            const sales = await Sales.find({ date: { $gte: startDate, $lte: endDate } });
+            const expenditures = await Expenditure.find({ date: { $gte: startDate, $lte: endDate } });
+            const inventory = await Inventory.find();
+            const climate = await Climate.find({ date: { $gte: startDate, $lte: endDate } });
+            const customers = await Customer.find();
+
+            await sendMonthlyReport(sales, expenditures, inventory, climate, customers, month, year);
+            console.log(`✅ Automated Report for ${month}/${year} sent.`);
+        } catch (error) {
+            console.error('❌ Automated Report Error:', error);
+        }
+    }
+});
+
+
 const MONGODB_URI = process.env.MONGODB_URI;
 mongoose.connect(MONGODB_URI)
     .then(async () => {
@@ -893,6 +1268,7 @@ mongoose.connect(MONGODB_URI)
         if (adminCount === 0) await new Admin({ username: 'admin', password: 'password123' }).save();
         await initializeAlerts();
         await initializeInventory();
+        startAlarmScheduler(); // Start the background phone alarm
         app.listen(PORT, () => console.log(`🚀 Server is live on port ${PORT}`));
     })
     .catch(err => {
