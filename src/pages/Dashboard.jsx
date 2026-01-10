@@ -641,8 +641,14 @@ const Dashboard = () => {
     };
 
     const exportMonthlyReport = async (section) => {
-        const month = prompt('Enter month (1-12):', exportMonth);
-        const year = prompt('Enter year:', exportYear);
+        // Use state values directly instead of prompt
+        const month = exportMonth;
+        const year = exportYear;
+
+        if (!month || !year) {
+            alert('Please select month and year');
+            return;
+        }
         if (!month || !year) return;
 
         try {
@@ -1392,20 +1398,27 @@ const Dashboard = () => {
             case 'inventory':
                 return (
                     <div className="space-y-8 animate-fadeIn">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                             <h2 className="text-2xl font-black uppercase text-gray-800">Inventory Management</h2>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Date Selectors */}
+                                <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                                <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
+                                    {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
                                 <button
                                     onClick={() => exportMonthlyReport('inventory')}
                                     className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2"
                                 >
-                                    <FaFileExcel /> Export All Inventory
+                                    <FaFileExcel /> Inventory
                                 </button>
                                 <button
                                     onClick={() => exportMonthlyReport('seed')}
                                     className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
                                 >
-                                    <FaSeedling /> Export Seed Report
+                                    <FaSeedling /> Seeds
                                 </button>
                             </div>
                         </div>
@@ -1508,15 +1521,26 @@ const Dashboard = () => {
                 return (
                     <div className="space-y-8 animate-fadeIn">
                         <div className="bg-white rounded-3xl p-8 shadow-xl">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
-                                <FaGift className="text-amber-500" /> Smart Loyalty Hub
-                            </h3>
-                            <button
-                                onClick={() => exportMonthlyReport('loyalty')}
-                                className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2 mb-6"
-                            >
-                                <FaFileExcel /> Export Monthly Report
-                            </button>
+                            <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
+                                <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                    <FaGift className="text-amber-500" /> Smart Loyalty Hub
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                    <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
+                                        {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                    <button
+                                        onClick={() => exportMonthlyReport('loyalty')}
+                                        className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2"
+                                    >
+                                        <FaFileExcel /> Export Report
+                                    </button>
+                                </div>
+                            </div>
+
                             <p className="text-sm text-gray-500 mb-8">
                                 Track regular customers. 10 Pockets = 1 Free Pocket! Points auto-update with each sale.
                             </p>
@@ -1596,7 +1620,7 @@ const Dashboard = () => {
                                 ))}
                             </div>
                         </div>
-                    </div>
+                    </div >
                 );
 
             case 'climate':
@@ -1675,12 +1699,20 @@ const Dashboard = () => {
                                     <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-2">
                                         <FaCalendarAlt className="text-blue-500" /> Climate Table
                                     </h3>
-                                    <button
-                                        onClick={() => exportMonthlyReport('climate')}
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
-                                    >
-                                        <FaFileExcel /> Export Monthly Report
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                        </select>
+                                        <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
+                                            {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                        <button
+                                            onClick={() => exportMonthlyReport('climate')}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
+                                        >
+                                            <FaFileExcel /> Export Report
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
@@ -1902,12 +1934,22 @@ const Dashboard = () => {
                                 <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center justify-center gap-3">
                                     <FaWater className="text-blue-500" /> Water Drum Status
                                 </h3>
-                                <button
-                                    onClick={() => exportMonthlyReport('water')}
-                                    className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2 mb-6"
-                                >
-                                    <FaFileExcel /> Export Monthly Report
-                                </button>
+                                <div className="flex flex-col items-center gap-3 mb-6">
+                                    <div className="flex items-center gap-2">
+                                        <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                        </select>
+                                        <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
+                                            {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    </div>
+                                    <button
+                                        onClick={() => exportMonthlyReport('water')}
+                                        className="bg-green-600 text-white px-6 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2"
+                                    >
+                                        <FaFileExcel /> Export Monthly Report
+                                    </button>
+                                </div>
                                 <div className="flex justify-center gap-10">
                                     {/* Drum 1 */}
                                     <div className="relative group">
