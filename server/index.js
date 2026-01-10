@@ -34,7 +34,7 @@ const notificationLogSchema = new mongoose.Schema({
 });
 const NotificationLog = mongoose.model('NotificationLog', notificationLogSchema);
 
-const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage } = require('./services/whatsappService');
+const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage, getLatestQr, isClientReady } = require('./services/whatsappService');
 const { sendVoiceCall } = require('./services/voiceService');
 const { sendMonthlyReport } = require('./services/reportService');
 const cron = require('node-cron');
@@ -153,7 +153,7 @@ const path = require('path');
 // Duplicate removed. Unified with endpoint at line 426.
 
 // --- AUTH & ADMIN ---
-const { getLatestQr, isClientReady, sendImage } = require('./services/whatsappService');
+
 
 // ... (other routes)
 

@@ -1008,19 +1008,36 @@ const Dashboard = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">💳 Payment Type</label>
-                                        <select
-                                            value={saleForm.paymentType}
-                                            onChange={e => setSaleForm({ ...saleForm, paymentType: e.target.value })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all appearance-none"
-                                        >
-                                            <option value="Cash">💵 Cash</option>
-                                            <option value="GPay">📱 GPay</option>
-                                            <option value="Credit">🔴 Credit (Kadan)</option>
-                                        </select>
-                                        {saleForm.paymentType === 'Credit' && (
-                                            <p className="text-xs font-black text-red-600 mt-2 uppercase tracking-wide animate-pulse">⚠️ Will be added to Kadan Ledger (Unpaid)</p>
-                                        )}
+                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">💳 Selection Payment Type</label>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {[
+                                                { id: 'Cash', label: 'Cash', icon: '💵', color: 'green' },
+                                                { id: 'GPay', label: 'GPay', icon: '📱', color: 'purple' },
+                                                { id: 'Credit', label: 'Kadan', icon: '🔴', color: 'red' }
+                                            ].map(type => (
+                                                <button
+                                                    key={type.id}
+                                                    type="button"
+                                                    onClick={() => setSaleForm({ ...saleForm, paymentType: type.id })}
+                                                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${saleForm.paymentType === type.id
+                                                        ? (type.color === 'green' ? 'bg-green-50 border-green-500 shadow-inner scale-95' :
+                                                            type.color === 'purple' ? 'bg-purple-50 border-purple-500 shadow-inner scale-95' :
+                                                                'bg-red-50 border-red-500 shadow-inner scale-95')
+                                                        : 'bg-white border-gray-100 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    <span className="text-2xl mb-1">{type.icon}</span>
+                                                    <span className={`text-[10px] font-black uppercase ${saleForm.paymentType === type.id
+                                                        ? (type.color === 'green' ? 'text-green-700' :
+                                                            type.color === 'purple' ? 'text-purple-700' :
+                                                                'text-red-700')
+                                                        : 'text-gray-400'
+                                                        }`}>
+                                                        {type.label}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                     <div className="bg-green-100 rounded-2xl p-6 border-2 border-green-200 shadow-inner">
                                         <p className="text-sm font-black text-green-700 uppercase mb-1">Total Amount</p>
@@ -1035,569 +1052,398 @@ const Dashboard = () => {
                                 </form>
                             </div>
 
-                            {/* Sales History */}
-                            <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                        <FaHistory className="text-blue-500" /> Recent Sales
-                                    </h3>
-                                    <button
-                                        onClick={exportSalesToExcel}
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
-                                    >
-                                        <FaFileExcel /> Export Excel
-                                    </button>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b-2 border-gray-100">
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Date</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Product</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Qty</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Total</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Customer</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {sales.filter(s => {
+                            {/* Sales History & Summary */}
+                            <div className="lg:col-span-2 space-y-8">
+                                {/* Totals Summary */}
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="bg-white rounded-3xl p-5 shadow-lg border-b-4 border-green-500">
+                                        <p className="text-[10px] font-black uppercase text-gray-400">Total Cash</p>
+                                        <p className="text-2xl font-black text-green-600">
+                                            ₹{sales.filter(s => {
+                                                const d = new Date(s.date);
+                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear && s.paymentType === 'Cash';
+                                            }).reduce((sum, s) => sum + s.totalAmount, 0)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white rounded-3xl p-5 shadow-lg border-b-4 border-purple-500">
+                                        <p className="text-[10px] font-black uppercase text-gray-400">Total GPay</p>
+                                        <p className="text-2xl font-black text-purple-600">
+                                            ₹{sales.filter(s => {
+                                                const d = new Date(s.date);
+                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear && s.paymentType === 'GPay';
+                                            }).reduce((sum, s) => sum + s.totalAmount, 0)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white rounded-3xl p-5 shadow-lg border-b-4 border-red-500">
+                                        <p className="text-[10px] font-black uppercase text-gray-400">Total Kadan</p>
+                                        <p className="text-2xl font-black text-red-600">
+                                            ₹{sales.filter(s => {
+                                                const d = new Date(s.date);
+                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear && s.paymentType === 'Credit';
+                                            }).reduce((sum, s) => sum + s.totalAmount, 0)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-gray-900 rounded-3xl p-5 shadow-xl text-white">
+                                        <p className="text-[10px] font-black uppercase text-gray-400">Total Income</p>
+                                        <p className="text-2xl font-black">
+                                            ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
                                                 return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
-                                            }).map((sale, idx) => (
-                                                <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
-                                                    <td className="py-4 text-sm font-bold text-gray-600">
-                                                        {formatDate(sale.date)}
-                                                    </td>
-                                                    <td className="py-4">
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">
-                                                            {sale.productType}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 text-sm font-black italic">{sale.quantity} {sale.unit}</td>
-                                                    <td className="py-4 text-sm font-black text-green-600">₹{sale.totalAmount}</td>
-                                                    <td className="py-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-black text-gray-800 uppercase">{sale.customerName}</span>
-                                                            <span className="text-[10px] font-bold text-gray-400">{sale.contactNumber}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-4 text-right flex gap-3 justify-end">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const newQty = prompt("Edit Quantity:", sale.quantity);
-                                                                if (newQty) {
-                                                                    await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
-                                                                        method: 'PATCH',
-                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                        body: JSON.stringify({ quantity: Number(newQty), totalAmount: Number(newQty) * sale.pricePerUnit })
-                                                                    });
-                                                                    fetchData();
-                                                                }
-                                                            }}
-                                                            className="text-blue-500 font-black text-[10px] hover:underline"
-                                                        >
-                                                            EDIT
-                                                        </button>
-                                                        <button onClick={() => handleDelete('sales', sale._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
-                                                    </td>
+                                            }).reduce((sum, s) => sum + s.totalAmount, 0)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                            <FaHistory className="text-blue-500" /> Recent Sales
+                                        </h3>
+                                        <button
+                                            onClick={exportSalesToExcel}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
+                                        >
+                                            <FaFileExcel /> Export Excel
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b-2 border-gray-100">
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Date</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Product</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Qty</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Pay</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Total</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Customer</th>
+                                                    <th className="text-right py-4 text-xs font-black uppercase text-gray-400">Actions</th>
                                                 </tr>
-                                            ))}
-                                            <tr className="bg-gray-800 text-white font-black text-xs">
-                                                <td colSpan="3" className="py-4 px-6 uppercase tracking-widest">Total Sales ({selectedMonth}/{selectedYear})</td>
-                                                <td className="py-4">₹{sales.filter(s => {
+                                            </thead>
+                                            <tbody>
+                                                {sales.filter(s => {
                                                     const d = new Date(s.date);
                                                     return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
-                                                }).reduce((sum, s) => sum + s.totalAmount, 0)}</td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                                }).map((sale, idx) => (
+                                                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
+                                                        <td className="py-4 text-sm font-bold text-gray-600">
+                                                            {formatDate(sale.date)}
+                                                        </td>
+                                                        <td className="py-4">
+                                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700">
+                                                                {sale.productType}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 text-sm font-black italic">{sale.quantity} {sale.unit}</td>
+                                                        <td className="py-4">
+                                                            <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sale.paymentType === 'Cash' ? 'bg-green-100 text-green-700' :
+                                                                sale.paymentType === 'GPay' ? 'bg-purple-100 text-purple-700' :
+                                                                    'bg-red-100 text-red-700'
+                                                                }`}>
+                                                                {sale.paymentType === 'Credit' ? 'Kadan' : sale.paymentType}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 text-sm font-black text-green-600">₹{sale.totalAmount}</td>
+                                                        <td className="py-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-black text-gray-800 uppercase">{sale.customerName}</span>
+                                                                <span className="text-[10px] font-bold text-gray-400">{sale.contactNumber}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 text-right flex gap-3 justify-end">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const newQty = prompt("Edit Quantity:", sale.quantity);
+                                                                    if (newQty) {
+                                                                        await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                            body: JSON.stringify({ quantity: Number(newQty), totalAmount: Number(newQty) * sale.pricePerUnit })
+                                                                        });
+                                                                        fetchData();
+                                                                    }
+                                                                }}
+                                                                className="text-blue-500 font-black text-[10px] hover:underline"
+                                                            >
+                                                                EDIT
+                                                            </button>
+                                                            <button onClick={() => handleDelete('sales', sale._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                <tr className="bg-gray-800 text-white font-black text-xs">
+                                                    <td colSpan="3" className="py-4 px-6 uppercase tracking-widest">Total Sales ({selectedMonth}/{selectedYear})</td>
+                                                    <td className="py-4">₹{sales.filter(s => {
+                                                        const d = new Date(s.date);
+                                                        return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
+                                                    }).reduce((sum, s) => sum + s.totalAmount, 0)}</td>
+                                                    <td></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                );
+                        );
 
-            case 'expenditure':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Expenditure Form */}
-                            <div className="bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                        <FaReceipt className="text-red-500" /> Record Expense
-                                    </h3>
-                                    <div className="flex items-center gap-2">
-                                        <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
-                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
-                                        </select>
-                                        <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
-                                            {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <form onSubmit={handleExpenditureSubmit} className="space-y-6">
-                                    <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">Category</label>
-                                        <select
-                                            value={expenditureForm.category}
-                                            onChange={e => setExpenditureForm({ ...expenditureForm, category: e.target.value })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all appearance-none"
-                                        >
-                                            <option value="Seeds">🌱 Seeds (Spawns)</option>
-                                            <option value="Hay">🌾 Hay (Vaikol)</option>
-                                            <option value="Covers">🛡️ Covers</option>
-                                            <option value="Electricity">⚡ Electricity</option>
-                                            <option value="Labor">👷 Labor</option>
-                                            <option value="Transport">🚚 Transport</option>
-                                            <option value="Other">📦 Other</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">Description</label>
-                                        <input
-                                            type="text"
-                                            value={expenditureForm.description}
-                                            onChange={e => setExpenditureForm({ ...expenditureForm, description: e.target.value })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all"
-                                            placeholder="Details (optional)"
-                                        />
-                                    </div>
-                                    {expenditureForm.category === 'Seeds' && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                            <div>
-                                                <label className="text-sm font-black uppercase text-gray-600 block mb-3">Quantity (kg)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={expenditureForm.quantity}
-                                                    onChange={e => setExpenditureForm({ ...expenditureForm, quantity: Number(e.target.value) })}
-                                                    className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all"
-                                                />
-                                            </div>
-                                            <div className="flex items-end">
-                                                <label className="flex items-center gap-4 cursor-pointer bg-blue-50 rounded-2xl px-6 py-5 border-2 border-blue-200 w-full shadow-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={expenditureForm.addToInventory}
-                                                        onChange={e => setExpenditureForm({ ...expenditureForm, addToInventory: e.target.checked })}
-                                                        className="w-6 h-6 text-blue-600"
-                                                    />
-                                                    <span className="text-sm font-black text-blue-800 uppercase">Add to Inventory</span>
-                                                </label>
-                                            </div>
+                        case 'expenditure':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* Expenditure Form */}
+                                <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                            <FaReceipt className="text-red-500" /> Record Expense
+                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
+                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                            </select>
+                                            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
+                                                {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                            </select>
                                         </div>
-                                    )}
-                                    <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">Amount (₹)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            required
-                                            value={expenditureForm.amount}
-                                            onChange={e => setExpenditureForm({ ...expenditureForm, amount: Number(e.target.value) })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all"
-                                            placeholder="Enter amount"
-                                        />
                                     </div>
-                                    <button
-                                        type="submit"
-                                        className="w-full bg-gradient-to-r from-red-600 to-rose-700 text-white py-6 rounded-2xl font-black text-xl uppercase tracking-wider hover:shadow-2xl active:scale-95 transition-all shadow-lg"
-                                    >
-                                        Record Expenditure
-                                    </button>
-                                </form>
-                            </div>
-
-                            {/* Expenditure History */}
-                            <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                        <FaReceipt className="text-red-500" /> Expenditure History
-                                    </h3>
-                                    <button
-                                        onClick={exportExpenditureToExcel}
-                                        className="bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-700 transition-all flex items-center gap-2"
-                                    >
-                                        <FaFileExcel /> Export Excel
-                                    </button>
+                                    <form onSubmit={handleExpenditureSubmit} className="space-y-6">
+                                        <div>
+                                            <label className="text-sm font-black uppercase text-gray-600 block mb-3">Category</label>
+                                            <select
+                                                value={expenditureForm.category}
+                                                onChange={e => setExpenditureForm({ ...expenditureForm, category: e.target.value })}
+                                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all appearance-none"
+                                            >
+                                                <option value="Seeds">🌱 Seeds (Spawns)</option>
+                                                <option value="Hay">🌾 Hay (Vaikol)</option>
+                                                <option value="Covers">🛡️ Covers</option>
+                                                <option value="Electricity">⚡ Electricity</option>
+                                                <option value="Labor">👷 Labor</option>
+                                                <option value="Transport">🚚 Transport</option>
+                                                <option value="Other">📦 Other</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-black uppercase text-gray-600 block mb-3">Description</label>
+                                            <input
+                                                type="text"
+                                                value={expenditureForm.description}
+                                                onChange={e => setExpenditureForm({ ...expenditureForm, description: e.target.value })}
+                                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all"
+                                                placeholder="Details (optional)"
+                                            />
+                                        </div>
+                                        {expenditureForm.category === 'Seeds' && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                                <div>
+                                                    <label className="text-sm font-black uppercase text-gray-600 block mb-3">Quantity (kg)</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={expenditureForm.quantity}
+                                                        onChange={e => setExpenditureForm({ ...expenditureForm, quantity: Number(e.target.value) })}
+                                                        className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all"
+                                                    />
+                                                </div>
+                                                <div className="flex items-end">
+                                                    <label className="flex items-center gap-4 cursor-pointer bg-blue-50 rounded-2xl px-6 py-5 border-2 border-blue-200 w-full shadow-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={expenditureForm.addToInventory}
+                                                            onChange={e => setExpenditureForm({ ...expenditureForm, addToInventory: e.target.checked })}
+                                                            className="w-6 h-6 text-blue-600"
+                                                        />
+                                                        <span className="text-sm font-black text-blue-800 uppercase">Add to Inventory</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <label className="text-sm font-black uppercase text-gray-600 block mb-3">Amount (₹)</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                required
+                                                value={expenditureForm.amount}
+                                                onChange={e => setExpenditureForm({ ...expenditureForm, amount: Number(e.target.value) })}
+                                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none transition-all"
+                                                placeholder="Enter amount"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="w-full bg-gradient-to-r from-red-600 to-rose-700 text-white py-6 rounded-2xl font-black text-xl uppercase tracking-wider hover:shadow-2xl active:scale-95 transition-all shadow-lg"
+                                        >
+                                            Record Expenditure
+                                        </button>
+                                    </form>
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b-2 border-gray-100">
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Date</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Category</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Description</th>
-                                                <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {expenditures.filter(e => {
-                                                const d = new Date(e.date);
-                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
-                                            }).map((exp, idx) => (
-                                                <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
-                                                    <td className="py-4 text-sm font-bold text-gray-600">
-                                                        {formatDate(exp.date)}
-                                                    </td>
-                                                    <td className="py-4">
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700">
-                                                            {exp.category}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 text-sm text-gray-600 font-bold">{exp.description || '-'}</td>
-                                                    <td className="py-4 text-sm font-black text-red-600">₹{exp.amount}</td>
-                                                    <td className="py-4 text-right flex gap-3 justify-end">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const newAmt = prompt("Edit Amount:", exp.amount);
-                                                                if (newAmt) {
-                                                                    await fetch(`http://localhost:5000/api/edit/expenditure/${exp._id}`, {
-                                                                        method: 'PATCH',
-                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                        body: JSON.stringify({ amount: Number(newAmt) })
-                                                                    });
-                                                                    fetchData();
-                                                                }
-                                                            }}
-                                                            className="text-blue-500 font-black text-[10px] hover:underline"
-                                                        >
-                                                            EDIT
-                                                        </button>
-                                                        <button onClick={() => handleDelete('expenditure', exp._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
-                                                    </td>
+
+                                {/* Expenditure History */}
+                                <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                            <FaReceipt className="text-red-500" /> Expenditure History
+                                        </h3>
+                                        <button
+                                            onClick={exportExpenditureToExcel}
+                                            className="bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-700 transition-all flex items-center gap-2"
+                                        >
+                                            <FaFileExcel /> Export Excel
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b-2 border-gray-100">
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Date</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Category</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Description</th>
+                                                    <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Amount</th>
                                                 </tr>
-                                            ))}
-                                            <tr className="bg-gray-800 text-white font-black text-xs">
-                                                <td colSpan="3" className="py-4 px-6 uppercase tracking-widest">Total Expenses ({selectedMonth}/{selectedYear})</td>
-                                                <td className="py-4">₹{expenditures.filter(e => {
+                                            </thead>
+                                            <tbody>
+                                                {expenditures.filter(e => {
                                                     const d = new Date(e.date);
                                                     return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
-                                                }).reduce((sum, e) => sum + e.amount, 0)}</td>
-                                                <td></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-
-            case 'inventory':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {inventory.map(item => (
-                                <div key={item._id} className="bg-white rounded-3xl p-8 shadow-xl">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-                                            <FaWarehouse className="text-2xl text-white" />
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs font-bold uppercase text-gray-400">Starting Stock</p>
-                                            <p className="text-lg font-black text-gray-500">{item.startingStock} {item.unit}</p>
-                                        </div>
-                                    </div>
-                                    <h3 className="text-xl font-black uppercase text-gray-800 mb-4">{item.itemName}</h3>
-                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6">
-                                        <p className="text-xs font-bold uppercase text-blue-600 mb-1">Current Stock</p>
-                                        <p className="text-5xl font-black text-blue-700">{item.currentStock}</p>
-                                        <p className="text-sm font-bold text-blue-500">{item.unit}</p>
-                                    </div>
-                                    <div className="flex gap-4 mt-4">
-                                        <button
-                                            onClick={() => {
-                                                const qty = prompt(`How much ${item.unit} to USE?`, '1');
-                                                if (qty && !isNaN(qty)) handleInventoryUpdate(item._id, 'use', Number(qty));
-                                            }}
-                                            className="flex-1 bg-red-100 text-red-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-red-200 transition-all shadow-sm active:scale-95"
-                                        >
-                                            <FaMinus /> Use
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                const qty = prompt(`How much ${item.unit} to ADD?`, '1');
-                                                if (qty && !isNaN(qty)) handleInventoryUpdate(item._id, 'add', Number(qty));
-                                            }}
-                                            className="flex-1 bg-green-100 text-green-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-200 transition-all shadow-sm active:scale-95"
-                                        >
-                                            <FaPlus /> Add
-                                        </button>
-                                    </div>
-                                    {/* Usage History */}
-                                    {item.usageHistory && item.usageHistory.length > 0 && (
-                                        <div className="mt-6 pt-6 border-t border-gray-100">
-                                            <p className="text-xs font-bold uppercase text-gray-400 mb-3">Recent Activity</p>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto">
-                                                {item.usageHistory.slice(-5).reverse().map((h, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between text-xs">
-                                                        <span className={`font-bold ${h.type === 'use' ? 'text-red-500' : 'text-green-500'}`}>
-                                                            {h.type === 'use' ? '-' : '+'}{h.quantity} {item.unit}
-                                                        </span>
-                                                        <span className="text-gray-400">{new Date(h.date).toLocaleDateString()}</span>
-                                                    </div>
+                                                }).map((exp, idx) => (
+                                                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
+                                                        <td className="py-4 text-sm font-bold text-gray-600">
+                                                            {formatDate(exp.date)}
+                                                        </td>
+                                                        <td className="py-4">
+                                                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700">
+                                                                {exp.category}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 text-sm text-gray-600 font-bold">{exp.description || '-'}</td>
+                                                        <td className="py-4 text-sm font-black text-red-600">₹{exp.amount}</td>
+                                                        <td className="py-4 text-right flex gap-3 justify-end">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const newAmt = prompt("Edit Amount:", exp.amount);
+                                                                    if (newAmt) {
+                                                                        await fetch(`http://localhost:5000/api/edit/expenditure/${exp._id}`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                            body: JSON.stringify({ amount: Number(newAmt) })
+                                                                        });
+                                                                        fetchData();
+                                                                    }
+                                                                }}
+                                                                className="text-blue-500 font-black text-[10px] hover:underline"
+                                                            >
+                                                                EDIT
+                                                            </button>
+                                                            <button onClick={() => handleDelete('expenditure', exp._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
+                                                        </td>
+                                                    </tr>
                                                 ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                                <tr className="bg-gray-800 text-white font-black text-xs">
+                                                    <td colSpan="3" className="py-4 px-6 uppercase tracking-widest">Total Expenses ({selectedMonth}/{selectedYear})</td>
+                                                    <td className="py-4">₹{expenditures.filter(e => {
+                                                        const d = new Date(e.date);
+                                                        return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
+                                                    }).reduce((sum, e) => sum + e.amount, 0)}</td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* DAILY SEED INTAKE TABLE */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl mt-8">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3 font-['Kavivanar']">
-                                <FaSeedling className="text-green-600" /> Daily Seed Intake Detail
-                            </h3>
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b text-xs text-gray-400 uppercase font-black">
-                                            <th className="py-4 text-left">Date</th>
-                                            <th className="py-4 text-left">Update Type</th>
-                                            <th className="py-4 text-left">Quantity (kg)</th>
-                                            <th className="py-4 text-left">Notes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {inventory.find(i => i.itemName === 'Seeds')?.usageHistory?.slice(-15).reverse().map((h, idx) => (
-                                            <tr key={idx} className="border-b border-gray-50">
-                                                <td className="py-4 font-bold text-sm text-gray-600">{formatDate(h.date)}</td>
-                                                <td className="py-2">
-                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${h.type === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                        {h.type === 'add' ? 'Stock Added' : 'Stock Used'}
-                                                    </span>
-                                                </td>
-                                                <td className={`py-4 font-black ${h.type === 'add' ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {h.type === 'add' ? '+' : '-'}{h.quantity} kg
-                                                </td>
-                                                <td className="py-4 text-gray-400 text-xs italic">{h.notes || '-'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
-                    </div>
-                );
+                        );
 
-            case 'loyalty':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="bg-white rounded-3xl p-8 shadow-xl">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
-                                <FaGift className="text-amber-500" /> Smart Loyalty Hub
-                            </h3>
-                            <p className="text-sm text-gray-500 mb-8">
-                                Track regular customers. 10 Pockets = 1 Free Pocket! Points auto-update with each sale.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {customers.map(customer => (
-                                    <div
-                                        key={customer._id}
-                                        className={`rounded-3xl p-6 border-2 transition-all ${customer.loyaltyCount >= 10 ? 'bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-400 shadow-lg' : 'bg-gray-50 border-gray-200'}`}
-                                    >
-                                        <div className="flex items-center gap-4 mb-5">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${customer.loyaltyCount >= 10 ? 'bg-amber-500' : 'bg-gray-300'}`}>
-                                                <FaUser className="text-xl text-white" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-black text-gray-800 uppercase">{customer.name}</h4>
-                                                <p className="text-xs text-gray-500 flex items-center gap-2">
-                                                    {customer.contactNumber}
-                                                    <FaWhatsapp className="text-green-500" />
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div>
-                                                <p className="text-xs font-bold uppercase text-gray-400">Cycle (0-20)</p>
-                                                <p className="text-4xl font-black text-gray-800">{customer.loyaltyCycleCount}</p>
+                        case 'inventory':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {inventory.map(item => (
+                                    <div key={item._id} className="bg-white rounded-3xl p-8 shadow-xl">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
+                                                <FaWarehouse className="text-2xl text-white" />
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-xs font-bold uppercase text-gray-400">Total Lifetime</p>
-                                                <p className="text-2xl font-black text-gray-600">{customer.lifetimePockets}</p>
+                                                <p className="text-xs font-bold uppercase text-gray-400">Starting Stock</p>
+                                                <p className="text-lg font-black text-gray-500">{item.startingStock} {item.unit}</p>
                                             </div>
                                         </div>
-                                        {/* Progress Bar */}
-                                        <div className="bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
-                                            <div
-                                                className="bg-gradient-to-r from-amber-400 to-yellow-500 h-full rounded-full transition-all"
-                                                style={{ width: `${(customer.loyaltyCycleCount / 20) * 100}%` }}
-                                            ></div>
+                                        <h3 className="text-xl font-black uppercase text-gray-800 mb-4">{item.itemName}</h3>
+                                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6">
+                                            <p className="text-xs font-bold uppercase text-blue-600 mb-1">Current Stock</p>
+                                            <p className="text-5xl font-black text-blue-700">{item.currentStock}</p>
+                                            <p className="text-sm font-bold text-blue-500">{item.unit}</p>
                                         </div>
-                                        {customer.loyaltyCycleCount >= 20 ? (
-                                            <div className="flex flex-col gap-3">
-                                                <div className="bg-amber-500 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
-                                                    🎁 2 FREE POCKETS EARNED!
+                                        <div className="flex gap-4 mt-4">
+                                            <button
+                                                onClick={() => {
+                                                    const qty = prompt(`How much ${item.unit} to USE?`, '1');
+                                                    if (qty && !isNaN(qty)) handleInventoryUpdate(item._id, 'use', Number(qty));
+                                                }}
+                                                className="flex-1 bg-red-100 text-red-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-red-200 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <FaMinus /> Use
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const qty = prompt(`How much ${item.unit} to ADD?`, '1');
+                                                    if (qty && !isNaN(qty)) handleInventoryUpdate(item._id, 'add', Number(qty));
+                                                }}
+                                                className="flex-1 bg-green-100 text-green-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-200 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <FaPlus /> Add
+                                            </button>
+                                        </div>
+                                        {/* Usage History */}
+                                        {item.usageHistory && item.usageHistory.length > 0 && (
+                                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                                <p className="text-xs font-bold uppercase text-gray-400 mb-3">Recent Activity</p>
+                                                <div className="space-y-2 max-h-32 overflow-y-auto">
+                                                    {item.usageHistory.slice(-5).reverse().map((h, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between text-xs">
+                                                            <span className={`font-bold ${h.type === 'use' ? 'text-red-500' : 'text-green-500'}`}>
+                                                                {h.type === 'use' ? '-' : '+'}{h.quantity} {item.unit}
+                                                            </span>
+                                                            <span className="text-gray-400">{new Date(h.date).toLocaleDateString()}</span>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <button
-                                                    onClick={() => handleResetLoyalty(customer._id)}
-                                                    className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-black transition-all"
-                                                >
-                                                    Free Pocket Given (Reset)
-                                                </button>
-                                            </div>
-                                        ) : customer.loyaltyCycleCount >= 10 ? (
-                                            <div className="flex flex-col gap-3">
-                                                <div className="bg-green-500 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
-                                                    🎁 1 FREE POCKET EARNED!
-                                                </div>
-                                                <button
-                                                    onClick={() => handleResetLoyalty(customer._id)}
-                                                    className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-black transition-all"
-                                                >
-                                                    Free Pocket Given (Reset)
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <p className="text-center text-sm text-gray-500 mb-3">
-                                                    <span className="font-bold text-amber-600">{10 - (customer.loyaltyCycleCount % 10)}</span> more for 1 FREE Pocket!
-                                                </p>
-                                                <button
-                                                    onClick={() => handleResetLoyalty(customer._id)}
-                                                    className="w-full bg-white border border-gray-200 text-gray-400 py-3 rounded-xl font-black uppercase text-xs hover:text-gray-600 transition-all"
-                                                >
-                                                    Manual Reset
-                                                </button>
                                             </div>
                                         )}
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    </div>
-                );
 
-            case 'climate':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div className="bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                        <FaFan className="text-blue-400" /> Climate Capture
-                                    </h3>
-                                    <div className="flex items-center gap-2">
-                                        <select value={entryDate.day} onChange={e => setEntryDate({ ...entryDate, day: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
-                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
-                                        <select value={entryDate.month} onChange={e => setEntryDate({ ...entryDate, month: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
-                                            {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <form onSubmit={handleClimateSubmit} className="space-y-5">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Temp (°C)</label>
-                                            <input
-                                                type="text"
-                                                value={cTemp}
-                                                onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCTemp(e.target.value) }}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
-                                                placeholder="28.0"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Moist (%)</label>
-                                            <input
-                                                type="text"
-                                                value={cMoist}
-                                                onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCMoist(e.target.value) }}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
-                                                placeholder="80"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="mt-4">
-                                        <label className="text-xs font-black uppercase text-blue-600 block mb-2 flex items-center gap-2">
-                                            <FaHistory className="text-[10px]" /> Observations
-                                        </label>
-                                        <textarea
-                                            value={cNotes}
-                                            onChange={(e) => setCNotes(e.target.value)}
-                                            className="w-full bg-white border-2 border-blue-50 rounded-xl px-4 py-3 font-bold text-gray-800 h-32 focus:border-blue-400 outline-none transition-all"
-                                            placeholder="Detailed observations..."
-                                        />
-                                        <p className="text-[9px] font-bold text-blue-400 mt-1 uppercase tracking-widest italic">Status: <span className="text-green-500 font-black">ACTIVE & SYNCED</span></p>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setCTemp('');
-                                                setCMoist('');
-                                                setCNotes('');
-                                            }}
-                                            className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-gray-300 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <FaEraser /> Reset
-                                        </button>
-                                        <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all">
-                                            Add Reading
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                            <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-2">
-                                        <FaCalendarAlt className="text-blue-500" /> Climate Table
-                                    </h3>
-                                    <button
-                                        onClick={exportClimateToExcel}
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
-                                    >
-                                        <FaFileExcel /> Export Excel
-                                    </button>
-                                </div>
+                            {/* DAILY SEED INTAKE TABLE */}
+                            <div className="bg-white rounded-3xl p-8 shadow-xl mt-8">
+                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3 font-['Kavivanar']">
+                                    <FaSeedling className="text-green-600" /> Daily Seed Intake Detail
+                                </h3>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="border-b text-xs text-gray-400 font-black">
+                                            <tr className="border-b text-xs text-gray-400 uppercase font-black">
                                                 <th className="py-4 text-left">Date</th>
-                                                <th className="py-4 text-left">Temp</th>
-                                                <th className="py-4 text-left">Moist</th>
-                                                <th className="py-4 text-left">Observations</th>
-                                                <th className="py-4 text-left">Action</th>
+                                                <th className="py-4 text-left">Update Type</th>
+                                                <th className="py-4 text-left">Quantity (kg)</th>
+                                                <th className="py-4 text-left">Notes</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {climateData.map((c, idx) => (
+                                            {inventory.find(i => i.itemName === 'Seeds')?.usageHistory?.slice(-15).reverse().map((h, idx) => (
                                                 <tr key={idx} className="border-b border-gray-50">
-                                                    <td className="py-4 font-bold text-gray-600">{formatDate(c.date)}</td>
-                                                    <td className="py-4 font-black text-red-500">{c.temperature}°C</td>
-                                                    <td className="py-4 font-black text-blue-600">{c.moisture || c.humidity}%</td>
-                                                    <td className="py-4 text-gray-700 font-medium text-sm border-l border-gray-50 pl-4 bg-gray-50/10">
-                                                        <div className="max-w-[300px] break-words">
-                                                            {c.notes || <span className="text-gray-300 italic">No notes</span>}
-                                                        </div>
+                                                    <td className="py-4 font-bold text-sm text-gray-600">{formatDate(h.date)}</td>
+                                                    <td className="py-2">
+                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${h.type === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                            {h.type === 'add' ? 'Stock Added' : 'Stock Used'}
+                                                        </span>
                                                     </td>
-                                                    <td className="py-4 flex gap-2">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const nt = prompt("Edit Temp:", c.temperature);
-                                                                const nm = prompt("Edit Moist:", c.moisture);
-                                                                const nn = prompt("Edit Notes:", c.notes);
-                                                                if (nt && nm && nn) {
-                                                                    await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
-                                                                        method: 'PATCH',
-                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                        body: JSON.stringify({ temperature: Number(nt), moisture: Number(nm), notes: nn })
-                                                                    });
-                                                                    fetchData();
-                                                                }
-                                                            }}
-                                                            className="text-blue-600 font-black text-[10px] uppercase"
-                                                        >Edit</button>
-                                                        <button onClick={() => handleDelete('climate', c._id)} className="text-red-500 font-black text-[10px] uppercase">Del</button>
+                                                    <td className={`py-4 font-black ${h.type === 'add' ? 'text-green-600' : 'text-red-500'}`}>
+                                                        {h.type === 'add' ? '+' : '-'}{h.quantity} kg
                                                     </td>
+                                                    <td className="py-4 text-gray-400 text-xs italic">{h.notes || '-'}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -1605,464 +1451,686 @@ const Dashboard = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                );
+                        );
 
-            case 'finance':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        {/* Month/Year Selector */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl">
-                            <div className="flex flex-wrap items-center justify-between gap-6">
-                                <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                    <FaChartBar className="text-purple-500" /> Finance Report
-                                </h3>
-                                <div className="flex items-center gap-4">
-                                    <select
-                                        value={selectedMonth}
-                                        onChange={e => setSelectedMonth(Number(e.target.value))}
-                                        className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 font-bold text-gray-800"
-                                    >
-                                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                                            <option key={i} value={i + 1}>{m}</option>
-                                        ))}
-                                    </select>
-                                    <select
-                                        value={selectedYear}
-                                        onChange={e => setSelectedYear(Number(e.target.value))}
-                                        className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 font-bold text-gray-800"
-                                    >
-                                        {[2024, 2025, 2026, 2027].map(y => (
-                                            <option key={y} value={y}>{y}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        onClick={exportToExcel}
-                                        className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
-                                    >
-                                        <FaFileExcel /> Export Excel
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                const res = await fetch('http://localhost:5000/api/admin/send-monthly-report', {
-                                                    method: 'POST',
-                                                    headers: { 'Authorization': `Bearer ${token}` }
-                                                });
-                                                if (res.ok) alert('✅ Monthly Excel Report sent to jpfarming10@gmail.com!');
-                                                else alert('❌ Sending failed. Please check SMTP settings.');
-                                            } catch (err) { alert('Request failed'); }
-                                        }}
-                                        className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
-                                    >
-                                        <FaEnvelope /> Send to Email
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sales vs Expenses Graph (Premium Visual) */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-8">Monthly Progress: Sales vs Expenses</h3>
-                            <div className="flex flex-col gap-8">
-                                {/* Sales Bar */}
-                                <div>
-                                    <div className="flex justify-between items-end mb-2">
-                                        <span className="text-xs font-black uppercase text-green-600">Total Sales</span>
-                                        <span className="text-lg font-black text-gray-800">₹{financeData?.totalSales || 0}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-8 overflow-hidden border border-gray-100">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-1000"
-                                            style={{ width: `${Math.min((financeData?.totalSales / (financeData?.totalSales + financeData?.totalExpenditure || 1)) * 100, 100)}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                                {/* Expenses Bar */}
-                                <div>
-                                    <div className="flex justify-between items-end mb-2">
-                                        <span className="text-xs font-black uppercase text-red-600">Total Expenses</span>
-                                        <span className="text-lg font-black text-gray-800">₹{financeData?.totalExpenditure || 0}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-8 overflow-hidden border border-gray-100">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-red-400 to-orange-500 transition-all duration-1000"
-                                            style={{ width: `${Math.min((financeData?.totalExpenditure / (financeData?.totalSales + financeData?.totalExpenditure || 1)) * 100, 100)}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-3xl p-8 text-white shadow-xl hover:scale-[1.02] transition-all">
-                                <FaArrowUp className="text-4xl mb-4 opacity-80" />
-                                <p className="text-green-100 font-bold uppercase text-sm mb-2">Total Sales</p>
-                                <p className="text-5xl font-black">₹{financeData?.totalSales || 0}</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-red-400 to-rose-500 rounded-3xl p-8 text-white shadow-xl hover:scale-[1.02] transition-all">
-                                <FaArrowDown className="text-4xl mb-4 opacity-80" />
-                                <p className="text-red-100 font-bold uppercase text-sm mb-2">Total Expenditure</p>
-                                <p className="text-5xl font-black">₹{financeData?.totalExpenditure || 0}</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-gray-900 to-gray-700 rounded-3xl p-8 text-white shadow-xl hover:scale-[1.02] transition-all">
-                                <FaRupeeSign className="text-4xl mb-4 opacity-80" />
-                                <p className="text-gray-300 font-bold uppercase text-sm mb-2">Net Profit</p>
-                                <p className={`text-5xl font-black ${(financeData?.netProfit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    ₹{financeData?.netProfit || 0}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* OTHER EXPENSES VISUAL (Pie Style breakdown) */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-2">
-                                <FaChartBar className="text-red-500" /> Expense Category Breakdown
-                            </h3>
-                            <div className="flex flex-wrap gap-4">
-                                {financeData?.categoryBreakdown && Object.entries(financeData.categoryBreakdown).map(([cat, amt], idx) => (
-                                    <div key={idx} className="flex-1 min-w-[150px] bg-gray-50 p-4 rounded-2xl border-l-4 border-red-500">
-                                        <p className="text-[10px] font-black uppercase text-gray-400">{cat}</p>
-                                        <p className="text-xl font-black text-gray-800">₹{amt}</p>
-                                        <div className="w-full bg-gray-200 h-1 mt-2 rounded-full overflow-hidden">
-                                            <div className="bg-red-500 h-full" style={{ width: `${(amt / financeData.totalExpenditure) * 100}%` }}></div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* MONTHLY EXCEL ARCHIVES */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl mt-8">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
-                                <FaLayerGroup className="text-blue-500" /> Monthly Excel Storage Archives
-                            </h3>
-                            {reportArchives.length === 0 ? (
-                                <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                    <p className="text-gray-400 font-bold">No archived reports found.</p>
-                                    <p className="text-[10px] uppercase text-gray-300 mt-1">Reports are automatically saved at month end.</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {reportArchives.map((report, idx) => (
-                                        <a
-                                            key={idx}
-                                            href={`http://localhost:5000${report.url}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-5 p-6 bg-gray-50 rounded-2xl border-2 border-gray-100 hover:border-blue-400 hover:shadow-xl transition-all group"
-                                        >
-                                            <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                                <FaFileExcel size={30} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-black text-sm text-gray-800 truncate uppercase">{report.name}</p>
-                                                <p className="text-xs font-bold text-gray-400 uppercase">{new Date(report.date).toLocaleDateString()}</p>
-                                            </div>
-                                            <FaDownload className="text-gray-300 group-hover:text-blue-500" size={16} />
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-
-            case 'water':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="bg-white rounded-3xl p-8 shadow-xl text-center">
-                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center justify-center gap-3">
-                                    <FaWater className="text-blue-500" /> Water Drum Status
-                                </h3>
-                                <div className="flex justify-center gap-10">
-                                    {/* Drum 1 */}
-                                    <div className="relative group">
-                                        <div className="w-32 h-48 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
-                                            <div className="absolute bottom-0 left-0 w-full h-[70%] bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000 group-hover:h-[65%]"></div>
-                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                                                <span className="text-2xl font-black text-white drop-shadow-md">70%</span>
-                                            </div>
-                                        </div>
-                                        <p className="mt-4 font-black text-gray-600 uppercase">Drum 1</p>
-                                    </div>
-                                    {/* Drum 2 */}
-                                    <div className="relative group">
-                                        <div className="w-32 h-48 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
-                                            <div className="absolute bottom-0 left-0 w-full h-[40%] bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000 group-hover:h-[35%]"></div>
-                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                                                <span className="text-2xl font-black text-white drop-shadow-md">40%</span>
-                                            </div>
-                                        </div>
-                                        <p className="mt-4 font-black text-gray-600 uppercase">Drum 2</p>
-                                    </div>
-                                </div>
-                                <div className="mt-8">
-                                    <p className="text-xs font-bold text-gray-400 uppercase mb-2">Last Checked</p>
-                                    <p className="text-xl font-black text-gray-800">
-                                        {lastWaterCheck ? new Date(lastWaterCheck).toLocaleDateString() : 'Not recorded'}
-                                        <span className="text-sm text-gray-400 block">{lastWaterCheck ? new Date(lastWaterCheck).toLocaleTimeString() : '-'}</span>
-                                    </p>
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                const res = await fetch('http://localhost:5000/api/settings/water-check', {
-                                                    method: 'POST',
-                                                    headers: { 'Authorization': `Bearer ${token}` }
-                                                });
-                                                if (res.ok) {
-                                                    alert('✅ Water Filled/Checked! Next alert set for 2 days later.');
-                                                    fetchData();
-                                                }
-                                            } catch (err) { alert('Update failed'); }
-                                        }}
-                                        className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase hover:bg-blue-700 transition-all shadow-lg text-sm"
-                                    >
-                                        Mark as Checked / Filled
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl">
-                                <h3 className="text-xl font-black uppercase tracking-wider mb-6">
-                                    <FaClock className="inline mr-3" /> Check Schedule
-                                </h3>
-                                <div className="space-y-6">
-                                    <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
-                                        <p className="text-xs font-bold uppercase text-blue-200 mb-1">Frequency</p>
-                                        <p className="text-2xl font-black">Every 2 Days</p>
-                                    </div>
-                                    <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
-                                        <p className="text-xs font-bold uppercase text-blue-200 mb-1">Next Automated Alert</p>
-                                        <p className="text-2xl font-black">
-                                            {lastWaterCheck
-                                                ? new Date(new Date(lastWaterCheck).getTime() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString()
-                                                : 'Pending First Check'}
-                                        </p>
-                                        <p className="text-xs text-blue-300 mt-1 italic">08:00 AM • Notification + Voice Call</p>
-                                    </div>
-                                    <div className="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-xl flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-black font-black">!</div>
-                                        <div>
-                                            <p className="font-bold text-sm">Maintenance Tip</p>
-                                            <p className="text-xs opacity-80">Clean filters when level is below 20%.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-
-            case 'batches':
-                return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* New Batch Form */}
+                        case 'loyalty':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
                             <div className="bg-white rounded-3xl p-8 shadow-xl">
                                 <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
-                                    <FaPlusCircle className="text-blue-500" /> New Production Batch
+                                    <FaGift className="text-amber-500" /> Smart Loyalty Hub
                                 </h3>
-                                <form onSubmit={handleBatchSubmit} className="space-y-5">
-                                    <div>
-                                        <label className="text-xs font-bold uppercase text-gray-500 block mb-2">Batch Name/ID</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={batchForm.batchName}
-                                            onChange={e => setBatchForm({ ...batchForm, batchName: e.target.value })}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800 focus:border-blue-500 outline-none"
-                                            placeholder="Example: Batch A-1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold uppercase text-gray-500 block mb-2">Bed Preparation Date</label>
-                                        <input
-                                            type="date"
-                                            required
-                                            value={batchForm.bedDate}
-                                            onChange={e => setBatchForm({ ...batchForm, bedDate: e.target.value })}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold uppercase text-gray-500 block mb-2">Seeds Used (kg)</label>
-                                        <input
-                                            type="number"
-                                            step="0.1"
-                                            value={batchForm.seedsUsed}
-                                            onChange={e => setBatchForm({ ...batchForm, seedsUsed: Number(e.target.value) })}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800"
-                                        />
-                                    </div>
-                                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                                        <p className="text-xs font-bold text-blue-600 uppercase">Est. Harvest Date</p>
-                                        <p className="text-xl font-black text-blue-800">
-                                            {new Date(new Date(batchForm.bedDate).getTime() + 16 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-xl font-black uppercase tracking-wide hover:shadow-lg transition-all"
-                                    >
-                                        Start Production Batch
-                                    </button>
-                                </form>
-                            </div>
-
-                            {/* Batch Monitoring */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                    <FaHistory className="text-blue-500" /> Open Batches
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {batches.filter(b => b.status !== 'Harvested').map((batch, idx) => (
-                                        <div key={idx} className={`bg-white rounded-3xl p-6 shadow-xl border-t-8 ${batch.status === 'Ready for Harvest' ? 'border-green-500' : 'border-blue-400'}`}>
-                                            <div className="flex justify-between items-start mb-4">
-                                                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${batch.status === 'Ready for Harvest' ? 'bg-green-100 text-green-700 animate-pulse' : 'bg-blue-100 text-blue-700'}`}>
-                                                    {batch.status}
-                                                </span>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase">Started: {new Date(batch.bedDate).toLocaleDateString()}</p>
+                                <p className="text-sm text-gray-500 mb-8">
+                                    Track regular customers. 10 Pockets = 1 Free Pocket! Points auto-update with each sale.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {customers.map(customer => (
+                                        <div
+                                            key={customer._id}
+                                            className={`rounded-3xl p-6 border-2 transition-all ${customer.loyaltyCount >= 10 ? 'bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-400 shadow-lg' : 'bg-gray-50 border-gray-200'}`}
+                                        >
+                                            <div className="flex items-center gap-4 mb-5">
+                                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${customer.loyaltyCount >= 10 ? 'bg-amber-500' : 'bg-gray-300'}`}>
+                                                    <FaUser className="text-xl text-white" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="font-black text-gray-800 uppercase">{customer.name}</h4>
+                                                    <p className="text-xs text-gray-500 flex items-center gap-2">
+                                                        {customer.contactNumber}
+                                                        <FaWhatsapp className="text-green-500" />
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <h4 className="text-lg font-black text-gray-800 mb-4">{batch.batchName}</h4>
-
-                                            <div className="space-y-4">
+                                            <div className="flex items-center justify-between mb-4">
                                                 <div>
-                                                    <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 mb-1">
-                                                        <span>Growth Progress</span>
-                                                        <span>{Math.min(Math.round(((new Date() - new Date(batch.bedDate)) / (16 * 24 * 60 * 60 * 1000)) * 100), 100)}%</span>
-                                                    </div>
-                                                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                                                        <div
-                                                            className={`h-full transition-all duration-1000 ${batch.status === 'Ready for Harvest' ? 'bg-green-500' : 'bg-blue-500'}`}
-                                                            style={{ width: `${Math.min(Math.round(((new Date() - new Date(batch.bedDate)) / (16 * 24 * 60 * 60 * 1000)) * 100), 100)}%` }}
-                                                        ></div>
-                                                    </div>
+                                                    <p className="text-xs font-bold uppercase text-gray-400">Cycle (0-20)</p>
+                                                    <p className="text-4xl font-black text-gray-800">{customer.loyaltyCycleCount}</p>
                                                 </div>
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Exp. Harvest</p>
-                                                        <p className="font-black text-gray-800">{new Date(batch.expectedHarvestDate).toLocaleDateString()}</p>
-                                                    </div>
-                                                    {batch.status === 'Ready for Harvest' && (
-                                                        <button
-                                                            onClick={() => handleHarvest(batch._id)}
-                                                            className="bg-green-600 text-white px-6 py-2 rounded-xl font-black uppercase text-xs hover:bg-green-700 transition-all"
-                                                        >
-                                                            Harvest Now
-                                                        </button>
-                                                    )}
+                                                <div className="text-right">
+                                                    <p className="text-xs font-bold uppercase text-gray-400">Total Lifetime</p>
+                                                    <p className="text-2xl font-black text-gray-600">{customer.lifetimePockets}</p>
                                                 </div>
                                             </div>
+                                            {/* Progress Bar */}
+                                            <div className="bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+                                                <div
+                                                    className="bg-gradient-to-r from-amber-400 to-yellow-500 h-full rounded-full transition-all"
+                                                    style={{ width: `${(customer.loyaltyCycleCount / 20) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                            {customer.loyaltyCycleCount >= 20 ? (
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="bg-amber-500 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
+                                                        🎁 2 FREE POCKETS EARNED!
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleResetLoyalty(customer._id)}
+                                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-black transition-all"
+                                                    >
+                                                        Free Pocket Given (Reset)
+                                                    </button>
+                                                </div>
+                                            ) : customer.loyaltyCycleCount >= 10 ? (
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="bg-green-500 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
+                                                        🎁 1 FREE POCKET EARNED!
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleResetLoyalty(customer._id)}
+                                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-black transition-all"
+                                                    >
+                                                        Free Pocket Given (Reset)
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <p className="text-center text-sm text-gray-500 mb-3">
+                                                        <span className="font-bold text-amber-600">{10 - (customer.loyaltyCycleCount % 10)}</span> more for 1 FREE Pocket!
+                                                    </p>
+                                                    <button
+                                                        onClick={() => handleResetLoyalty(customer._id)}
+                                                        className="w-full bg-white border border-gray-200 text-gray-400 py-3 rounded-xl font-black uppercase text-xs hover:text-gray-600 transition-all"
+                                                    >
+                                                        Manual Reset
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                );
+                        );
 
-            default:
-                return null;
+                        case 'climate':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                            <FaFan className="text-blue-400" /> Climate Capture
+                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <select value={entryDate.day} onChange={e => setEntryDate({ ...entryDate, day: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                            <select value={entryDate.month} onChange={e => setEntryDate({ ...entryDate, month: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
+                                                {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <form onSubmit={handleClimateSubmit} className="space-y-5">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Temp (°C)</label>
+                                                <input
+                                                    type="text"
+                                                    value={cTemp}
+                                                    onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCTemp(e.target.value) }}
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                                    placeholder="28.0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Moist (%)</label>
+                                                <input
+                                                    type="text"
+                                                    value={cMoist}
+                                                    onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCMoist(e.target.value) }}
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                                    placeholder="80"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-4">
+                                            <label className="text-xs font-black uppercase text-blue-600 block mb-2 flex items-center gap-2">
+                                                <FaHistory className="text-[10px]" /> Observations
+                                            </label>
+                                            <textarea
+                                                value={cNotes}
+                                                onChange={(e) => setCNotes(e.target.value)}
+                                                className="w-full bg-white border-2 border-blue-50 rounded-xl px-4 py-3 font-bold text-gray-800 h-32 focus:border-blue-400 outline-none transition-all"
+                                                placeholder="Detailed observations..."
+                                            />
+                                            <p className="text-[9px] font-bold text-blue-400 mt-1 uppercase tracking-widest italic">Status: <span className="text-green-500 font-black">ACTIVE & SYNCED</span></p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCTemp('');
+                                                    setCMoist('');
+                                                    setCNotes('');
+                                                }}
+                                                className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-gray-300 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <FaEraser /> Reset
+                                            </button>
+                                            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all">
+                                                Add Reading
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-2">
+                                            <FaCalendarAlt className="text-blue-500" /> Climate Table
+                                        </h3>
+                                        <button
+                                            onClick={exportClimateToExcel}
+                                            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
+                                        >
+                                            <FaFileExcel /> Export Excel
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b text-xs text-gray-400 font-black">
+                                                    <th className="py-4 text-left">Date</th>
+                                                    <th className="py-4 text-left">Temp</th>
+                                                    <th className="py-4 text-left">Moist</th>
+                                                    <th className="py-4 text-left">Observations</th>
+                                                    <th className="py-4 text-left">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {climateData.map((c, idx) => (
+                                                    <tr key={idx} className="border-b border-gray-50">
+                                                        <td className="py-4 font-bold text-gray-600">{formatDate(c.date)}</td>
+                                                        <td className="py-4 font-black text-red-500">{c.temperature}°C</td>
+                                                        <td className="py-4 font-black text-blue-600">{c.moisture || c.humidity}%</td>
+                                                        <td className="py-4 text-gray-700 font-medium text-sm border-l border-gray-50 pl-4 bg-gray-50/10">
+                                                            <div className="max-w-[300px] break-words">
+                                                                {c.notes || <span className="text-gray-300 italic">No notes</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 flex gap-2">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const nt = prompt("Edit Temp:", c.temperature);
+                                                                    const nm = prompt("Edit Moist:", c.moisture);
+                                                                    const nn = prompt("Edit Notes:", c.notes);
+                                                                    if (nt && nm && nn) {
+                                                                        await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                            body: JSON.stringify({ temperature: Number(nt), moisture: Number(nm), notes: nn })
+                                                                        });
+                                                                        fetchData();
+                                                                    }
+                                                                }}
+                                                                className="text-blue-600 font-black text-[10px] uppercase"
+                                                            >Edit</button>
+                                                            <button onClick={() => handleDelete('climate', c._id)} className="text-red-500 font-black text-[10px] uppercase">Del</button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        );
+
+                        case 'finance':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
+                            {/* Month/Year Selector */}
+                            <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                <div className="flex flex-wrap items-center justify-between gap-6">
+                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                        <FaChartBar className="text-purple-500" /> Finance Report
+                                    </h3>
+                                    <div className="flex items-center gap-4">
+                                        <select
+                                            value={selectedMonth}
+                                            onChange={e => setSelectedMonth(Number(e.target.value))}
+                                            className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 font-bold text-gray-800"
+                                        >
+                                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                <option key={i} value={i + 1}>{m}</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={selectedYear}
+                                            onChange={e => setSelectedYear(Number(e.target.value))}
+                                            className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 font-bold text-gray-800"
+                                        >
+                                            {[2024, 2025, 2026, 2027].map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            onClick={exportToExcel}
+                                            className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+                                        >
+                                            <FaFileExcel /> Export Excel
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch('http://localhost:5000/api/admin/send-monthly-report', {
+                                                        method: 'POST',
+                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                    });
+                                                    if (res.ok) alert('✅ Monthly Excel Report sent to jpfarming10@gmail.com!');
+                                                    else alert('❌ Sending failed. Please check SMTP settings.');
+                                                } catch (err) { alert('Request failed'); }
+                                            }}
+                                            className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+                                        >
+                                            <FaEnvelope /> Send to Email
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sales vs Expenses Graph (Premium Visual) */}
+                            <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                <h3 className="text-xl font-black uppercase text-gray-800 mb-8">Monthly Progress: Sales vs Expenses</h3>
+                                <div className="flex flex-col gap-8">
+                                    {/* Sales Bar */}
+                                    <div>
+                                        <div className="flex justify-between items-end mb-2">
+                                            <span className="text-xs font-black uppercase text-green-600">Total Sales</span>
+                                            <span className="text-lg font-black text-gray-800">₹{financeData?.totalSales || 0}</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-8 overflow-hidden border border-gray-100">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-1000"
+                                                style={{ width: `${Math.min((financeData?.totalSales / (financeData?.totalSales + financeData?.totalExpenditure || 1)) * 100, 100)}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    {/* Expenses Bar */}
+                                    <div>
+                                        <div className="flex justify-between items-end mb-2">
+                                            <span className="text-xs font-black uppercase text-red-600">Total Expenses</span>
+                                            <span className="text-lg font-black text-gray-800">₹{financeData?.totalExpenditure || 0}</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-8 overflow-hidden border border-gray-100">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-red-400 to-orange-500 transition-all duration-1000"
+                                                style={{ width: `${Math.min((financeData?.totalExpenditure / (financeData?.totalSales + financeData?.totalExpenditure || 1)) * 100, 100)}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-3xl p-8 text-white shadow-xl hover:scale-[1.02] transition-all">
+                                    <FaArrowUp className="text-4xl mb-4 opacity-80" />
+                                    <p className="text-green-100 font-bold uppercase text-sm mb-2">Total Sales</p>
+                                    <p className="text-5xl font-black">₹{financeData?.totalSales || 0}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-red-400 to-rose-500 rounded-3xl p-8 text-white shadow-xl hover:scale-[1.02] transition-all">
+                                    <FaArrowDown className="text-4xl mb-4 opacity-80" />
+                                    <p className="text-red-100 font-bold uppercase text-sm mb-2">Total Expenditure</p>
+                                    <p className="text-5xl font-black">₹{financeData?.totalExpenditure || 0}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-gray-900 to-gray-700 rounded-3xl p-8 text-white shadow-xl hover:scale-[1.02] transition-all">
+                                    <FaRupeeSign className="text-4xl mb-4 opacity-80" />
+                                    <p className="text-gray-300 font-bold uppercase text-sm mb-2">Net Profit</p>
+                                    <p className={`text-5xl font-black ${(financeData?.netProfit || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        ₹{financeData?.netProfit || 0}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* OTHER EXPENSES VISUAL (Pie Style breakdown) */}
+                            <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-2">
+                                    <FaChartBar className="text-red-500" /> Expense Category Breakdown
+                                </h3>
+                                <div className="flex flex-wrap gap-4">
+                                    {financeData?.categoryBreakdown && Object.entries(financeData.categoryBreakdown).map(([cat, amt], idx) => (
+                                        <div key={idx} className="flex-1 min-w-[150px] bg-gray-50 p-4 rounded-2xl border-l-4 border-red-500">
+                                            <p className="text-[10px] font-black uppercase text-gray-400">{cat}</p>
+                                            <p className="text-xl font-black text-gray-800">₹{amt}</p>
+                                            <div className="w-full bg-gray-200 h-1 mt-2 rounded-full overflow-hidden">
+                                                <div className="bg-red-500 h-full" style={{ width: `${(amt / financeData.totalExpenditure) * 100}%` }}></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* MONTHLY EXCEL ARCHIVES */}
+                            <div className="bg-white rounded-3xl p-8 shadow-xl mt-8">
+                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
+                                    <FaLayerGroup className="text-blue-500" /> Monthly Excel Storage Archives
+                                </h3>
+                                {reportArchives.length === 0 ? (
+                                    <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                        <p className="text-gray-400 font-bold">No archived reports found.</p>
+                                        <p className="text-[10px] uppercase text-gray-300 mt-1">Reports are automatically saved at month end.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {reportArchives.map((report, idx) => (
+                                            <a
+                                                key={idx}
+                                                href={`http://localhost:5000${report.url}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-5 p-6 bg-gray-50 rounded-2xl border-2 border-gray-100 hover:border-blue-400 hover:shadow-xl transition-all group"
+                                            >
+                                                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                    <FaFileExcel size={30} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-black text-sm text-gray-800 truncate uppercase">{report.name}</p>
+                                                    <p className="text-xs font-bold text-gray-400 uppercase">{new Date(report.date).toLocaleDateString()}</p>
+                                                </div>
+                                                <FaDownload className="text-gray-300 group-hover:text-blue-500" size={16} />
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        );
+
+                        case 'water':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="bg-white rounded-3xl p-8 shadow-xl text-center">
+                                    <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center justify-center gap-3">
+                                        <FaWater className="text-blue-500" /> Water Drum Status
+                                    </h3>
+                                    <div className="flex justify-center gap-10">
+                                        {/* Drum 1 */}
+                                        <div className="relative group">
+                                            <div className="w-32 h-48 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
+                                                <div className="absolute bottom-0 left-0 w-full h-[70%] bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000 group-hover:h-[65%]"></div>
+                                                <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                                                    <span className="text-2xl font-black text-white drop-shadow-md">70%</span>
+                                                </div>
+                                            </div>
+                                            <p className="mt-4 font-black text-gray-600 uppercase">Drum 1</p>
+                                        </div>
+                                        {/* Drum 2 */}
+                                        <div className="relative group">
+                                            <div className="w-32 h-48 border-4 border-gray-300 rounded-2xl overflow-hidden relative bg-gray-100">
+                                                <div className="absolute bottom-0 left-0 w-full h-[40%] bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000 group-hover:h-[35%]"></div>
+                                                <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                                                    <span className="text-2xl font-black text-white drop-shadow-md">40%</span>
+                                                </div>
+                                            </div>
+                                            <p className="mt-4 font-black text-gray-600 uppercase">Drum 2</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-8">
+                                        <p className="text-xs font-bold text-gray-400 uppercase mb-2">Last Checked</p>
+                                        <p className="text-xl font-black text-gray-800">
+                                            {lastWaterCheck ? new Date(lastWaterCheck).toLocaleDateString() : 'Not recorded'}
+                                            <span className="text-sm text-gray-400 block">{lastWaterCheck ? new Date(lastWaterCheck).toLocaleTimeString() : '-'}</span>
+                                        </p>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch('http://localhost:5000/api/settings/water-check', {
+                                                        method: 'POST',
+                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                    });
+                                                    if (res.ok) {
+                                                        alert('✅ Water Filled/Checked! Next alert set for 2 days later.');
+                                                        fetchData();
+                                                    }
+                                                } catch (err) { alert('Update failed'); }
+                                            }}
+                                            className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase hover:bg-blue-700 transition-all shadow-lg text-sm"
+                                        >
+                                            Mark as Checked / Filled
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl">
+                                    <h3 className="text-xl font-black uppercase tracking-wider mb-6">
+                                        <FaClock className="inline mr-3" /> Check Schedule
+                                    </h3>
+                                    <div className="space-y-6">
+                                        <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
+                                            <p className="text-xs font-bold uppercase text-blue-200 mb-1">Frequency</p>
+                                            <p className="text-2xl font-black">Every 2 Days</p>
+                                        </div>
+                                        <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
+                                            <p className="text-xs font-bold uppercase text-blue-200 mb-1">Next Automated Alert</p>
+                                            <p className="text-2xl font-black">
+                                                {lastWaterCheck
+                                                    ? new Date(new Date(lastWaterCheck).getTime() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString()
+                                                    : 'Pending First Check'}
+                                            </p>
+                                            <p className="text-xs text-blue-300 mt-1 italic">08:00 AM • Notification + Voice Call</p>
+                                        </div>
+                                        <div className="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-xl flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-black font-black">!</div>
+                                            <div>
+                                                <p className="font-bold text-sm">Maintenance Tip</p>
+                                                <p className="text-xs opacity-80">Clean filters when level is below 20%.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        );
+
+                        case 'batches':
+                        return (
+                        <div className="space-y-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* New Batch Form */}
+                                <div className="bg-white rounded-3xl p-8 shadow-xl">
+                                    <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
+                                        <FaPlusCircle className="text-blue-500" /> New Production Batch
+                                    </h3>
+                                    <form onSubmit={handleBatchSubmit} className="space-y-5">
+                                        <div>
+                                            <label className="text-xs font-bold uppercase text-gray-500 block mb-2">Batch Name/ID</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={batchForm.batchName}
+                                                onChange={e => setBatchForm({ ...batchForm, batchName: e.target.value })}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800 focus:border-blue-500 outline-none"
+                                                placeholder="Example: Batch A-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold uppercase text-gray-500 block mb-2">Bed Preparation Date</label>
+                                            <input
+                                                type="date"
+                                                required
+                                                value={batchForm.bedDate}
+                                                onChange={e => setBatchForm({ ...batchForm, bedDate: e.target.value })}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold uppercase text-gray-500 block mb-2">Seeds Used (kg)</label>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                value={batchForm.seedsUsed}
+                                                onChange={e => setBatchForm({ ...batchForm, seedsUsed: Number(e.target.value) })}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-800"
+                                            />
+                                        </div>
+                                        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                                            <p className="text-xs font-bold text-blue-600 uppercase">Est. Harvest Date</p>
+                                            <p className="text-xl font-black text-blue-800">
+                                                {new Date(new Date(batchForm.bedDate).getTime() + 16 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-xl font-black uppercase tracking-wide hover:shadow-lg transition-all"
+                                        >
+                                            Start Production Batch
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {/* Batch Monitoring */}
+                                <div className="lg:col-span-2 space-y-6">
+                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                        <FaHistory className="text-blue-500" /> Open Batches
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {batches.filter(b => b.status !== 'Harvested').map((batch, idx) => (
+                                            <div key={idx} className={`bg-white rounded-3xl p-6 shadow-xl border-t-8 ${batch.status === 'Ready for Harvest' ? 'border-green-500' : 'border-blue-400'}`}>
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${batch.status === 'Ready for Harvest' ? 'bg-green-100 text-green-700 animate-pulse' : 'bg-blue-100 text-blue-700'}`}>
+                                                        {batch.status}
+                                                    </span>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Started: {new Date(batch.bedDate).toLocaleDateString()}</p>
+                                                </div>
+                                                <h4 className="text-lg font-black text-gray-800 mb-4">{batch.batchName}</h4>
+
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 mb-1">
+                                                            <span>Growth Progress</span>
+                                                            <span>{Math.min(Math.round(((new Date() - new Date(batch.bedDate)) / (16 * 24 * 60 * 60 * 1000)) * 100), 100)}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                                            <div
+                                                                className={`h-full transition-all duration-1000 ${batch.status === 'Ready for Harvest' ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                                style={{ width: `${Math.min(Math.round(((new Date() - new Date(batch.bedDate)) / (16 * 24 * 60 * 60 * 1000)) * 100), 100)}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase">Exp. Harvest</p>
+                                                            <p className="font-black text-gray-800">{new Date(batch.expectedHarvestDate).toLocaleDateString()}</p>
+                                                        </div>
+                                                        {batch.status === 'Ready for Harvest' && (
+                                                            <button
+                                                                onClick={() => handleHarvest(batch._id)}
+                                                                className="bg-green-600 text-white px-6 py-2 rounded-xl font-black uppercase text-xs hover:bg-green-700 transition-all"
+                                                            >
+                                                                Harvest Now
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        );
+
+                        default:
+                        return null;
         }
     };
 
-    return (
-        <div className="min-h-screen bg-[#CBCCCB]">
-            {/* Header */}
-            {/* Header */}
-            <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white py-6 md:py-8 shadow-2xl">
-                <div className="max-w-7xl mx-auto px-4 md:px-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="text-center md:text-left">
-                            <h1 className="text-2xl md:text-5xl font-black uppercase tracking-tight">
-                                TJP MUSHROOM FARMING
-                            </h1>
-                            <p className="text-gray-400 font-bold mt-1 text-xs md:text-base">Management Dashboard v5.0</p>
-                        </div>
-                        <div className="flex items-center justify-center md:justify-end gap-4 md:gap-6">
-                            <div className="hidden lg:flex items-center gap-2 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-full">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
-                                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">System Live & Monitoring</span>
-                            </div>
-                            <div className="text-right hidden md:block">
-                                <p className="text-xs font-bold text-gray-400 uppercase">Current Time</p>
-                                <p className="text-xl font-black">{currentTime.toLocaleTimeString()}</p>
-                            </div>
-                            <FaShieldAlt className="text-3xl md:text-4xl text-amber-500" />
-                        </div>
-                    </div>
-                </div>
-            </header>
+                        return (
+                        <div className="min-h-screen bg-[#CBCCCB]">
+                            {/* Header */}
+                            {/* Header */}
+                            <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white py-6 md:py-8 shadow-2xl">
+                                <div className="max-w-7xl mx-auto px-4 md:px-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div className="text-center md:text-left">
+                                            <h1 className="text-2xl md:text-5xl font-black uppercase tracking-tight">
+                                                TJP MUSHROOM FARMING
+                                            </h1>
+                                            <p className="text-gray-400 font-bold mt-1 text-xs md:text-base">Management Dashboard v5.0</p>
+                                        </div>
+                                        <div className="flex items-center justify-center md:justify-end gap-4 md:gap-6">
+                                            <div className="hidden lg:flex items-center gap-2 bg-green-500/10 border border-green-500/30 px-4 py-2 rounded-full">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+                                                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">System Live & Monitoring</span>
+                                            </div>
+                                            <div className="text-right hidden md:block">
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Current Time</p>
+                                                <p className="text-xl font-black">{currentTime.toLocaleTimeString()}</p>
+                                            </div>
+                                            <FaShieldAlt className="text-3xl md:text-4xl text-amber-500" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </header>
 
-            {/* Navigation Tabs */}
-            <nav className="bg-white shadow-lg sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex overflow-x-auto gap-2 py-4">
-                        {[
-                            { id: 'overview', label: 'Overview', icon: FaChartBar },
-                            { id: 'batches', label: 'Production', icon: FaLayerGroup },
-                            { id: 'sales', label: 'Sales', icon: FaShoppingCart },
-                            { id: 'expenditure', label: 'Expenditure', icon: FaMoneyBillWave },
-                            { id: 'inventory', label: 'Inventory', icon: FaWarehouse },
-                            { id: 'water', label: 'Water Status', icon: FaWater },
-                            { id: 'climate', label: 'Climate', icon: FaFan },
-                            { id: 'loyalty', label: 'Loyalty Hub', icon: FaGift },
-                            { id: 'finance', label: 'Finance Report', icon: FaFileExcel }
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-3 px-8 py-5 rounded-2xl font-black text-base uppercase whitespace-nowrap transition-all shadow-sm ${activeTab === tab.id
-                                    ? 'bg-gray-900 text-white shadow-2xl scale-105'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                    }`}
-                            >
-                                <tab.icon className="text-xl" />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </nav>
+                            {/* Navigation Tabs */}
+                            <nav className="bg-white shadow-lg sticky top-0 z-50">
+                                <div className="max-w-7xl mx-auto px-6">
+                                    <div className="flex overflow-x-auto gap-2 py-4">
+                                        {[
+                                            { id: 'overview', label: 'Overview', icon: FaChartBar },
+                                            { id: 'batches', label: 'Production', icon: FaLayerGroup },
+                                            { id: 'sales', label: 'Sales', icon: FaShoppingCart },
+                                            { id: 'expenditure', label: 'Expenditure', icon: FaMoneyBillWave },
+                                            { id: 'inventory', label: 'Inventory', icon: FaWarehouse },
+                                            { id: 'water', label: 'Water Status', icon: FaWater },
+                                            { id: 'climate', label: 'Climate', icon: FaFan },
+                                            { id: 'loyalty', label: 'Loyalty Hub', icon: FaGift },
+                                            { id: 'finance', label: 'Finance Report', icon: FaFileExcel }
+                                        ].map(tab => (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => setActiveTab(tab.id)}
+                                                className={`flex items-center gap-3 px-8 py-5 rounded-2xl font-black text-base uppercase whitespace-nowrap transition-all shadow-sm ${activeTab === tab.id
+                                                    ? 'bg-gray-900 text-white shadow-2xl scale-105'
+                                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                    }`}
+                                            >
+                                                <tab.icon className="text-xl" />
+                                                {tab.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </nav>
 
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-6 py-10">
-                {isLoading ? (
-                    <div className="h-64 flex items-center justify-center">
-                        <div className="text-center">
-                            <div className="w-16 h-16 border-4 border-gray-400 border-t-gray-800 rounded-full animate-spin mx-auto mb-4"></div>
-                            <p className="font-black uppercase text-gray-600 tracking-widest">Loading Data...</p>
-                        </div>
-                    </div>
-                ) : error ? (
-                    <div className="h-64 flex items-center justify-center">
-                        <div className="text-center text-red-600">
-                            <p className="font-black text-2xl">{error}</p>
-                            <p className="text-gray-500 mt-2">Please check if the server is running</p>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {renderTab()}
-                        {/* Hidden Bill Capture Area */}
-                        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-                            <div ref={billRef}>
-                                <DigitalBill
-                                    saleData={billData?.sale}
-                                    customerData={billData?.customer}
-                                />
-                            </div>
-                        </div>
-                    </>
-                )}
-            </main>
+                            {/* Main Content */}
+                            <main className="max-w-7xl mx-auto px-6 py-10">
+                                {isLoading ? (
+                                    <div className="h-64 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <div className="w-16 h-16 border-4 border-gray-400 border-t-gray-800 rounded-full animate-spin mx-auto mb-4"></div>
+                                            <p className="font-black uppercase text-gray-600 tracking-widest">Loading Data...</p>
+                                        </div>
+                                    </div>
+                                ) : error ? (
+                                    <div className="h-64 flex items-center justify-center">
+                                        <div className="text-center text-red-600">
+                                            <p className="font-black text-2xl">{error}</p>
+                                            <p className="text-gray-500 mt-2">Please check if the server is running</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {renderTab()}
+                                        {/* Hidden Bill Capture Area */}
+                                        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                                            <div ref={billRef}>
+                                                <DigitalBill
+                                                    saleData={billData?.sale}
+                                                    customerData={billData?.customer}
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </main>
 
-            <Footer />
+                            <Footer />
 
-            <style jsx>{`
+                            <style jsx>{`
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }
@@ -2071,8 +2139,8 @@ const Dashboard = () => {
                     animation: fadeIn 0.4s ease-out;
                 }
             `}</style>
-        </div>
-    );
+                        </div>
+                        );
 };
 
-export default Dashboard;
+                        export default Dashboard;
