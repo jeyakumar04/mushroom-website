@@ -119,3 +119,7 @@
   animation: wave 8s linear infinite;
   filter: blur(2px);
 }
+
+.animate-fadeIn {
+  animation: reveal 0.4s ease-out;
+}
