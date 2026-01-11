@@ -23,6 +23,7 @@ const Batch = require('./models/Batch');
 const Climate = require('./models/Climate');
 const Contact = require('./models/Contact');
 const WaterLog = require('./models/WaterLog');
+const OTP = require('./models/OTP');
 const Settings = mongoose.model('Settings', new mongoose.Schema({ key: String, value: mongoose.Schema.Types.Mixed }));
 
 // --- NOTIFICATION HISTORY TRACKING ---
@@ -237,10 +238,60 @@ app.post('/api/admin/login', async (req, res) => {
         if (!admin || !(await admin.comparePassword(password))) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-        const token = jwt.sign({ id: admin._id }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, username: admin.username });
+        // No token here. Only return success.
+        res.json({ success: true, username: admin.username, message: 'Step 1 successful' });
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.post('/api/admin/request-otp', async (req, res) => {
+    try {
+        const { phoneNumber } = req.body;
+        // Verify if this number belongs to an admin
+        const admin = await Admin.findOne({ phoneNumber });
+        if (!admin) {
+            return res.status(401).json({ success: false, message: 'Unauthorized phone number' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await OTP.findOneAndUpdate(
+            { phoneNumber },
+            { otp, createdAt: new Date() },
+            { upsert: true }
+        );
+
+        const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳`;
+        const result = await sendMessage(phoneNumber, msg);
+
+        if (result.success) {
+            res.json({ success: true, message: 'OTP sent to WhatsApp' });
+        } else {
+            res.status(500).json({ success: false, message: 'Failed to send OTP via WhatsApp. Is WhatsApp ready?' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.post('/api/admin/verify-otp', async (req, res) => {
+    try {
+        const { phoneNumber, otp } = req.body;
+        const otpRecord = await OTP.findOne({ phoneNumber, otp });
+
+        if (!otpRecord) {
+            return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
+        }
+
+        const admin = await Admin.findOne({ phoneNumber });
+        const token = jwt.sign({ id: admin._id }, JWT_SECRET, { expiresIn: '24h' });
+
+        // Delete OTP after successful verification
+        await OTP.deleteOne({ _id: otpRecord._id });
+
+        res.json({ success: true, token, username: admin.username });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
@@ -336,6 +387,12 @@ app.post('/api/sales', auth, async (req, res) => {
             sale: newSale,
             loyaltyUpdate
         });
+
+        // --- AUTOMATIC WHATSAPP BILL ---
+        if (contactNumber) {
+            const billMsg = `🧾 *TJP MUSHROOM BILL*\n--------------------------\n👤 Customer: ${customerName}\n📦 Product: ${productType}\n🔢 Quantity: ${quantity} ${newSale.unit}\n💰 Price: ₹${pricePerUnit} per ${newSale.unit}\n💵 Total: *₹${totalAmount}*\n📅 Date: ${new Date().toLocaleDateString('en-IN')}\n--------------------------\n✅ Payment: ${paymentType}\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄\nநன்றி! மீண்டும் வருக! 🙏`;
+            await sendMessage(contactNumber, billMsg);
+        }
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Sale recording failed' });
@@ -512,7 +569,21 @@ app.delete('/api/delete/:model/:id', auth, async (req, res) => {
 // --- PUBLIC CONTACT FORM ---
 app.post('/api/contact', async (req, res) => {
     try {
-        const newMessage = new Contact(req.body);
+        const { payload } = req.body;
+        if (!payload) return res.status(400).json({ message: 'No payload' });
+
+        // Decrypt
+        const CryptoJS = require('crypto-js');
+        const secretKey = 'tjp_encryption_key_2026';
+        const bytes = CryptoJS.AES.decrypt(payload, secretKey);
+        const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+
+        // Honeypot check
+        if (decryptedData.website) {
+            return res.status(200).json({ message: 'Message sent successfully!' }); // Fake success for bots
+        }
+
+        const newMessage = new Contact(decryptedData);
         await newMessage.save();
         res.status(201).json({ message: 'Message sent successfully!' });
     } catch (error) {
@@ -1973,14 +2044,14 @@ cron.schedule('0 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
         const WaterLog = require('./models/WaterLog');
         const log = new WaterLog({
             type: 'usage',
-            liters: dailyUsage,
+            liters: sprayUsage,
             remainingLevel: currentLevel,
             percentage: (currentLevel / capacity) * 100,
             notes: 'Daily Automated Spray Usage (13 cycles)'
         });
         await log.save();
 
-        console.log(`💧 Daily Water Deducted: ${dailyUsage}L. Current: ${currentLevel}L`);
+        console.log(`💧 Daily Water Deducted: ${sprayUsage}L. Current: ${currentLevel}L`);
 
         // Alert if below 20%
         if (currentLevel < (capacity * 0.2)) {

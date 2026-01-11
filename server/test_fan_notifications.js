@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { sendMessage, client } = require('./services/whatsappService');
+const { sendMessage, client1 } = require('./services/whatsappService');
 
 const testFanNotifications = async () => {
     const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
@@ -7,7 +7,7 @@ const testFanNotifications = async () => {
     console.log("⏳ Waiting for WhatsApp Client to be ready...");
 
     await new Promise((resolve) => {
-        client.on('ready', () => {
+        client1.on('ready', () => {
             console.log("✅ Client connected! Starting test...");
             resolve();
         });

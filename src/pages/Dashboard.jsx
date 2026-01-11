@@ -1310,7 +1310,7 @@ const Dashboard = () => {
                                                 const matchesMonth = (d.getMonth() + 1) === selectedMonth;
                                                 const matchesYear = d.getFullYear() === selectedYear;
                                                 const matchesDate = selectedDate === null || d.getDate() === selectedDate;
-                                                return matchesMonth && matchesYear && matchesDate && s.paymentType === 'Credit';
+                                                return matchesMonth && matchesYear && matchesDate && s.paymentType === 'Credit' && s.paymentStatus === 'Unpaid';
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>

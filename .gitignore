@@ -26,6 +26,11 @@ yarn-error.log*
 .wwebjs_auth
 .wwebjs_cache
 wwebjs_auth/
+server/.wwebjs_auth/
+server/.wwebjs_cache/
+server/wwebjs_auth/
+server/.wwebjs_auth_1/
+server/.wwebjs_auth_2/
 *.png
 *.jpg
 *.jpeg

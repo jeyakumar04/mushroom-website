@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaPaperPlane, FaWhatsapp, FaInstagram, FaFacebookF } from 'react-icons/fa';
 import Footer from '../Component/Footer';
+import CryptoJS from 'crypto-js';
 
 const Contact = () => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         subject: '',
-        message: ''
+        message: '',
+        website: '' // Honeypot field
     });
 
     const handleChange = (e) => {
@@ -16,15 +18,26 @@ const Contact = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // 1. Honeypot check
+        if (formData.website) {
+            console.log("Bot detected!");
+            return;
+        }
+
         try {
+            // 2. Encrypt Data
+            const secretKey = 'tjp_encryption_key_2026'; // Match with backend
+            const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(formData), secretKey).toString();
+
             const res = await fetch('http://localhost:5000/api/contact', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ payload: encryptedData })
             });
             if (res.ok) {
                 alert('TJP Mushroom Farming-க்கு உங்கள் செய்தி அனுப்பப்பட்டது! விரைவில் உங்களைத் தொடர்பு கொள்கிறோம். ✨');
-                setFormData({ name: '', email: '', subject: '', message: '' });
+                setFormData({ name: '', email: '', subject: '', message: '', website: '' });
             } else {
                 alert('Message send panna mudiyala. Dayavu seidhu apram try pannunga.');
             }
@@ -198,6 +211,18 @@ const Contact = () => {
                                             placeholder="Tell us how we can help you..."
                                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-tjp-gold focus:bg-white/10 transition-all text-white placeholder:text-gray-600 resize-none"
                                         ></textarea>
+                                    </div>
+
+                                    {/* Honeypot Field - Hidden from users */}
+                                    <div className="hidden" aria-hidden="true">
+                                        <input
+                                            type="text"
+                                            name="website"
+                                            tabIndex="-1"
+                                            autoComplete="off"
+                                            value={formData.website}
+                                            onChange={handleChange}
+                                        />
                                     </div>
 
                                     <button type="submit" className="w-full gold-button py-5 text-xl flex items-center justify-center gap-3 group">
