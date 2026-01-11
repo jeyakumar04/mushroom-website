@@ -202,7 +202,7 @@ app.post('/api/send-digital-bill', async (req, res) => {
 
         const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${customerName}! 👋\n\n(Generated Automatically 🤖)\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄`;
 
-        const result = await sendImage(contactNumber, image, caption);
+        const result = await sendImage(contactNumber, image, caption, 'business');
 
         if (result.success) {
             res.json({ success: true, message: 'Bill Sent Successfully' });
@@ -261,11 +261,24 @@ app.post('/api/admin/request-otp', async (req, res) => {
             { upsert: true }
         );
 
-        const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳`;
-        const result = await sendMessage(phoneNumber, msg);
+        const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳\n\nRequested from: ${phoneNumber}`;
+        
+        // Send OTP to both admin phones for security
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+        let sendSuccess = false;
+        
+        for (const adminPhone of adminPhones) {
+            const result = await sendMessage(adminPhone.trim(), msg, 'admin');
+            if (result.success) {
+                sendSuccess = true;
+                console.log(`✅ OTP sent to admin phone: ${adminPhone.trim()}`);
+            } else {
+                console.log(`❌ Failed to send OTP to admin phone: ${adminPhone.trim()}`);
+            }
+        }
 
-        if (result.success) {
-            res.json({ success: true, message: 'OTP sent to WhatsApp' });
+        if (sendSuccess) {
+            res.json({ success: true, message: 'OTP sent to all admin WhatsApp numbers' });
         } else {
             res.status(500).json({ success: false, message: 'Failed to send OTP via WhatsApp. Is WhatsApp ready?' });
         }
@@ -391,7 +404,7 @@ app.post('/api/sales', auth, async (req, res) => {
         // --- AUTOMATIC WHATSAPP BILL ---
         if (contactNumber) {
             const billMsg = `🧾 *TJP MUSHROOM BILL*\n--------------------------\n👤 Customer: ${customerName}\n📦 Product: ${productType}\n🔢 Quantity: ${quantity} ${newSale.unit}\n💰 Price: ₹${pricePerUnit} per ${newSale.unit}\n💵 Total: *₹${totalAmount}*\n📅 Date: ${new Date().toLocaleDateString('en-IN')}\n--------------------------\n✅ Payment: ${paymentType}\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄\nநன்றி! மீண்டும் வருக! 🙏`;
-            await sendMessage(contactNumber, billMsg);
+            await sendMessage(contactNumber, billMsg, 'business');
         }
     } catch (error) {
         console.error(error);
@@ -418,7 +431,7 @@ app.post('/api/upload-bill', async (req, res) => {
 
         // 2. Send via WhatsApp
         const caption = `🧾 *TJP DIGITAL BILL*\n\nவணக்கம் ${customerName}! 👋\nஉங்கள் மஷ்ரூம் பில் இங்கே இணைக்கப்பட்டுள்ளது.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌿\n📍 Location: TJP Farm`;
-        const result = await sendImage(contactNumber, image, caption);
+        const result = await sendImage(contactNumber, image, caption, 'business');
 
         const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
         const imageUrl = `${baseUrl}/public/uploads/${fileName}`;
@@ -508,7 +521,7 @@ app.post('/api/climate', auth, async (req, res) => {
         if (temperature > 32) {
             const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
             const msg = `🛑 *HIGH TEMP ALERT*\n\nTemp: ${temperature}°C\nNotes: ${notes || 'No data'}\n\nPlease check the farm!`;
-            for (const p of adminPhones) await sendMessage(p.trim(), msg);
+            for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
         }
 
         await newEntry.save();
@@ -1501,7 +1514,7 @@ const startAlarmScheduler = () => {
                 const message = `🔔 *TJP ALARM* 🔔\n\nTitle: ${alert.title}\nMessage: ${alert.message}\nTime: ${alert.scheduledTime}`;
                 for (const phone of adminPhones) {
                     try {
-                        await sendMessage(phone, message);
+                        await sendMessage(phone, message, 'admin');
                         await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: alert.title, message: alert.message });
                         if (alert.title.includes('FAN') || alert.title.includes('WATER')) {
                             await sendVoiceCall(phone, `Sir, TJP Mushroom Alert. ${alert.title}. ${alert.message}`);
@@ -1523,7 +1536,7 @@ const startAlarmScheduler = () => {
                     if (diffDays >= 2) {
                         const msg = `💧 TJP WATER ALERT 💧\nWater Drum Check is due today!`;
                         for (const phone of adminPhones) {
-                            await sendMessage(phone, msg);
+                            await sendMessage(phone, msg, 'admin');
                             await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: 'Water Check', message: msg });
                             await sendVoiceCall(phone, "Sir, TJP Water Alert. Please check the water drum level today.");
                             await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: 'Water Check', message: 'Cycle Alert' });
@@ -2059,7 +2072,7 @@ cron.schedule('0 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
             const msg = `⚠️ *TJP WATER ALERT*\n\nTank Level is Low: *${Math.round((currentLevel / capacity) * 100)}%* (${currentLevel}L).\nPlease Refill Soon!`;
             const { sendMessage } = require('./services/whatsappService');
             for (const phone of adminPhones) {
-                await sendMessage(phone.trim(), msg);
+                await sendMessage(phone.trim(), msg, 'admin');
             }
         }
     } catch (err) {

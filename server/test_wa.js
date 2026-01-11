@@ -33,7 +33,7 @@ const testSystemAlerts = async () => {
         for (const scenario of scenarios) {
             // 1. WhatsApp Notification (Text)
             const waMessage = `🔔 *TJP ALERT: ${scenario.title}*\n\n${scenario.msg}\n\nTime: ${new Date().toLocaleTimeString()}`;
-            await sendMessage(p, waMessage); // This will mock if no keys
+            await sendMessage(p, waMessage, 'admin'); // This will mock if no keys
 
             // 2. Pipedream Trigger (Call/Phone Alert)
             // We combine title and msg for the payload

@@ -152,33 +152,37 @@ const formatPhone = (number) => {
     return `${cleaned}@c.us`; // Fallback
 };
 
-const sendMessage = async (contactNumber, message, phoneNumber = 1) => {
+const sendMessage = async (contactNumber, message, messageType = 'business') => {
+    // Auto-select phone: 'business' uses Phone 1 (9500591897), 'admin' uses Phone 2 (9159659711)
+    const phoneNumber = messageType === 'business' ? 1 : 2;
     const client = phoneNumber === 1 ? client1 : client2;
     const ready = phoneNumber === 1 ? isReady1 : isReady2;
 
     if (!ready) {
-        console.log(`⚠️ WhatsApp Phone ${phoneNumber} not ready. Queued message to ${contactNumber}: ${message}`);
-        return { success: false, message: `Phone ${phoneNumber} not ready` };
+        console.log(`⚠️ WhatsApp Phone ${phoneNumber} (${messageType}) not ready. Queued message to ${contactNumber}: ${message}`);
+        return { success: false, message: `Phone ${phoneNumber} (${messageType}) not ready` };
     }
 
     try {
         const chatId = formatPhone(contactNumber);
         await client.sendMessage(chatId, message);
-        console.log(`✅ Text sent to ${contactNumber} via Phone ${phoneNumber}`);
+        console.log(`✅ Text sent to ${contactNumber} via Phone ${phoneNumber} (${messageType})`);
         return { success: true };
     } catch (error) {
-        console.error(`❌ Failed to send to ${contactNumber} via Phone ${phoneNumber}:`, error.message);
+        console.error(`❌ Failed to send to ${contactNumber} via Phone ${phoneNumber} (${messageType}):`, error.message);
         return { success: false, error: error.message };
     }
 };
 
-const sendImage = async (contactNumber, base64Image, caption, phoneNumber = 1) => {
+const sendImage = async (contactNumber, base64Image, caption, messageType = 'business') => {
+    // Auto-select phone: 'business' uses Phone 1 (9500591897), 'admin' uses Phone 2 (9159659711)
+    const phoneNumber = messageType === 'business' ? 1 : 2;
     const client = phoneNumber === 1 ? client1 : client2;
     const ready = phoneNumber === 1 ? isReady1 : isReady2;
 
     if (!ready) {
-        console.log(`⚠️ WhatsApp Phone ${phoneNumber} not ready. Cannot send image to ${contactNumber}`);
-        return { success: false, message: `Phone ${phoneNumber} not ready` };
+        console.log(`⚠️ WhatsApp Phone ${phoneNumber} (${messageType}) not ready. Cannot send image to ${contactNumber}`);
+        return { success: false, message: `Phone ${phoneNumber} (${messageType}) not ready` };
     }
     try {
         const chatId = formatPhone(contactNumber);
@@ -187,7 +191,7 @@ const sendImage = async (contactNumber, base64Image, caption, phoneNumber = 1) =
         const media = new MessageMedia('image/png', cleanBase64, 'bill.png');
 
         await client.sendMessage(chatId, media, { caption: caption });
-        console.log(`✅ Image sent to ${contactNumber} via Phone ${phoneNumber}`);
+        console.log(`✅ Image sent to ${contactNumber} via Phone ${phoneNumber} (${messageType})`);
         return { success: true };
     } catch (error) {
         console.error(`❌ Failed to send Image to ${contactNumber}:`, error.message);
@@ -195,17 +199,19 @@ const sendImage = async (contactNumber, base64Image, caption, phoneNumber = 1) =
     }
 };
 
-const sendLoyaltyNotification = async (contactNumber, message, phoneNumber = 1) => {
-    return sendMessage(contactNumber, message, phoneNumber);
+const sendLoyaltyNotification = async (contactNumber, message, messageType = 'business') => {
+    return sendMessage(contactNumber, message, messageType);
 };
 
-const sendDigitalBill = async (contactNumber, imageDataBase64, customerName, phoneNumber = 1) => {
-    const client = phoneNumber === 1 ? client1 : client2;
-    const ready = phoneNumber === 1 ? isReady1 : isReady2;
+const sendDigitalBill = async (contactNumber, imageDataBase64, customerName, messageType = 'business') => {
+    // Bills are always business messages
+    const phoneNumber = 1; // Always use business phone for bills
+    const client = client1;
+    const ready = isReady1;
 
     if (!ready) {
-        console.log(`⚠️ WhatsApp Phone ${phoneNumber} not ready. Cannot send bill to ${contactNumber}`);
-        return { success: false, message: `Phone ${phoneNumber} not ready` };
+        console.log(`⚠️ WhatsApp Phone ${phoneNumber} (business) not ready. Cannot send bill to ${contactNumber}`);
+        return { success: false, message: `Phone ${phoneNumber} (business) not ready` };
     }
 
     try {
@@ -216,10 +222,10 @@ const sendDigitalBill = async (contactNumber, imageDataBase64, customerName, pho
         const media = new MessageMedia('image/png', base64Data, 'bill.png');
 
         await client.sendMessage(chatId, media, { caption: `🧾 Dear ${customerName}, here is your bill. Thank you!` });
-        console.log(`✅ Bill sent to ${contactNumber} via Phone ${phoneNumber}`);
+        console.log(`✅ Bill sent to ${contactNumber} via Phone ${phoneNumber} (business)`);
         return { success: true };
     } catch (error) {
-        console.error(`❌ Failed to send bill to ${contactNumber} via Phone ${phoneNumber}:`, error.message);
+        console.error(`❌ Failed to send bill to ${contactNumber} via Phone ${phoneNumber} (business):`, error.message);
         return { success: false, error: error.message };
     }
 };

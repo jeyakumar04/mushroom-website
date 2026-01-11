@@ -44,7 +44,7 @@ const testFanNotifications = async () => {
             const waMessage = `🔔 *TJP ALERT: ${scenario.title}*\n\n${scenario.msg}\n\nTime: ${new Date().toLocaleTimeString()}`;
 
             try {
-                const result = await sendMessage(p, waMessage);
+                const result = await sendMessage(p, waMessage, 'admin');
                 if (result.success) {
                     console.log(`✅ Sent: ${scenario.title}`);
                 } else {
