@@ -17,6 +17,7 @@ const Dashboard = () => {
     const [billData, setBillData] = useState(null);
     const [isGeneratingBill, setIsGeneratingBill] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
+    const [billSentStatus, setBillSentStatus] = useState(null); // null, 'success', 'error'
     const [bookings, setBookings] = useState([]);
     const [orders, setOrders] = useState([]);
     const [inventory, setInventory] = useState([]);
@@ -122,6 +123,16 @@ const Dashboard = () => {
 
     const token = localStorage.getItem('adminToken');
     const GOOGLE_MAPS_LINK = "https://maps.app.goo.gl/nNmZaYwtJvmXbXBz5";
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const phoneInput = document.getElementById('customerPhone');
+            if (phoneInput && phoneInput.value && phoneInput.value !== saleForm.contactNumber) {
+                setSaleForm(prev => ({ ...prev, contactNumber: phoneInput.value }));
+            }
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [saleForm.contactNumber]);
 
     // Update time every minute for alerts
     useEffect(() => {
@@ -287,10 +298,15 @@ const Dashboard = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                // Loyalty Notification (text only)
+                // Loyalty Notification (Text via Backend)
                 if (data.loyaltyUpdate?.reachedCycle) {
                     const message = `🎉 வாழ்த்துக்கள் ${saleForm.customerName}! 20 பாக்கெட்கள் cycle complete ஆகிவிட்டது! உங்கள் அடுத்த order-ல் FREE POCKET பெறலாம்! 🍄`;
-                    window.open(`https://wa.me/91${saleForm.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+                    // Send directly via backend (no redirect)
+                    fetch('http://localhost:5000/api/send-message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ contactNumber: saleForm.contactNumber, message })
+                    }).catch(console.error);
                 }
 
                 if (data.loyaltyUpdate?.bulkOffer) {
@@ -354,6 +370,7 @@ const Dashboard = () => {
         if (!billRef.current) return;
 
         setIsGeneratingBill(true);
+        setBillSentStatus(null);
         try {
             // Set data for the hidden bill component
             setBillData({
@@ -364,23 +381,11 @@ const Dashboard = () => {
             // Wait for render and generate image
             await new Promise(r => setTimeout(r, 600));
             const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
 
-            // Copy image to clipboard (for easy paste)
-            try {
-                await navigator.clipboard.write([
-                    new ClipboardItem({ 'image/png': blob })
-                ]);
-                console.log('✅ Image copied to clipboard');
-            } catch (err) {
-                console.log('⚠️ Clipboard copy failed:', err);
-            }
-
-            // Upload to server (backup)
-            await fetch('http://localhost:5000/api/upload-bill', {
+            // Upload to server & Send via WhatsApp Backend
+            const response = await fetch('http://localhost:5000/api/send-bill', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     image: dataUrl,
                     customerName: sale.customerName,
@@ -388,18 +393,20 @@ const Dashboard = () => {
                 })
             });
 
-            // Direct WhatsApp open with message
-            const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${sale.customerName}! 👋\n\n📋 Bill Amount: ₹${sale.totalAmount}\n🍄 Product: ${sale.quantity} ${sale.unit} ${sale.productType}\n\n💡 Image copied! Just paste in chat.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌿`;
+            const result = await response.json();
 
-            // Open WhatsApp App directly (not web)
-            const whatsappUrl = `https://wa.me/91${sale.contactNumber.replace(/\D/g, '')}?text=${encodeURIComponent(caption)}`;
-            window.open(whatsappUrl, '_blank');
-
-            alert('✅ Bill Ready!\n\n📱 WhatsApp App opening...\n📋 Image copied to clipboard\n\n👉 Just PASTE in the chat!');
+            if (result.success) {
+                setBillSentStatus('success');
+                setTimeout(() => setBillSentStatus(null), 5000);
+            } else {
+                throw new Error(result.message || 'WhatsApp sending failed');
+            }
 
         } catch (err) {
             console.error('Bill Error:', err);
-            alert('❌ Bill generation failed');
+            setBillSentStatus('error');
+            setTimeout(() => setBillSentStatus(null), 5000);
+            alert('❌ Bill generation/sending failed: ' + err.message);
         } finally {
             setIsGeneratingBill(false);
         }
@@ -1097,12 +1104,14 @@ const Dashboard = () => {
                                                             <button
                                                                 onClick={async () => {
                                                                     if (window.confirm(`Settle ₹${k.totalAmount} via CASH?`)) {
-                                                                        await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                        const res = await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
                                                                             method: 'PATCH',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({ settledBy: 'Cash' })
                                                                         });
-                                                                        fetchData();
+                                                                        if (res.ok) {
+                                                                            window.location.reload();
+                                                                        }
                                                                     }
                                                                 }}
                                                                 className="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-green-700 transition-all"
@@ -1112,12 +1121,14 @@ const Dashboard = () => {
                                                             <button
                                                                 onClick={async () => {
                                                                     if (window.confirm(`Settle ₹${k.totalAmount} via GPAY?`)) {
-                                                                        await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                        const res = await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
                                                                             method: 'PATCH',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({ settledBy: 'GPay' })
                                                                         });
-                                                                        fetchData();
+                                                                        if (res.ok) {
+                                                                            window.location.reload();
+                                                                        }
                                                                     }
                                                                 }}
                                                                 className="bg-purple-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-purple-700 transition-all"
@@ -1229,11 +1240,14 @@ const Dashboard = () => {
                                     <div>
                                         <label className="text-sm font-black uppercase text-gray-600 block mb-3">Phone Number</label>
                                         <input
+                                            id="customerPhone"
                                             type="tel"
                                             required
                                             value={saleForm.contactNumber}
                                             onChange={e => setSaleForm({ ...saleForm, contactNumber: e.target.value })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800"
+                                            onInput={e => setSaleForm({ ...saleForm, contactNumber: e.target.value })}
+                                            onBlur={e => setSaleForm({ ...saleForm, contactNumber: e.target.value })}
+                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all"
                                             placeholder="Auto-fills from name"
                                         />
                                     </div>
@@ -2863,6 +2877,36 @@ const Dashboard = () => {
                     </div>
                 </div>
             </nav>
+
+            {/* SENDING LOADER OVERLAY */}
+            {isGeneratingBill && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md">
+                    <div className="bg-white rounded-3xl p-10 shadow-2xl text-center animate-scaleIn">
+                        <div className="w-20 h-20 border-8 border-green-100 border-t-green-600 rounded-full animate-spin mx-auto mb-6"></div>
+                        <h3 className="text-2xl font-black uppercase text-gray-800 mb-2">Sending Bill...</h3>
+                        <p className="text-gray-500 font-bold">TJP WhatsApp is crunching the data 🍄</p>
+                    </div>
+                </div>
+            )}
+
+            {/* NOTIFICATION TOAST */}
+            {billSentStatus === 'success' && (
+                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[10000] animate-bounce">
+                    <div className="bg-green-600 text-white px-10 py-5 rounded-2xl shadow-2xl border-4 border-white/20 flex items-center gap-4">
+                        <FaCheckCircle className="text-2xl" />
+                        <span className="font-black uppercase tracking-widest text-lg">Bill Sent Successfully! ✅</span>
+                    </div>
+                </div>
+            )}
+
+            {billSentStatus === 'error' && (
+                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[10000] animate-pulse">
+                    <div className="bg-red-600 text-white px-10 py-5 rounded-2xl shadow-2xl border-4 border-white/20 flex items-center gap-4">
+                        <FaEraser className="text-2xl" />
+                        <span className="font-black uppercase tracking-widest text-lg">Failed to send bill! ❌</span>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-10">

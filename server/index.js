@@ -47,9 +47,10 @@ const notificationLogSchema = new mongoose.Schema({
 });
 const NotificationLog = mongoose.model('NotificationLog', notificationLogSchema);
 
-const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage, getLatestQr, isClientReady } = require('./services/whatsappService');
+const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage, getLatestQr, isClientReady, ADMIN_1, ADMIN_2 } = require('./services/whatsappService');
 const { sendVoiceCall } = require('./services/voiceService');
-const { sendMonthlyReport } = require('./services/reportService');
+const { sendMonthlyReport, sendDailyReport } = require('./services/reportService');
+const { sendSMSOtp } = require('./services/smsService');
 const cron = require('node-cron');
 
 const app = express();
@@ -180,6 +181,7 @@ app.post('/api/water/refill', auth, async (req, res) => {
     try {
         const capacity = 5000;
         await Settings.findOneAndUpdate({ key: 'currentWaterLevel' }, { value: capacity }, { upsert: true });
+        await Settings.findOneAndUpdate({ key: 'lastRefillDate' }, { value: new Date() }, { upsert: true });
 
         // Log refill
         const log = new WaterLog({
@@ -324,13 +326,17 @@ app.post('/api/admin/login', async (req, res) => {
 app.post('/api/admin/request-otp', async (req, res) => {
     try {
         const { phoneNumber } = req.body;
-        console.log(`🔑 OTP Requested for: ${phoneNumber}`);
+        // Standardize to 10 digits
+        const cleanPhone = phoneNumber?.toString().trim().replace(/\D/g, '').slice(-10);
+        const fullPhone = `+91 ${cleanPhone}`;
+
+        console.log(`🔑 OTP Requested for: ${fullPhone}`);
 
         const ADMIN_NUMBERS = ['9500591897', '9159659711'];
 
         // Verify if this is a master admin number OR is in DB
-        const isMasterAdmin = ADMIN_NUMBERS.includes(phoneNumber?._id ? phoneNumber._id : phoneNumber?.toString().trim());
-        const adminInDB = await Admin.findOne({ phoneNumber: phoneNumber?.toString().trim() });
+        const isMasterAdmin = ADMIN_NUMBERS.includes(cleanPhone);
+        const adminInDB = await Admin.findOne({ phoneNumber: new RegExp(cleanPhone, 'i') });
 
         if (!isMasterAdmin && !adminInDB) {
             console.warn(`🛑 Unauthorized OTP attempt from: ${phoneNumber}`);
@@ -338,56 +344,38 @@ app.post('/api/admin/request-otp', async (req, res) => {
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log(`🔑 DEBUG: OTP for ${phoneNumber} is: ${otp}`);
+        console.log(`🔑 DEBUG: OTP for ${fullPhone} is: ${otp}`);
 
         await OTP.findOneAndUpdate(
-            { phoneNumber: phoneNumber?.toString().trim() },
+            { phoneNumber: cleanPhone },
             { otp, createdAt: new Date() },
             { upsert: true }
         );
 
-        const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳\n\nRequested from: ${phoneNumber}`;
+        // --- 1. SEND DUAL WHATSAPP OTP ---
+        const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳\n\nRequested from: ${fullPhone}`;
 
-        // Send OTP to all admin phones defined in ENV or defaults
-        const adminEnv = process.env.ADMIN_PHONE || '9500591897,9159659711';
-        const adminPhones = adminEnv.split(',').map(p => p.trim()).filter(p => p.length > 0);
+        console.log(`📤 Sending Dual WhatsApp OTP...`);
+        const waResults = await Promise.allSettled([
+            sendMessage(ADMIN_1, msg),
+            sendMessage(ADMIN_2, msg)
+        ]);
 
-        console.log(`📤 Sending OTP to ${adminPhones.length} admin numbers...`);
+        const anySent = waResults.some(r => r.status === 'fulfilled' && r.value.success);
 
-        // Send to all in parallel using allSettled to prevent one failure from blocking others
-        const results = await Promise.allSettled(
-            adminPhones.map(phone => sendMessage(phone, msg, 'admin'))
-        );
-
-        const sendSuccess = results.some(r => r.status === 'fulfilled' && r.value.success);
-
-        if (sendSuccess) {
+        if (anySent) {
             // Log to Notification History
-            const logEntry = new NotificationLog({
+            await NotificationLog.create({
                 type: 'WhatsApp',
-                recipient: phoneNumber,
+                recipient: `${ADMIN_1}, ${ADMIN_2}`,
                 title: 'Admin OTP Login',
-                message: `OTP: ${otp} (Requested)`,
+                message: `OTP: ${otp} sent to ${ADMIN_1} & ${ADMIN_2}`,
                 status: 'Sent'
             });
-            await logEntry.save();
 
-            res.json({ success: true, message: 'OTP sent to admin WhatsApp numbers' });
+            res.json({ success: true, message: 'OTP sent to Admin WhatsApp numbers' });
         } else {
-            const lastError = results.find(r => r.status === 'rejected')?.reason?.message || 'All providers failed';
-
-            // Log failure
-            const logEntry = new NotificationLog({
-                type: 'WhatsApp',
-                recipient: phoneNumber,
-                title: 'Admin OTP Login',
-                message: `OTP: ${otp} (FAILED)`,
-                status: 'Error',
-                error: lastError
-            });
-            await logEntry.save();
-
-            res.status(500).json({ success: false, message: `Failed to send OTP: ${lastError}` });
+            res.status(503).json({ success: false, message: 'WhatsApp OTP delivery failed. Please check server WhatsApp connection.' });
         }
     } catch (error) {
         console.error('🔥 OTP Request Server Error:', error);
@@ -398,25 +386,31 @@ app.post('/api/admin/request-otp', async (req, res) => {
 app.post('/api/admin/verify-otp', async (req, res) => {
     try {
         const { phoneNumber, otp } = req.body;
-        const otpRecord = await OTP.findOne({ phoneNumber, otp });
+        const cleanPhone = phoneNumber?.toString().trim().replace(/\D/g, '').slice(-10);
+
+        const otpRecord = await OTP.findOne({ phoneNumber: cleanPhone, otp });
 
         if (!otpRecord) {
             return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
         }
 
-        let admin = await Admin.findOne({ phoneNumber });
+        let admin = await Admin.findOne({ phoneNumber: new RegExp(cleanPhone, 'i') });
         if (!admin) {
-            // Fallback to primary admin account if it's a authorized master number
+            // Fallback to primary admin account
             admin = await Admin.findOne({ username: 'admin' });
         }
 
-        // ISSUING FULL ACCESS TOKEN with otpVerified: true
-        const token = jwt.sign({ id: admin._id, otpVerified: true }, JWT_SECRET, { expiresIn: '24h' });
+        // --- SHORT-TERM SESSION (24 HOURS) ---
+        const token = jwt.sign(
+            { id: admin._id, otpVerified: true },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
 
         // Delete OTP after successful verification
         await OTP.deleteOne({ _id: otpRecord._id });
 
-        res.json({ success: true, token, username: admin.username, message: 'OTP Verified. Full access granted.' });
+        res.json({ success: true, token, username: admin.username, message: 'OTP Verified. Session active for 24 hours.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -456,6 +450,7 @@ app.patch('/api/bookings/:id/status', auth, async (req, res) => {
 app.post('/api/sales', auth, async (req, res) => {
     const saleData = {
         ...req.body,
+        orderId: `TJP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         totalAmount: req.body.quantity * req.body.pricePerUnit,
         paymentStatus: (req.body.paymentType === 'Credit') ? 'Unpaid' : 'Paid',
         unit: req.body.unit || (req.body.productType === 'Mushroom' ? 'pockets' : 'kg'),
@@ -518,7 +513,7 @@ app.post('/api/sales', auth, async (req, res) => {
 });
 
 // --- GOOGLE DRIVE / WHATSAPP BILL UPLOAD ---
-app.post('/api/upload-bill', async (req, res) => {
+app.post('/api/send-bill', auth, async (req, res) => {
     try {
         const { image, customerName, contactNumber } = req.body;
         if (!image || !contactNumber) {
@@ -531,7 +526,7 @@ app.post('/api/upload-bill', async (req, res) => {
         const uploadDir = path.join(__dirname, 'public', 'uploads');
         if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         const filePath = path.join(uploadDir, fileName);
-        const fs = require('fs');
+
         fs.writeFileSync(filePath, base64Data, 'base64');
 
         // 2. Send via WhatsApp
@@ -543,13 +538,27 @@ app.post('/api/upload-bill', async (req, res) => {
 
         res.json({
             success: true,
-            message: result.success ? 'Bill sent to WhatsApp!' : 'Bill saved but WhatsApp not ready',
+            message: result.success ? 'Bill sent successfully!' : 'Bill saved but WhatsApp link issue',
             imageUrl,
             waResult: result
         });
     } catch (error) {
         console.error('Bill Process Error:', error);
         res.status(500).json({ message: 'Server error processing bill' });
+    }
+});
+
+// --- GENERIC WHATSAPP MESSAGE (Text Only) ---
+app.post('/api/send-message', auth, async (req, res) => {
+    try {
+        const { contactNumber, message } = req.body;
+        if (!contactNumber || !message) {
+            return res.status(400).json({ message: 'Missing Data' });
+        }
+        const result = await sendMessage(contactNumber, message, 'business');
+        res.json({ success: result.success, message: 'Message queued' });
+    } catch (error) {
+        res.status(500).json({ message: 'Message sending failed' });
     }
 });
 
@@ -567,23 +576,31 @@ app.get('/api/customers/search', auth, async (req, res) => {
 // --- KADAN/CREDIT SETTLEMENT - SECURE ---
 app.patch('/api/sales/:id/settle', strictAuth, async (req, res) => {
     try {
-        const { settledBy } = req.body;
+        const { settledBy } = req.body; // 'Cash' or 'GPay'
         const sale = await Sales.findById(req.params.id);
 
         if (!sale) {
             return res.status(404).json({ message: 'Sale not found' });
         }
 
-        if (sale.paymentStatus === 'Paid') {
-            return res.status(400).json({ message: 'Already settled' });
-        }
-
+        // --- DATABASE SYNC & TRIGGER LOGIC ---
+        // One Source of Truth: Update initial 'Credit' to the final payment mode
         sale.paymentStatus = 'Paid';
+        sale.paymentType = settledBy; // The "The Trigger" logic: Auto-update Sales table
         sale.settledDate = new Date();
         sale.settledBy = settledBy;
+
+        // Force Mongoose to register the change
+        sale.markModified('paymentStatus');
+        sale.markModified('paymentType');
+
         await sale.save();
 
-        res.json({ message: 'Kadan settled successfully', sale });
+        res.json({
+            success: true,
+            message: `Kadan settled via ${settledBy}. Sales record ${sale.orderId} updated! ✅`,
+            sale
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Settlement failed' });
@@ -1443,7 +1460,16 @@ app.post('/api/batches/:id/start-soak', auth, async (req, res) => {
         batch.soakingAlertSent = false;
         await batch.save();
 
-        res.json({ message: 'Soaking started', soakingTime: batch.soakingTime });
+        // --- SOAKING INTIMATION NOTIFICATION ---
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+        const finishTime = new Date(batch.soakingTime.getTime() + 18 * 60 * 60 * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const intimationMsg = `🧼 *TJP SOAKING STARTED*\n\nBatch: *${batch.batchName}*\nStart Time: ${batch.soakingTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n🚨 *18-Hour Alert Schedule:* \nTarget Finish: *${finishTime}*\n\nSystem will notify you automatically when complete! 🍄`;
+
+        for (const phone of adminPhones) {
+            await sendMessage(phone.trim(), intimationMsg, 'admin');
+        }
+
+        res.json({ message: 'Soaking started and intimation sent', soakingTime: batch.soakingTime, finishTime });
     } catch (error) {
         res.status(500).json({ message: 'Failed to start soaking' });
     }
@@ -1631,20 +1657,31 @@ const startAlarmScheduler = () => {
                 }
             }
 
-            // 2. Check Water Drum Cycle (Every 2 days)
+            // --- FAN AUTOMATION ---
+            if (currentTime === '06:00') {
+                const msg = `💨 *TJP FAN AUTOMATION*\n\nStatus: *INTAKE ON* (IN) ✅\nTime: 06:00 AM`;
+                for (const p of adminPhones) await sendMessage(p, msg);
+            } else if (currentTime === '06:30') {
+                const msg = `💨 *TJP FAN AUTOMATION*\n\nStatus: *EXHAUST ON* (OUT) 🔄\nTime: 06:30 AM`;
+                for (const p of adminPhones) await sendMessage(p, msg);
+            } else if (currentTime === '07:00') {
+                const msg = `💨 *TJP FAN AUTOMATION*\n\nStatus: *ALL FANS OFF* 🛑\nTime: 07:00 AM`;
+                for (const p of adminPhones) await sendMessage(p, msg);
+            }
+
+            // --- TANK REFILL ALERT (Every 2 Days) ---
             if (currentTime === '08:00') {
-                const setting = await Settings.findOne({ key: 'lastWaterCheck' });
+                const setting = await Settings.findOne({ key: 'lastRefillDate' });
                 if (setting && setting.value) {
-                    const lastCheck = new Date(setting.value);
-                    const diffDays = Math.ceil(Math.abs(now - lastCheck) / (1000 * 60 * 60 * 24));
+                    const lastRefill = new Date(setting.value);
+                    const diffDays = Math.floor((now - lastRefill) / (1000 * 60 * 60 * 24));
 
                     if (diffDays >= 2) {
-                        const msg = `💧 TJP WATER ALERT 💧\nWater Drum Check is due today!`;
-                        for (const phone of adminPhones) {
-                            await sendMessage(phone, msg, 'admin');
-                            await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: 'Water Check', message: msg });
-                            await sendVoiceCall(phone, "Sir, TJP Water Alert. Please check the water drum level today.");
-                            await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: 'Water Check', message: 'Cycle Alert' });
+                        const msg = `💧 *TJP WATER ALERT*\n\nStatus: *REFILL TANK* ⚠️\nLast filled: ${lastRefill.toLocaleDateString()}\nDays passed: ${diffDays}`;
+                        const alertNumbers = ['9159659711', '9500591897'];
+                        for (const phone of alertNumbers) {
+                            await sendMessage(phone, msg);
+                            await sendVoiceCall(phone, "Sir, TJP Water Alert. Please refill the tank. Two days have passed since last refill.");
                         }
                     }
                 }
@@ -2143,8 +2180,22 @@ app.get('/api/export/:section', async (req, res) => {
 
 // --- WATER SPRAY CALCULATION ---
 // Deducts 20L per spray, 13 times daily
-cron.schedule('0 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
+cron.schedule('0,2 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
     try {
+        const mins = new Date().getMinutes();
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+
+        if (mins === 0) {
+            // WATER ON
+            const msg = `💧 *TJP WATER LOGIC*\n\nStatus: *MISTING ON* 🚿\nDuration: 2 Minutes`;
+            for (const p of adminPhones) await sendMessage(p.trim(), msg);
+        } else if (mins === 2) {
+            // WATER OFF
+            const msg = `💧 *TJP WATER LOGIC*\n\nStatus: *MISTING OFF* 🛑`;
+            for (const p of adminPhones) await sendMessage(p.trim(), msg);
+            return; // Skip water deduction logic for "OFF" signal
+        }
+
         const capacity = 5000;
         const sprayUsage = 20; // 20 Liters per spray
 
@@ -2182,6 +2233,24 @@ cron.schedule('0 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
         }
     } catch (err) {
         console.error('Water Cron Error:', err);
+    }
+});
+
+// --- DAILY AUTOMATED REPORT SCHEDULER (8:00 PM) ---
+cron.schedule('0 20 * * *', async () => {
+    console.log('🕒 8:00 PM: Generating daily sales & expenditure report...');
+    try {
+        const today = new Date();
+        const start = new Date(today.setHours(0, 0, 0, 0));
+        const end = new Date(today.setHours(23, 59, 59, 999));
+
+        const sales = await Sales.find({ date: { $gte: start, $lte: end } });
+        const expenditures = await Expenditure.find({ date: { $gte: start, $lte: end } });
+
+        await sendDailyReport(sales, expenditures);
+        console.log('✅ Daily 8 PM Report task completed.');
+    } catch (error) {
+        console.error('❌ Daily Cron Error:', error);
     }
 });
 

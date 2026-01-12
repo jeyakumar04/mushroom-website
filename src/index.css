@@ -14,7 +14,7 @@
 @layer base {
   body {
     @apply text-tjp-dark font-['Outfit'] selection:bg-tjp-gold/30;
-    background: #CBCCCB;
+    background: radial-gradient(circle at center, #064E3B 0%, #022C22 100%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -118,6 +118,22 @@
   border-radius: 50%;
   animation: wave 8s linear infinite;
   filter: blur(2px);
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-fadeIn {

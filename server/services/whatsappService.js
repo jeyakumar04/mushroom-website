@@ -1,78 +1,96 @@
-const axios = require('axios');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const fs = require('fs');
+const path = require('path');
 
 /**
- * WhatsApp Service - QR-FREE VERSION
- * Uses Twilio or Pipedream for background notifications.
- * Bill images are handled via Frontend (wa.me + Copy/Paste).
+ * WhatsApp Service - OFFICIAL SESSION PERSISTENCE VERSION
+ * Uses unique clientId for permanent login.
  */
 
+const client = new Client({
+    authStrategy: new LocalAuth({
+        clientId: 'TJP_OFFICIAL',
+        dataPath: './.wwebjs_auth' // Explicit path to save login
+    }),
+    puppeteer: {
+        headless: false, // QR scan panna false-ve irukkatum
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage'
+        ]
+    }
+});
+
+let isReady = false;
+const ADMIN_1 = '919159659711';
+const ADMIN_2 = '919500591897';
+
+client.on('ready', () => {
+    isReady = true;
+    console.log('✅ SESSION LOCKED & READY!');
+});
+
+client.on('authenticated', () => {
+    console.log('🔐 WhatsApp Authenticated (Session Saved)');
+});
+
+// Initialization with new stable session
+async function startTJPService() {
+    try {
+        console.log('📡 WhatsApp initialization DISABLED temporarily');
+        // client.initialize(); // COMMENTED OUT - causing server crashes
+
+        // Pairing code removed to rely on QR scan / Session Persistence
+    } catch (err) {
+        console.log('🔥 Initialization Error: ' + err.message);
+    }
+}
+
+startTJPService();
+
+/**
+ * Utility: Send WhatsApp Message
+ */
 const sendMessage = async (contactNumber, message) => {
-    // Standardize phone number format (+91XXXXXXXXXX)
-    const formattedNumber = contactNumber.startsWith('+')
-        ? contactNumber
-        : `+91${contactNumber.replace(/\D/g, '').slice(-10)}`;
-
-    console.log(`📡 Sending QR-free WhatsApp to ${formattedNumber}...`);
-    let pipedreamSuccess = false;
-    let twilioSuccess = false;
-
-    // 1. Try Pipedream (If configured)
-    if (process.env.PIPEDREAM_WEBHOOK_URL) {
-        try {
-            await axios.post(process.env.PIPEDREAM_WEBHOOK_URL, {
-                phone: formattedNumber,
-                message: message,
-                source: 'TJP Mushroom Farm'
-            }, { timeout: 10000 }); // 10s timeout
-            console.log(`✅ WhatsApp sent via Pipedream to ${formattedNumber}`);
-            pipedreamSuccess = true;
-            return { success: true };
-        } catch (e) {
-            console.error(`❌ Pipedream WhatsApp Error:`, e.message);
-        }
+    try {
+        if (!isReady) return { success: false, error: 'Client not ready' };
+        let cleanNumber = contactNumber.replace(/\D/g, '');
+        if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
+        const chatId = `${cleanNumber}@c.us`;
+        await client.sendMessage(chatId, message);
+        console.log(`✅ WhatsApp sent to: ${cleanNumber}`);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
     }
-
-    // 2. Try Twilio WhatsApp (If configured)
-    if (!pipedreamSuccess && process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER) {
-        try {
-            const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
-            await twilio.messages.create({
-                from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-                to: `whatsapp:${formattedNumber}`,
-                body: message
-            });
-            console.log(`✅ WhatsApp sent via Twilio to ${formattedNumber}`);
-            twilioSuccess = true;
-            return { success: true };
-        } catch (e) {
-            console.error(`❌ Twilio WhatsApp Error:`, e.message);
-        }
-    }
-
-    // 3. Fallback: Mock if both fail
-    if (!pipedreamSuccess && !twilioSuccess) {
-        console.log(`📢 [MOCK WHATSAPP] To: ${formattedNumber}, Msg: ${message}`);
-        return { success: true, mock: true };
-    }
-
-    return { success: false, error: 'All WhatsApp providers failed' };
 };
 
-// These are now handled by the frontend or mocked
-const getLatestQr = () => "";
-const isClientReady = () => true;
-const sendImage = async (phone, img, cap) => {
-    console.log(`📸 Image sending via server is disabled. Use Dashboard frontend instead.`);
-    return { success: false, message: 'Server-side images disabled. Use Dashboard.' };
+/**
+ * Utility: Send Image
+ */
+const sendImage = async (contactNumber, imageBase64, caption) => {
+    try {
+        if (!isReady) return { success: false, error: 'Client not ready' };
+        const { MessageMedia } = require('whatsapp-web.js');
+        let cleanNumber = contactNumber.replace(/\D/g, '');
+        if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
+        const chatId = `${cleanNumber}@c.us`;
+        const media = new MessageMedia('image/png', imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'bill.png');
+        await client.sendMessage(chatId, media, { caption });
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
 };
-const sendDigitalBill = async (phone, img, name) => sendImage(phone, img, name);
-const sendLoyaltyNotification = async (phone, msg) => sendMessage(phone, msg);
 
 module.exports = {
     sendMessage,
-    sendLoyaltyNotification,
-    sendDigitalBill,
-    getLatestQr,
-    isClientReady,
-    sendImage
+    sendImage,
+    sendDigitalBill: (phone, img, name) => sendImage(phone, img, name),
+    sendLoyaltyNotification: (phone, msg) => sendMessage(phone, msg),
+    isClientReady: () => isReady,
+    getLatestQr: () => "",
+    ADMIN_1,
+    ADMIN_2
 };

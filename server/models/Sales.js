@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 const salesSchema = new mongoose.Schema({
+    orderId: {
+        type: String,
+        unique: true
+    },
     productType: {
         type: String,
         enum: ['Mushroom', 'Seeds'],
