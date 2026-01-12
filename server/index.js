@@ -6,10 +6,12 @@ const jwt = require('jsonwebtoken');
 const XLSX = require('xlsx-js-style');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // --- SYSTEM TIMEZONE ---
 process.env.TZ = 'Asia/Kolkata';
+
+console.log('🔧 Environment loaded. MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'NOT SET');
 
 const Booking = require('./models/Booking');
 const Admin = require('./models/Admin');
@@ -2113,6 +2115,11 @@ cron.schedule('59 23 28-31 * *', async () => {
 
 
 const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI is not set in .env file');
+    process.exit(1);
+}
 
 mongoose.connect(MONGODB_URI, {
     serverSelectionTimeoutMS: 30000, // Increased to 30s

@@ -3,119 +3,101 @@ const qrcode = require('qrcode-terminal');
 const path = require('path');
 const fs = require('fs');
 
-console.log('🔄 Initializing WhatsApp Clients with LocalAuth (Two Phone Support)...');
+console.log('🔄 Initializing WhatsApp Client with LocalAuth (Single Phone Support)...');
 
-// Define session directories for two phones
-const SESSION_DIR_1 = path.join(__dirname, '..', '.wwebjs_auth_1');
-const SESSION_DIR_2 = path.join(__dirname, '..', '.wwebjs_auth_2');
+// Define session directory
+const SESSION_DIR = path.join(__dirname, '..', '.wwebjs_auth');
 
-// Ensure session directories exist
-[SESSION_DIR_1, SESSION_DIR_2].forEach((dir, index) => {
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-        console.log(`📁 Created session directory for Phone ${index + 1}:`, dir);
+// Ensure session directory exists
+if (!fs.existsSync(SESSION_DIR)) {
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
+    console.log(`📁 Created session directory:`, SESSION_DIR);
+}
+
+// Single WhatsApp Client
+const client = new Client({
+    authStrategy: new LocalAuth({
+        dataPath: SESSION_DIR,
+        clientId: 'client'
+    }),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        ]
+    },
+    restartOnAuthFail: true,
+    webVersionCache: {
+        type: 'local'
     }
 });
 
-// Client 1 (Primary Phone)
-const client1 = new Client({
-    authStrategy: new LocalAuth({
-        dataPath: SESSION_DIR_1
-    }),
-    puppeteer: {
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ]
-    },
-    restartOnAuthFail: true
-});
-
-// Client 2 (Secondary Phone)
-const client2 = new Client({
-    authStrategy: new LocalAuth({
-        dataPath: SESSION_DIR_2
-    }),
-    puppeteer: {
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ]
-    },
-    restartOnAuthFail: true
-});
-
-let isReady1 = false;
-let isReady2 = false;
-let latestQr1 = "";
-let latestQr2 = "";
-let qrShown1 = false;
-let qrShown2 = false;
+let isReady = false;
+let latestQr = "";
+let qrShown = false;
 
 // Helper function to handle client events
-function setupClientEvents(client, clientNumber, readyVar, qrVar, qrShownVar, sessionDir) {
+function setupClientEvents(client, sessionDir) {
     // QR Code generation
     client.on('qr', (qr) => {
-        if (!qrShownVar) {
-            qrVar = qr;
+        if (!qrShown) {
+            latestQr = qr;
             console.log(`\n📱 ============================================================`);
-            console.log(`📱 PHONE ${clientNumber}: ACTION REQUIRED: Scan this QR Code with WhatsApp (Linked Devices)`);
+            console.log(`📱 WhatsApp: ACTION REQUIRED: Copy this QR string and generate QR at https://www.qr-code-generator.com/ then scan with WhatsApp`);
+            console.log(`📱 QR String: ${qr}`);
             console.log(`📱 ============================================================\n`);
-            qrcode.generate(qr, { small: true });
-            qrShownVar = true;
+            // qrcode.generate(qr, { small: true });
+            qrShown = true;
         }
     });
 
     // Ready event
     client.on('ready', () => {
-        console.log(`\n✅ WhatsApp Phone ${clientNumber} is READY! Session restored successfully.\n`);
-        readyVar = true;
-        qrVar = "";
-        qrShownVar = false;
+        console.log(`\n✅ WhatsApp is READY! Session restored successfully.\n`);
+        isReady = true;
+        latestQr = "";
+        qrShown = false;
     });
 
     // Authenticated
     client.on('authenticated', () => {
-        console.log(`🔐 WhatsApp Phone ${clientNumber} Authenticated successfully!`);
+        console.log(`🔐 WhatsApp Authenticated successfully!`);
     });
 
     // Auth failure
     client.on('auth_failure', msg => {
-        console.error(`❌ WhatsApp Phone ${clientNumber} Authentication Failed:`, msg);
-        readyVar = false;
-        qrShownVar = false;
+        console.error(`❌ WhatsApp Authentication Failed:`, msg);
+        isReady = false;
+        qrShown = false;
     });
 
     // Disconnected
     client.on('disconnected', (reason) => {
-        console.log(`❌ WhatsApp Phone ${clientNumber} Disconnected:`, reason);
-        readyVar = false;
+        console.log(`❌ WhatsApp Disconnected:`, reason);
+        isReady = false;
         if (reason === 'LOGOUT') {
-            console.log(`👋 Phone ${clientNumber} logged out. Clearing session...`);
-            qrShownVar = false;
+            console.log(`👋 Logged out. Clearing session...`);
+            qrShown = false;
             try {
                 if (fs.existsSync(sessionDir)) {
                     fs.rmSync(sessionDir, { recursive: true, force: true });
                     fs.mkdirSync(sessionDir, { recursive: true });
-                    console.log(`🗑️ Phone ${clientNumber} session cleared. Will show QR on next start.`);
+                    console.log(`🗑️ Session cleared. Will show QR on next start.`);
                 }
             } catch (err) {
-                console.error(`Error clearing Phone ${clientNumber} session:`, err);
+                console.error(`Error clearing session:`, err);
             }
         } else {
-            console.log(`🔄 Phone ${clientNumber}: Attempting to reconnect...`);
+            console.log(`🔄 Attempting to reconnect...`);
             setTimeout(() => {
                 client.initialize();
             }, 5000);
@@ -123,21 +105,19 @@ function setupClientEvents(client, clientNumber, readyVar, qrVar, qrShownVar, se
     });
 }
 
-// Setup events for both clients
-setupClientEvents(client1, 1, isReady1, latestQr1, qrShown1, SESSION_DIR_1);
-setupClientEvents(client2, 2, isReady2, latestQr2, qrShown2, SESSION_DIR_2);
+// Setup events for the client
+setupClientEvents(client, SESSION_DIR);
 
 // Helper functions
-const getLatestQr = (phoneNumber = 1) => phoneNumber === 1 ? latestQr1 : latestQr2;
-const isClientReady = (phoneNumber = 1) => phoneNumber === 1 ? isReady1 : isReady2;
+const getLatestQr = () => latestQr;
+const isClientReady = () => isReady;
 
-// Start the clients (non-blocking)
+// Start the client
 (async () => {
     try {
-        await Promise.all([
-            client1.initialize(),
-            client2.initialize()
-        ]);
+        console.log('🚀 Initializing WhatsApp Client...');
+        await client.initialize();
+        console.log('✅ WhatsApp client initialized successfully.');
     } catch (e) {
         console.error("⚠️ WhatsApp initialization failed:", e.message);
         console.log("✅ Server will continue without WhatsApp. Other features work normally.");
@@ -153,49 +133,40 @@ const formatPhone = (number) => {
 };
 
 const sendMessage = async (contactNumber, message, messageType = 'business') => {
-    // Auto-select phone: 'business' uses Phone 1 (9500591897), 'admin' uses Phone 2 (9159659711)
-    const phoneNumber = messageType === 'business' ? 1 : 2;
-    const client = phoneNumber === 1 ? client1 : client2;
-    const ready = phoneNumber === 1 ? isReady1 : isReady2;
-
-    if (!ready) {
-        console.log(`⚠️ WhatsApp Phone ${phoneNumber} (${messageType}) not ready. Queued message to ${contactNumber}: ${message}`);
-        return { success: false, message: `Phone ${phoneNumber} (${messageType}) not ready` };
-    }
-
-    try {
-        const chatId = formatPhone(contactNumber);
-        await client.sendMessage(chatId, message);
-        console.log(`✅ Text sent to ${contactNumber} via Phone ${phoneNumber} (${messageType})`);
-        return { success: true };
-    } catch (error) {
-        console.error(`❌ Failed to send to ${contactNumber} via Phone ${phoneNumber} (${messageType}):`, error.message);
-        return { success: false, error: error.message };
+    const chatId = formatPhone(contactNumber);
+    
+    if (isReady) {
+        try {
+            await client.sendMessage(chatId, message);
+            console.log(`✅ Message sent to ${contactNumber}`);
+            return { success: true, message: 'Message sent successfully' };
+        } catch (error) {
+            console.error(`❌ Failed to send message to ${contactNumber}:`, error.message);
+            return { success: false, error: error.message };
+        }
+    } else {
+        console.log(`⚠️ WhatsApp not ready`);
+        return { success: false, message: 'WhatsApp not ready' };
     }
 };
 
 const sendImage = async (contactNumber, base64Image, caption, messageType = 'business') => {
-    // Auto-select phone: 'business' uses Phone 1 (9500591897), 'admin' uses Phone 2 (9159659711)
-    const phoneNumber = messageType === 'business' ? 1 : 2;
-    const client = phoneNumber === 1 ? client1 : client2;
-    const ready = phoneNumber === 1 ? isReady1 : isReady2;
-
-    if (!ready) {
-        console.log(`⚠️ WhatsApp Phone ${phoneNumber} (${messageType}) not ready. Cannot send image to ${contactNumber}`);
-        return { success: false, message: `Phone ${phoneNumber} (${messageType}) not ready` };
-    }
-    try {
-        const chatId = formatPhone(contactNumber);
-        // Remove data:image/png;base64, prefix if present
-        const cleanBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
-        const media = new MessageMedia('image/png', cleanBase64, 'bill.png');
-
-        await client.sendMessage(chatId, media, { caption: caption });
-        console.log(`✅ Image sent to ${contactNumber} via Phone ${phoneNumber} (${messageType})`);
-        return { success: true };
-    } catch (error) {
-        console.error(`❌ Failed to send Image to ${contactNumber}:`, error.message);
-        return { success: false, error: error.message };
+    const chatId = formatPhone(contactNumber);
+    const cleanBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
+    const media = new MessageMedia('image/png', cleanBase64, 'bill.png');
+    
+    if (isReady) {
+        try {
+            await client.sendMessage(chatId, media, { caption: caption });
+            console.log(`✅ Image sent to ${contactNumber}`);
+            return { success: true, message: 'Image sent successfully' };
+        } catch (error) {
+            console.error(`❌ Failed to send image to ${contactNumber}:`, error.message);
+            return { success: false, error: error.message };
+        }
+    } else {
+        console.log(`⚠️ WhatsApp not ready`);
+        return { success: false, message: 'WhatsApp not ready' };
     }
 };
 
@@ -204,30 +175,24 @@ const sendLoyaltyNotification = async (contactNumber, message, messageType = 'bu
 };
 
 const sendDigitalBill = async (contactNumber, imageDataBase64, customerName, messageType = 'business') => {
-    // Bills are always business messages
-    const phoneNumber = 1; // Always use business phone for bills
-    const client = client1;
-    const ready = isReady1;
-
-    if (!ready) {
-        console.log(`⚠️ WhatsApp Phone ${phoneNumber} (business) not ready. Cannot send bill to ${contactNumber}`);
-        return { success: false, message: `Phone ${phoneNumber} (business) not ready` };
-    }
-
-    try {
-        const chatId = formatPhone(contactNumber);
-
-        // Convert data URI to raw base64 if needed
-        const base64Data = imageDataBase64.replace(/^data:image\/\w+;base64,/, "");
-        const media = new MessageMedia('image/png', base64Data, 'bill.png');
-
-        await client.sendMessage(chatId, media, { caption: `🧾 Dear ${customerName}, here is your bill. Thank you!` });
-        console.log(`✅ Bill sent to ${contactNumber} via Phone ${phoneNumber} (business)`);
-        return { success: true };
-    } catch (error) {
-        console.error(`❌ Failed to send bill to ${contactNumber} via Phone ${phoneNumber} (business):`, error.message);
-        return { success: false, error: error.message };
+    const chatId = formatPhone(contactNumber);
+    const base64Data = imageDataBase64.replace(/^data:image\/\w+;base64,/, "");
+    const media = new MessageMedia('image/png', base64Data, 'bill.png');
+    const billCaption = `🧾 Dear ${customerName}, here is your bill. Thank you!`;
+    
+    if (isReady) {
+        try {
+            await client.sendMessage(chatId, media, { caption: billCaption });
+            console.log(`✅ Bill sent to ${contactNumber}`);
+            return { success: true, message: 'Bill sent successfully' };
+        } catch (error) {
+            console.error(`❌ Failed to send bill to ${contactNumber}:`, error.message);
+            return { success: false, error: error.message };
+        }
+    } else {
+        console.log(`⚠️ WhatsApp not ready`);
+        return { success: false, message: 'WhatsApp not ready' };
     }
 };
 
-module.exports = { sendMessage, sendLoyaltyNotification, sendDigitalBill, client1, client2, getLatestQr, isClientReady, sendImage };
+module.exports = { sendMessage, sendLoyaltyNotification, sendDigitalBill, client, getLatestQr, isClientReady, sendImage };
