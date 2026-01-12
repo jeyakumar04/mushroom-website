@@ -97,6 +97,7 @@ const Dashboard = () => {
     const [lastWaterCheck, setLastWaterCheck] = useState(null);
     const [reportArchives, setReportArchives] = useState([]);
     const [notificationLogs, setNotificationLogs] = useState([]);
+    const [connectionMode, setConnectionMode] = useState({ isLocal: false, mode: 'CLOUD' });
 
     // --- TJP Smart Hub Definitions ---
     const [soakingStartTime, setSoakingStartTime] = useState(null);
@@ -194,6 +195,14 @@ const Dashboard = () => {
             setNextSprayTime(getNextSprayTime());
 
             setReportArchives(Array.isArray(rptL) ? rptL : []);
+
+            try {
+                const statusRes = await fetch('http://localhost:5000/api/status', { headers });
+                const statusD = await statusRes.json();
+                setConnectionMode({ isLocal: statusD.isLocal, mode: statusD.mode });
+            } catch (e) {
+                console.warn("Status fetch failed");
+            }
         } catch (err) {
             setError('Backend Connection Error');
             console.error(err);
@@ -212,8 +221,7 @@ const Dashboard = () => {
         const currentTimeString = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
 
         const routineAlarms = [
-            { time: '06:00', title: '🌀 FAN IN (ON)', msg: 'Farming Fan IN - Turn ON now!', type: 'routine' },
-            { time: '06:30', title: '🌀 FAN OUT (OFF)', msg: 'Farming Fan OUT - Turn OFF now!', type: 'routine' }
+            // Fan alarms removed as per user request
         ];
 
         const triggered = routineAlarms.filter(a => a.time === currentTimeString);
@@ -853,9 +861,9 @@ const Dashboard = () => {
                                         <li className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border-l-8 border-blue-500">
                                             <div>
                                                 <p className="font-black text-sm uppercase text-gray-800">06:00 AM</p>
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase">Exhaust Fan ON</p>
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase">Water Level Check</p>
                                             </div>
-                                            <FaFan className="text-blue-400 font-black animate-spin-slow" />
+                                            <FaWater className="text-blue-500" />
                                         </li>
                                         <li className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border-l-8 border-green-500">
                                             <div>
@@ -1146,7 +1154,7 @@ const Dashboard = () => {
                                     <div className="flex items-center gap-2">
                                         <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="text-xs font-bold border rounded-lg px-2 py-1">
                                             <option value="">All Dates</option>
-                                            {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                         <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
@@ -1576,7 +1584,7 @@ const Dashboard = () => {
                                     <div className="flex items-center gap-2">
                                         <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="text-xs font-bold border rounded-lg px-2 py-1">
                                             <option value="">All Dates</option>
-                                            {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                         <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
@@ -2252,7 +2260,7 @@ const Dashboard = () => {
                                     <div className="flex items-center gap-2">
                                         <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
                                             <option value="">All Dates</option>
-                                            {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                         <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold text-gray-800">
                                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
@@ -2790,7 +2798,13 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#CBCCCB]">
+        <div className="min-h-screen bg-[#CBCCCB] font-sans">
+            {/* Connection Mode Indicator */}
+            {connectionMode.isLocal && (
+                <div className="bg-orange-600 text-white py-2 px-4 text-center font-black uppercase text-xs tracking-widest shadow-lg sticky top-0 z-[100]">
+                    ⚠️ Local Mode Active: Saving to your PC • System will sync when Atlas returns
+                </div>
+            )}
             {/* Header */}
             {/* Header */}
             <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white py-6 md:py-8 shadow-2xl">

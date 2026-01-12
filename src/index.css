@@ -14,7 +14,7 @@
 @layer base {
   body {
     @apply text-tjp-dark font-['Outfit'] selection:bg-tjp-gold/30;
-    background: linear-gradient(to bottom, #022C22, #011812);
+    background: #CBCCCB;
     background-attachment: fixed;
     min-height: 100vh;
   }

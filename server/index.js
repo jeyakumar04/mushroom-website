@@ -1,17 +1,24 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Fix for Node 18+ SRV lookup issues
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
+
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const XLSX = require('xlsx-js-style');
-const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// --- SYSTEM TIMEZONE ---
-process.env.TZ = 'Asia/Kolkata';
-
-console.log('🔧 Environment loaded. MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'NOT SET');
+console.log('🔧 Environment status:');
+console.log(' - MONGODB_URI:', process.env.MONGODB_URI ? 'Set (Hidden)' : '❌ NOT SET');
+console.log(' - JWT_SECRET:', process.env.JWT_SECRET ? 'Set' : '⚠️ Using Default');
+console.log(' - ADMIN_PHONE:', process.env.ADMIN_PHONE ? 'Set' : '⚠️ Using Defaults');
 
 const Booking = require('./models/Booking');
 const Admin = require('./models/Admin');
@@ -49,19 +56,67 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'tjp_secret_key_2026';
 
-// --- AUTH MIDDLEWARE ---
+// --- AUTH MIDDLEWARE (Basic) ---
 const auth = async (req, res, next) => {
     try {
         const token = req.header('Authorization')?.replace('Bearer ', '');
-        if (!token) throw new Error();
+        if (!token) throw new Error('No token provided');
         const decoded = jwt.verify(token, JWT_SECRET);
         const admin = await Admin.findOne({ _id: decoded.id });
-        if (!admin) throw new Error();
+        if (!admin) throw new Error('Admin not found');
         req.admin = admin;
+        req.decoded = decoded; // Store decoded info for OTP check
         next();
     } catch (e) {
         res.status(401).send({ error: 'Please authenticate.' });
     }
+};
+
+// --- STRICT AUTH MIDDLEWARE (Requires OTP Verification) ---
+const strictAuth = async (req, res, next) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        if (!token) throw new Error('No token provided');
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Strict check: token must contain otpVerified: true
+        if (!decoded.otpVerified) {
+            return res.status(403).json({
+                error: 'Security verification required',
+                message: 'Please complete the WhatsApp OTP verification to access this data.'
+            });
+        }
+
+        const admin = await Admin.findOne({ _id: decoded.id });
+        if (!admin) throw new Error('Admin not found');
+
+        req.admin = admin;
+        next();
+    } catch (e) {
+        res.status(401).send({ error: 'Authentication failed' });
+    }
+};
+
+// --- SIMPLE RATE LIMITER (In-Memory) ---
+const contactAttempts = new Map();
+const contactRateLimit = (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const now = Date.now();
+    const timeframe = 15 * 60 * 1000; // 15 minutes
+    const maxRequests = 3;
+
+    if (!contactAttempts.has(ip)) {
+        contactAttempts.set(ip, []);
+    }
+
+    const attempts = contactAttempts.get(ip).filter(timestamp => (now - timestamp) < timeframe);
+    attempts.push(now);
+    contactAttempts.set(ip, attempts);
+
+    if (attempts.length > maxRequests) {
+        return res.status(429).json({ message: 'Too many messages. Please try again after 15 minutes.' });
+    }
+    next();
 };
 
 app.use(cors());
@@ -136,6 +191,11 @@ app.post('/api/water/refill', auth, async (req, res) => {
         });
         await log.save();
 
+        // Notify admin about water refill
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+        const msg = `💧 *TJP WATER UPDATE*\n\nTank Refilled to *5000L* (100%)\nStatus: Full ✅`;
+        for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
+
         res.json({ message: 'Tank Refilled to 5000L', currentLevel: capacity });
     } catch (err) {
         res.status(500).json({ message: 'Refill failed' });
@@ -176,6 +236,11 @@ app.post('/api/water/spray', auth, async (req, res) => {
             notes: 'Manual Spray Trigger'
         });
         await log.save();
+
+        // Notify admin about water spray update
+        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
+        const msg = `💧 *TJP WATER UPDATE*\n\nManual Spray Triggered 🚿\nRemaining Level: *${currentLevel}L* (${Math.round((currentLevel / capacity) * 100)}%)`;
+        for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
 
         res.json({ message: 'Manual spray triggered', currentLevel, percentage: Math.round((currentLevel / capacity) * 100) });
     } catch (err) {
@@ -240,8 +305,17 @@ app.post('/api/admin/login', async (req, res) => {
         if (!admin || !(await admin.comparePassword(password))) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-        // No token here. Only return success.
-        res.json({ success: true, username: admin.username, message: 'Step 1 successful' });
+
+        // Return basic token - OTP verification NOT YET done
+        const token = jwt.sign({ id: admin._id, otpVerified: false }, JWT_SECRET, { expiresIn: '1h' });
+        res.json({
+            success: true,
+            requireOtp: true,
+            token,
+            username: admin.username,
+            phoneNumber: admin.phoneNumber,
+            message: 'Credentials valid. OTP required.'
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
     }
@@ -250,42 +324,74 @@ app.post('/api/admin/login', async (req, res) => {
 app.post('/api/admin/request-otp', async (req, res) => {
     try {
         const { phoneNumber } = req.body;
-        // Verify if this number belongs to an admin
-        const admin = await Admin.findOne({ phoneNumber });
-        if (!admin) {
-            return res.status(401).json({ success: false, message: 'Unauthorized phone number' });
+        console.log(`🔑 OTP Requested for: ${phoneNumber}`);
+
+        const ADMIN_NUMBERS = ['9500591897', '9159659711'];
+
+        // Verify if this is a master admin number OR is in DB
+        const isMasterAdmin = ADMIN_NUMBERS.includes(phoneNumber?._id ? phoneNumber._id : phoneNumber?.toString().trim());
+        const adminInDB = await Admin.findOne({ phoneNumber: phoneNumber?.toString().trim() });
+
+        if (!isMasterAdmin && !adminInDB) {
+            console.warn(`🛑 Unauthorized OTP attempt from: ${phoneNumber}`);
+            return res.status(401).json({ success: false, message: 'Unauthorized Admin Phone' });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log(`🔑 DEBUG: OTP for ${phoneNumber} is: ${otp}`);
+
         await OTP.findOneAndUpdate(
-            { phoneNumber },
+            { phoneNumber: phoneNumber?.toString().trim() },
             { otp, createdAt: new Date() },
             { upsert: true }
         );
 
         const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳\n\nRequested from: ${phoneNumber}`;
-        
-        // Send OTP to both admin phones for security
-        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-        let sendSuccess = false;
-        
-        for (const adminPhone of adminPhones) {
-            const result = await sendMessage(adminPhone.trim(), msg, 'admin');
-            if (result.success) {
-                sendSuccess = true;
-                console.log(`✅ OTP sent to admin phone: ${adminPhone.trim()}`);
-            } else {
-                console.log(`❌ Failed to send OTP to admin phone: ${adminPhone.trim()}`);
-            }
-        }
+
+        // Send OTP to all admin phones defined in ENV or defaults
+        const adminEnv = process.env.ADMIN_PHONE || '9500591897,9159659711';
+        const adminPhones = adminEnv.split(',').map(p => p.trim()).filter(p => p.length > 0);
+
+        console.log(`📤 Sending OTP to ${adminPhones.length} admin numbers...`);
+
+        // Send to all in parallel using allSettled to prevent one failure from blocking others
+        const results = await Promise.allSettled(
+            adminPhones.map(phone => sendMessage(phone, msg, 'admin'))
+        );
+
+        const sendSuccess = results.some(r => r.status === 'fulfilled' && r.value.success);
 
         if (sendSuccess) {
-            res.json({ success: true, message: 'OTP sent to all admin WhatsApp numbers' });
+            // Log to Notification History
+            const logEntry = new NotificationLog({
+                type: 'WhatsApp',
+                recipient: phoneNumber,
+                title: 'Admin OTP Login',
+                message: `OTP: ${otp} (Requested)`,
+                status: 'Sent'
+            });
+            await logEntry.save();
+
+            res.json({ success: true, message: 'OTP sent to admin WhatsApp numbers' });
         } else {
-            res.status(500).json({ success: false, message: 'Failed to send OTP via WhatsApp. Is WhatsApp ready?' });
+            const lastError = results.find(r => r.status === 'rejected')?.reason?.message || 'All providers failed';
+
+            // Log failure
+            const logEntry = new NotificationLog({
+                type: 'WhatsApp',
+                recipient: phoneNumber,
+                title: 'Admin OTP Login',
+                message: `OTP: ${otp} (FAILED)`,
+                status: 'Error',
+                error: lastError
+            });
+            await logEntry.save();
+
+            res.status(500).json({ success: false, message: `Failed to send OTP: ${lastError}` });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('🔥 OTP Request Server Error:', error);
+        res.status(500).json({ message: 'Internal Server Error: ' + error.message });
     }
 });
 
@@ -298,13 +404,19 @@ app.post('/api/admin/verify-otp', async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
         }
 
-        const admin = await Admin.findOne({ phoneNumber });
-        const token = jwt.sign({ id: admin._id }, JWT_SECRET, { expiresIn: '24h' });
+        let admin = await Admin.findOne({ phoneNumber });
+        if (!admin) {
+            // Fallback to primary admin account if it's a authorized master number
+            admin = await Admin.findOne({ username: 'admin' });
+        }
+
+        // ISSUING FULL ACCESS TOKEN with otpVerified: true
+        const token = jwt.sign({ id: admin._id, otpVerified: true }, JWT_SECRET, { expiresIn: '24h' });
 
         // Delete OTP after successful verification
         await OTP.deleteOne({ _id: otpRecord._id });
 
-        res.json({ success: true, token, username: admin.username });
+        res.json({ success: true, token, username: admin.username, message: 'OTP Verified. Full access granted.' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -342,75 +454,66 @@ app.patch('/api/bookings/:id/status', auth, async (req, res) => {
 
 // --- SALES TRACKING ---
 app.post('/api/sales', auth, async (req, res) => {
-    try {
-        const { productType, quantity, unit, pricePerUnit, customerName, contactNumber, date, paymentType } = req.body;
-        const totalAmount = quantity * pricePerUnit;
+    const saleData = {
+        ...req.body,
+        totalAmount: req.body.quantity * req.body.pricePerUnit,
+        paymentStatus: (req.body.paymentType === 'Credit') ? 'Unpaid' : 'Paid',
+        unit: req.body.unit || (req.body.productType === 'Mushroom' ? 'pockets' : 'kg'),
+        date: req.body.date || Date.now()
+    };
 
-        // Auto-set payment status based on payment type
-        const paymentStatus = (paymentType === 'Credit') ? 'Unpaid' : 'Paid';
-
-        const newSale = new Sales({
-            productType,
-            quantity,
-            unit: unit || (productType === 'Mushroom' ? 'pockets' : 'kg'),
-            pricePerUnit,
-            totalAmount,
-            customerName,
-            contactNumber,
-            paymentType: paymentType || 'Cash',
-            paymentStatus,
-            date: date || Date.now()
+    // SAFETY BYPASS: Check if DB is connected
+    if (mongoose.connection.readyState !== 1) {
+        saveSaleOffline(saleData);
+        return res.status(201).json({
+            message: '📡 [OFFLINE MODE] Sale saved locally. Will sync to Cloud when internet returns.',
+            offline: true,
+            sale: saleData
         });
+    }
+
+    try {
+        const newSale = new Sales(saleData);
         await newSale.save();
 
         let loyaltyUpdate = null;
-        if (productType === 'Mushroom' && pricePerUnit >= 50) {
-            let customer = await Customer.findOne({ contactNumber });
+        if (saleData.productType === 'Mushroom' && saleData.pricePerUnit >= 50) {
+            let customer = await Customer.findOne({ contactNumber: saleData.contactNumber });
             if (!customer) {
-                customer = new Customer({ name: customerName, contactNumber });
+                customer = new Customer({ name: saleData.customerName, contactNumber: saleData.contactNumber });
             }
 
-            // TJP 10-Pocket Cycle Logic (10 Pockets = 1 Free)
-            const qty = Number(quantity) || 0;
-            customer.loyaltyCycleCount = (Number(customer.loyaltyCycleCount) || 0) + qty;
+            const qty = Number(saleData.quantity) || 0;
             customer.loyaltyCount = (Number(customer.loyaltyCount) || 0) + qty;
             customer.lifetimePockets = (Number(customer.lifetimePockets) || 0) + qty;
-            customer.totalOrders = (Number(customer.totalOrders) || 0) + 1;
 
-            let bulkOffer = qty >= 10;
             let reachedCycle = customer.loyaltyCount >= 10;
             if (reachedCycle) {
                 customer.loyaltyCount = customer.loyaltyCount % 10;
-                customer.loyaltyCycleCount = customer.loyaltyCount;
             }
 
             await customer.save();
-
             newSale.isLoyaltyCustomer = true;
             await newSale.save();
 
-            loyaltyUpdate = {
-                currentCycle: customer.loyaltyCount,
-                lifetime: customer.lifetimePockets,
-                reachedCycle,
-                bulkOffer
-            };
+            loyaltyUpdate = { currentCycle: customer.loyaltyCount, reachedCycle };
         }
 
-        res.status(201).json({
-            message: 'Sale recorded successfully',
-            sale: newSale,
-            loyaltyUpdate
-        });
+        res.status(201).json({ message: 'Sale recorded successfully', sale: newSale, loyaltyUpdate });
 
-        // --- AUTOMATIC WHATSAPP BILL ---
-        if (contactNumber) {
-            const billMsg = `🧾 *TJP MUSHROOM BILL*\n--------------------------\n👤 Customer: ${customerName}\n📦 Product: ${productType}\n🔢 Quantity: ${quantity} ${newSale.unit}\n💰 Price: ₹${pricePerUnit} per ${newSale.unit}\n💵 Total: *₹${totalAmount}*\n📅 Date: ${new Date().toLocaleDateString('en-IN')}\n--------------------------\n✅ Payment: ${paymentType}\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄\nநன்றி! மீண்டும் வருக! 🙏`;
-            await sendMessage(contactNumber, billMsg, 'business');
+        // Bill Notification
+        if (saleData.contactNumber) {
+            const billMsg = `🧾 *TJP MUSHROOM BILL*\n--------------------------\n👤 Customer: ${saleData.customerName}\n📦 Product: ${saleData.productType}\n🔢 Quantity: ${saleData.quantity} ${saleData.unit}\n💵 Total: *₹${saleData.totalAmount}*\n--------------------------\n✅ Payment: ${saleData.paymentType}\n\nநன்றி! - TJP Mushroom`;
+            sendMessage(saleData.contactNumber, billMsg);
         }
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Sale recording failed' });
+        console.warn('⚠️ DB Write failed, falling back to Offline Cache...', error.message);
+        saveSaleOffline(saleData);
+        res.status(201).json({
+            message: '📡 [SAFETY BYPASS] DB error, sale stored locally.',
+            offline: true,
+            sale: saleData
+        });
     }
 });
 
@@ -461,8 +564,8 @@ app.get('/api/customers/search', auth, async (req, res) => {
     }
 });
 
-// --- KADAN/CREDIT SETTLEMENT ---
-app.patch('/api/sales/:id/settle', auth, async (req, res) => {
+// --- KADAN/CREDIT SETTLEMENT - SECURE ---
+app.patch('/api/sales/:id/settle', strictAuth, async (req, res) => {
     try {
         const { settledBy } = req.body;
         const sale = await Sales.findById(req.params.id);
@@ -487,8 +590,8 @@ app.patch('/api/sales/:id/settle', auth, async (req, res) => {
     }
 });
 
-// --- GET KADAN LIST (Unpaid Sales) ---
-app.get('/api/sales/kadan', auth, async (req, res) => {
+// --- GET KADAN LIST (Unpaid Sales) - SECURE ---
+app.get('/api/sales/kadan', strictAuth, async (req, res) => {
     try {
         const kadanList = await Sales.find({ paymentStatus: 'Unpaid' }).sort({ date: -1 });
         res.json(kadanList);
@@ -581,8 +684,8 @@ app.delete('/api/delete/:model/:id', auth, async (req, res) => {
     }
 });
 
-// --- PUBLIC CONTACT FORM ---
-app.post('/api/contact', async (req, res) => {
+// --- PUBLIC CONTACT FORM (Secured with Honeypot, Encryption & Rate Limit) ---
+app.post('/api/contact', contactRateLimit, async (req, res) => {
     try {
         const { payload } = req.body;
         if (!payload) return res.status(400).json({ message: 'No payload' });
@@ -590,11 +693,18 @@ app.post('/api/contact', async (req, res) => {
         // Decrypt
         const CryptoJS = require('crypto-js');
         const secretKey = 'tjp_encryption_key_2026';
-        const bytes = CryptoJS.AES.decrypt(payload, secretKey);
-        const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+        let decryptedData;
+
+        try {
+            const bytes = CryptoJS.AES.decrypt(payload, secretKey);
+            decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+        } catch (e) {
+            return res.status(400).json({ message: 'Security verification failed. Invalid payload.' });
+        }
 
         // Honeypot check
         if (decryptedData.website) {
+            console.log('🤖 Bot detected via Honeypot field');
             return res.status(200).json({ message: 'Message sent successfully!' }); // Fake success for bots
         }
 
@@ -607,7 +717,8 @@ app.post('/api/contact', async (req, res) => {
     }
 });
 
-app.get('/api/sales', auth, async (req, res) => {
+// --- GET ALL SALES - SECURE ---
+app.get('/api/sales', strictAuth, async (req, res) => {
     try {
         const { startDate, endDate, productType } = req.query;
         let query = {};
@@ -1105,8 +1216,8 @@ app.post('/api/bills/send', auth, async (req, res) => {
     }
 });
 
-// --- ANALYTICS (Legacy) ---
-app.get('/api/admin/stats', auth, async (req, res) => {
+// --- ANALYTICS - SECURE ---
+app.get('/api/admin/stats', strictAuth, async (req, res) => {
     try {
         const orders = await Order.find({ status: 'Delivered' });
         const totalRevenue = orders.reduce((sum, order) => sum + order.totalPrice, 0);
@@ -1192,25 +1303,17 @@ const createSheetWithHeader = (json, sheetTitle, subtitleContext) => {
 // Initialize default alerts
 const initializeAlerts = async () => {
     // Cleanup old default alerts to prevent duplicates/confusion
-    await Alert.deleteMany({ scheduledTime: { $in: ['06:00', '06:30'] } });
-
+    // Fan alerts removed as per user request
     await Alert.insertMany([
         {
-            title: 'FAN IN (ON)',
-            message: 'Farming Fan IN - Turn ON now!',
+            title: 'WATER CHECK',
+            message: 'Check water drum level!',
             scheduledTime: '06:00',
             type: 'daily',
-            icon: '🌀'
-        },
-        {
-            title: 'FAN OUT (OFF)',
-            message: 'Farming Fan OUT - Turn OFF now!',
-            scheduledTime: '07:00',
-            type: 'daily',
-            icon: '🌀'
+            icon: '💧'
         }
     ]);
-    console.log('✅ Fan IN/OUT alerts re-initialized');
+    console.log('✅ Default alerts (Water Only) re-initialized');
 };
 
 // Initialize default inventory items
@@ -1518,7 +1621,7 @@ const startAlarmScheduler = () => {
                     try {
                         await sendMessage(phone, message, 'admin');
                         await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: alert.title, message: alert.message });
-                        if (alert.title.includes('FAN') || alert.title.includes('WATER')) {
+                        if (alert.title.includes('WATER')) {
                             await sendVoiceCall(phone, `Sir, TJP Mushroom Alert. ${alert.title}. ${alert.message}`);
                             await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: alert.title, message: `System Call triggered` });
                         }
@@ -2114,34 +2217,222 @@ cron.schedule('59 23 28-31 * *', async () => {
 });
 
 
+// --- OFFLINE CACHE LOGIC ---
+const OFFLINE_SALES_FILE = path.join(__dirname, 'offline_sales.json');
+
+const saveSaleOffline = (saleData) => {
+    try {
+        let sales = [];
+        if (fs.existsSync(OFFLINE_SALES_FILE)) {
+            sales = JSON.parse(fs.readFileSync(OFFLINE_SALES_FILE));
+        }
+        sales.push({ ...saleData, offline: true, savedAt: new Date() });
+        fs.writeFileSync(OFFLINE_SALES_FILE, JSON.stringify(sales, null, 2));
+        console.log('📦 SAFE MODE: Sale saved to local cache (No Internet/DB)');
+        return true;
+    } catch (e) {
+        console.error('❌ Failed to save offline:', e.message);
+        return false;
+    }
+};
+
+const syncOfflineSales = async () => {
+    if (mongoose.connection.readyState !== 1 || !fs.existsSync(OFFLINE_SALES_FILE)) return;
+    try {
+        const sales = JSON.parse(fs.readFileSync(OFFLINE_SALES_FILE));
+        if (sales.length === 0) return;
+
+        console.log(`🔄 Syncing ${sales.length} offline sales to Atlas...`);
+        for (const s of sales) {
+            const { offline, savedAt, ...cleanData } = s;
+            const sale = new Sales(cleanData);
+            await sale.save();
+        }
+        fs.unlinkSync(OFFLINE_SALES_FILE);
+        console.log('✅ Local cache cleared and synced to Atlas!');
+    } catch (e) {
+        console.warn('⚠️ Sync partially failed. Will retry later.');
+    }
+};
+
+// Sync every 5 minutes
+setInterval(syncOfflineSales, 5 * 60 * 1000);
+
 const MONGODB_URI = process.env.MONGODB_URI;
+const LOCAL_MONGODB_URI = 'mongodb://localhost:27017/tjp_mushroom_local';
+
+// --- DIRECT CONNECTION BYPASS ---
+const getDirectURI = (uri) => {
+    if (uri && uri.startsWith('mongodb+srv://')) {
+        console.log('🔄 Converting SRV to Standard Direct Connection (ISP Bypass)...');
+        const match = uri.match(/mongodb\+srv:\/\/([^@]+)@([^/?]+)/);
+        if (match) {
+            const auth = match[1];
+            const shards = [
+                'ac-ogvdy4k-shard-00-00.dcqsomw.mongodb.net:27017',
+                'ac-ogvdy4k-shard-00-01.dcqsomw.mongodb.net:27017',
+                'ac-ogvdy4k-shard-00-02.dcqsomw.mongodb.net:27017'
+            ];
+            const dbPart = uri.split('/')[3] || 'managementDB';
+            const dbName = dbPart.split('?')[0];
+            // USER REQUEST: Add authSource, replicaSet, and tls
+            return `mongodb://${auth}@${shards.join(',')}/${dbName}?authSource=admin&replicaSet=atlas-ogvdy4k-shard-0&tls=true&retryWrites=true&w=majority`;
+        }
+    }
+    return uri;
+};
+
+const DIRECT_URI = getDirectURI(MONGODB_URI);
+
+let isConnectedToLocal = false;
+
+app.get('/api/status', (req, res) => {
+    res.json({
+        connected: mongoose.connection.readyState === 1,
+        isLocal: isConnectedToLocal,
+        mode: isConnectedToLocal ? 'LOCAL' : 'CLOUD'
+    });
+});
+
+const startServer = (port) => {
+    const server = app.listen(port, () => {
+        console.log('\n-------------------------------------------');
+        console.log(`🚀 TJP SERVER IS LIVE!`);
+        console.log(`🌐 Dashboard: http://localhost:${port}`);
+        console.log(`📊 Mode: ${isConnectedToLocal ? 'LOCAL FAILOVER' : 'CLOUD ATLAS'}`);
+        console.log(`📱 Offline Safety & Local Failover ACTIVE.`);
+        console.log('-------------------------------------------\n');
+    }).on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.log(`⚠️ Port ${port} is busy. Trying ${port + 1}...`);
+            startServer(port + 1);
+        } else {
+            console.error('❌ Server Error:', err);
+        }
+    });
+
+    const shutdown = async () => {
+        console.log('\n🛑 Shutting down TJP Server gracefully...');
+        server.close(async () => {
+            console.log('📡 Closing MongoDB Connection...');
+            await mongoose.connection.close();
+            console.log('✅ Shutdown Complete. Goodbye! 🍄');
+            process.exit(0);
+        });
+    };
+
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+};
+
+const successCallback = async (isLocal = false) => {
+    isConnectedToLocal = isLocal;
+    console.log(`✅ Connected to ${isLocal ? 'LOCAL MongoDB' : 'CLOUD MongoDB Atlas'}`);
+
+    // Ensure at least one admin exists
+    const adminCount = await Admin.countDocuments();
+    if (adminCount === 0) {
+        await new Admin({
+            username: 'admin',
+            password: 'password123',
+            phoneNumber: '9500591897' // Default from ADMIN_PHONE
+        }).save();
+        console.log('👤 Default admin created (admin/password123)');
+    }
+
+    if (isLocal) {
+        console.warn('⚠️ WORKING IN LOCAL MODE: Data will be saved to your PC until internet/cloud restores.');
+    }
+    initializeInventory();
+    initializeAlerts();
+    syncOfflineSales();
+    startAlarmScheduler();
+
+    startServer(PORT);
+};
+
+const connectDB = async () => {
+    const startTime = Date.now();
+    let atlasSuccess = false;
+
+    console.log('📡 Attempting Cloud Connection (Direct Mode)...');
+
+    // Attempt Atlas First
+    try {
+        await mongoose.connect(DIRECT_URI, {
+            serverSelectionTimeoutMS: 30000,
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 30000,
+        });
+        atlasSuccess = true;
+        successCallback(false);
+    } catch (err) {
+        console.error('❌ Cloud Connection Failed:', err.message);
+
+        // Failover to Local MongoDB if requested or if 1 min passed
+        console.log('🔄 Switching to LOCAL MongoDB Failover (localhost:27017)...');
+        try {
+            await mongoose.connect(LOCAL_MONGODB_URI, {
+                serverSelectionTimeoutMS: 5000
+            });
+            successCallback(true);
+        } catch (localErr) {
+            console.error('❌ Local MongoDB also failed. (Is MongoDB Compass/Service running?)');
+            console.log('🔄 Retrying Cloud in 15 seconds...');
+            setTimeout(connectDB, 15000);
+        }
+    }
+};
+
+// --- FRONTEND SERVING ---
+const buildPath = path.join(__dirname, '../build');
+app.use(express.static(buildPath));
+
+app.get('/', (req, res) => {
+    if (fs.existsSync(path.join(buildPath, 'index.html'))) {
+        res.sendFile(path.join(buildPath, 'index.html'));
+    } else {
+        res.status(200).send(`
+            <html>
+                <body style="background: #CBCCCB; font-family: 'Outfit', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+                    <div style="text-align: center; background: white; padding: 60px; border-radius: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); max-width: 500px;">
+                        <h1 style="color: #022C22; font-size: 3rem; margin-bottom: 10px;">🍄 TJP LIVE</h1>
+                        <p style="color: #666; font-size: 1.2rem;">Server is active on Port 5000</p>
+                        <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 20px; border: 2px solid #eee;">
+                            <p style="font-weight: bold; color: ${isConnectedToLocal ? '#d97706' : '#059669'}; font-size: 1.1rem;">
+                                ${isConnectedToLocal ? '🚀 LOCAL FAILOVER MODE' : '✅ CLOUD ATLAS ONLINE'}
+                            </p>
+                        </div>
+                        <p style="color: #888; font-size: 0.9rem; line-height: 1.5;">
+                            Frontend build not detected. <br/> 
+                            Please run <code style="background: #eee; padding: 2px 6px; border-radius: 4px;">npm run build</code> in the root.
+                        </p>
+                        <div style="margin-top: 30px;">
+                             <a href="/api/status" style="display: inline-block; padding: 15px 30px; background: #022C22; color: white; text-decoration: none; border-radius: 15px; font-weight: bold;">Check System Status</a>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `);
+    }
+});
+
+// Catch-all for React Router
+app.get('*', (req, res, next) => {
+    // Skip if it's an API route
+    if (req.path.startsWith('/api')) return next();
+
+    const indexPath = path.join(buildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        next();
+    }
+});
 
 if (!MONGODB_URI) {
-    console.error('❌ MONGODB_URI is not set in .env file');
+    console.error('❌ MONGODB_URI is not set in .env');
     process.exit(1);
 }
 
-mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 30000, // Increased to 30s
-    socketTimeoutMS: 45000,
-    family: 4 // Force IPv4 to avoid DNS issues
-})
-    .then(async () => {
-        console.log('✅ Connected to managementDB');
-        const adminCount = await Admin.countDocuments();
-        if (adminCount === 0) await new Admin({ username: 'admin', password: 'password123' }).save();
-        await initializeAlerts();
-        await initializeInventory();
-        startAlarmScheduler();
-        app.listen(PORT, () => {
-            console.log(`🚀 Server is live on port ${PORT}`);
-            console.log(`📱 NOTE: Check terminal for WhatsApp QR Code if not connected yet.`);
-        });
-    })
-    .catch(err => {
-        console.error('❌ MongoDB Connection Error:', err.message);
-        if (err.message.includes('IP whitelist')) {
-            console.error('👉 ACTION REQUIRED: Add 0.0.0.0/0 or your current IP to MongoDB Atlas Access List.');
-        }
-        process.exit(1);
-    });
+connectDB();

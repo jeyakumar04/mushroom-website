@@ -4,6 +4,7 @@
     "description": "Backend for TJP Mushroom Booking",
     "main": "index.js",
     "scripts": {
+        "prestart": "npx kill-port 5000",
         "start": "node index.js",
         "dev": "nodemon index.js"
     },
