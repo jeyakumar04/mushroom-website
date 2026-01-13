@@ -95,6 +95,7 @@ module.exports = {
     sendLoyaltyNotification: (phone, msg) => sendMessage(phone, msg),
     isClientReady: () => isReady,
     getLatestQr: () => "",
+    client,
     ADMIN_1,
     ADMIN_2
 };

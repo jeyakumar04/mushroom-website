@@ -412,6 +412,27 @@ const Dashboard = () => {
         }
     };
 
+    const handleShare = (bill) => {
+        const number = bill.customerPhone; // Ensure this matches your data key
+        const billText = `*TJP MUSHROOM FARM*%0A--------------------------%0ADate: ${bill.date}%0ABill No: ${bill.order_id}%0A--------------------------%0ATotal: ₹${bill.total}%0AStatus: Paid (GP)%0A--------------------------%0AThank you!`;
+
+        // Direct Protocol for App (Skips Intermediate Page)
+        const whatsappUrl = `whatsapp://send?phone=91${number}&text=${billText}`;
+
+        // Fallback for Web Browser if App is not installed
+        const webUrl = `https://web.whatsapp.com/send?phone=91${number}&text=${billText}`;
+
+        // Try to open App directly, if it fails or on Desktop, use Web link
+        window.location.href = whatsappUrl;
+
+        // Small delay: if the protocol fails to open, fallback to Web WhatsApp
+        setTimeout(() => {
+            if (document.hasFocus()) {
+               window.open(webUrl, '_blank');
+            }
+        }, 500);
+    };
+
     // Generic Delete Handler
     const handleDelete = async (model, id) => {
         if (!window.confirm("Permanent-ah delete pannanuma?")) return;
