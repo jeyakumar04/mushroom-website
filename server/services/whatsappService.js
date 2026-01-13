@@ -13,11 +13,15 @@ const client = new Client({
         dataPath: './.wwebjs_auth' // Explicit path to save login
     }),
     puppeteer: {
-        headless: false, // QR scan panna false-ve irukkatum
+        headless: true, // Login saved, so headless mode for faster startup
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--disable-extensions',
+            '--no-default-browser-check'
         ]
     }
 });
@@ -38,8 +42,8 @@ client.on('authenticated', () => {
 // Initialization with new stable session
 async function startTJPService() {
     try {
-        console.log('📡 WhatsApp initialization DISABLED temporarily');
-        // client.initialize(); // COMMENTED OUT - causing server crashes
+        console.log('📡 Initializing WhatsApp with optimized settings...');
+        client.initialize(); // Enabled with optimized headless mode
 
         // Pairing code removed to rely on QR scan / Session Persistence
     } catch (err) {
