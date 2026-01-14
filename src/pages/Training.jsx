@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Footer from '../Component/Footer';
 import { FaGraduationCap, FaCertificate, FaHandshake, FaArrowRight, FaMicroscope, FaChartLine, FaCloudSun } from 'react-icons/fa';
@@ -6,6 +6,7 @@ import { FaGraduationCap, FaCertificate, FaHandshake, FaArrowRight, FaMicroscope
 const Training = () => {
     // Professional High-Quality Hero Image (Agricultural Education)
     const trainingHero = "https://images.unsplash.com/photo-1592150621344-c792317530b1?auto=format&fit=crop&q=80&w=2070";
+    const [selectedCert, setSelectedCert] = useState(null);
 
     return (
         <div className="bg-[#022C22] min-h-screen font-sans text-white overflow-x-hidden">
@@ -33,9 +34,14 @@ const Training = () => {
                     <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed font-medium mb-12 animate-reveal-delayed">
                         Professional training programs certified by industry experts for sustainable, high-yield mushroom farming.
                     </p>
-                    <button className="gold-button px-12 py-5 text-xl tracking-widest animate-reveal-delayed transform hover:scale-110 transition-transform">
+                    <a
+                        href="https://wa.me/919500591897?text=Hi%20TJP%20Mushrooms,%20I%20want%20to%20know%20more%20about%20your%20training%20curriculum%20and%20next%20batch%20details."
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="gold-button inline-block px-12 py-5 text-xl tracking-widest animate-reveal-delayed transform hover:scale-110 transition-transform"
+                    >
                         DOWNLOAD CURRICULUM
-                    </button>
+                    </a>
                 </div>
             </section>
 
@@ -53,14 +59,14 @@ const Training = () => {
                             <p className="text-gray-400 leading-relaxed font-medium">Practical experience in our state-of-the-art, climate-controlled farm environment.</p>
                         </div>
 
-                        {/* Pillar 2 */}
+                        {/* Pillar 2 - Full Support */}
                         <div className="group bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-[2.5rem] shadow-2xl hover:border-tjp-gold/50 transition-all duration-700 text-center relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-tjp-gold to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             <div className="w-20 h-20 bg-tjp-gold/10 rounded-2xl flex items-center justify-center mx-auto mb-8 text-tjp-gold text-4xl group-hover:bg-tjp-gold group-hover:text-black transition-all duration-500 scale-110">
                                 <FaCertificate />
                             </div>
-                            <h3 className="text-2xl font-black mb-4 tracking-tight uppercase">Certification</h3>
-                            <p className="text-gray-400 leading-relaxed font-medium">Receive formal industry-recognized certification upon completion of your program.</p>
+                            <h3 className="text-2xl font-black mb-4 tracking-tight uppercase">Full Support</h3>
+                            <p className="text-gray-400 leading-relaxed font-medium">We will support you at any time with expert guidance to ensure your farm's success and growth.</p>
                         </div>
 
                         {/* Pillar 3 */}
@@ -107,10 +113,24 @@ const Training = () => {
                             <div className="absolute inset-0 bg-tjp-gold blur-[100px] opacity-10 rounded-full animate-pulse-slow"></div>
                             <div className="relative glass-card p-4 rounded-[3rem] border border-white/10 transform -rotate-2 hover:rotate-0 transition-transform duration-700 shadow-2xl">
                                 <img
-                                    src="https://images.unsplash.com/photo-1594165560069-90134aed366b?auto=format&fit=crop&q=80&w=2069"
+                                    src="/uploads/uploaded_image_4_1768417621406.jpg"
                                     alt="Training Session"
                                     className="rounded-[2.5rem] w-full h-[500px] object-cover"
                                 />
+                            </div>
+                            {/* Certificate Preview Badge */}
+                            <div
+                                className="absolute -bottom-6 -right-6 w-48 h-48 bg-white p-2 rounded-2xl shadow-2xl transform rotate-12 hover:rotate-0 transition-all duration-500 overflow-hidden cursor-pointer border-4 border-tjp-gold"
+                                onClick={() => setSelectedCert("/uploads/uploaded_image_1_1768417621406.png")}
+                            >
+                                <img
+                                    src="/uploads/uploaded_image_1_1768417621406.png"
+                                    alt="TNAU Certificate"
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                    <span className="text-[10px] bg-tjp-gold text-black font-bold px-2 py-1 rounded">VIEW CERTIFICATE</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -135,6 +155,37 @@ const Training = () => {
                     </div>
                 </div>
             </section>
+
+            {/* FULL CERTIFICATE MODAL */}
+            {selectedCert && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 md:p-14 animate-fade-in"
+                    onClick={() => setSelectedCert(null)}
+                >
+                    <button
+                        className="absolute top-10 right-10 text-white/50 hover:text-tjp-gold text-5xl font-light transition-colors z-[110]"
+                        onClick={() => setSelectedCert(null)}
+                    >
+                        &times;
+                    </button>
+
+                    <div className="relative max-w-5xl w-full h-full flex flex-col items-center justify-center gap-6" onClick={e => e.stopPropagation()}>
+                        <img
+                            src={selectedCert}
+                            alt="Full Certificate"
+                            className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-scale-up"
+                        />
+                        <div className="text-center">
+                            <h2 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter">
+                                TNAU Certification
+                            </h2>
+                            <p className="text-tjp-gold uppercase tracking-[0.4em] text-xs font-bold mt-2">
+                                Verified Agriculture Excellence
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <Footer />
         </div>

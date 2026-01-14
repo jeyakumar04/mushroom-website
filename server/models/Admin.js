@@ -14,6 +14,10 @@ const adminSchema = new mongoose.Schema({
     phoneNumber: {
         type: String,
         required: true
+    },
+    email: {
+        type: String,
+        default: 'jpfarming10@gmail.com' // Default admin email
     }
 });
 

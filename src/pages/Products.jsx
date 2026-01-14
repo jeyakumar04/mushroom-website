@@ -9,26 +9,26 @@ const Products = () => {
             name: "Oyster Mushroom Spawn",
             price: 120,
             unit: "per packet",
-            image: "https://images.unsplash.com/photo-1590483736622-39da8af75620?q=80&w=2127&auto=format&fit=crop",
+            image: "/uploads/uploaded_image_1_1768417790816.jpg",
             description: "High-yield, laboratory-grade spawn for premium oyster mushroom cultivation.",
             tag: "BEST SELLER"
         },
         {
             id: 2,
-            name: "oyster mushroom",
+            name: "Oyster Mushroom (200g)",
             price: 50,
             unit: "per 200g packet",
-            image: "https://images.unsplash.com/photo-1504624244670-393bc746bc4b?q=80&w=2070&auto=format&fit=crop",
-            description: "Summer-variety spawn known for thick, fleshy stems and long shelf life.",
+            image: "/uploads/uploaded_image_1_1768417494350.jpg",
+            description: "Farm-fresh, organic oyster mushrooms harvested daily for peak nutrition.",
             tag: "PREMIUM"
         },
         {
             id: 3,
-            name: "Fresh Oyster Mushrooms",
+            name: "Fresh Oyster Mushrooms (1kg)",
             price: 250,
             unit: "per kg",
-            image: "https://images.unsplash.com/photo-1534123235357-91b582bb6e32?q=80&w=2070&auto=format&fit=crop",
-            description: "Farm-fresh, organic oyster mushrooms harvested daily for peak nutrition.",
+            image: "/uploads/uploaded_image_4_1768417494350.png",
+            description: "Bulk premium oyster mushrooms, perfect for restaurants and large families.",
             tag: "FRESH"
         }
     ];

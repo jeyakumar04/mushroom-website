@@ -52,6 +52,7 @@ const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage, getLat
 const { sendVoiceCall } = require('./services/voiceService');
 const { sendMonthlyReport, sendDailyReport } = require('./services/reportService');
 const { sendSMSOtp } = require('./services/smsService');
+const { sendOtpEmail, sendNotificationEmail } = require('./services/emailService');
 const cron = require('node-cron');
 
 // --- 🔄 POCKET SYNC FUNCTION (Limit 10) ---
@@ -105,6 +106,44 @@ const blogSchema = new mongoose.Schema({
 });
 const Blog = mongoose.model('Blog', blogSchema);
 
+// Static folder for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Public stats for home page animation
+app.get('/api/public/stats', async (req, res) => {
+    try {
+        const customerCount = await Customer.countDocuments(); // Assuming Customer model tracks loyalty
+        // Return real count + some base happy customers if DB is low
+        res.json({ customerCount: Math.max(customerCount, 32) });
+    } catch (err) {
+        res.json({ customerCount: 450 });
+    }
+});
+
+// --- 🖼️ MULTER CONFIG FOR IMAGE UPLOAD ---
+const multer = require('multer');
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadPath = path.join(__dirname, 'uploads');
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath);
+        }
+        cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+const upload = multer({ storage: storage });
+
+// API Endpoint for Image Upload
+app.post('/api/upload', upload.single('image'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const imageUrl = `/uploads/${req.file.filename}`;
+    res.json({ url: imageUrl });
+});
 
 
 const PORT = process.env.PORT || 5000;
@@ -431,7 +470,7 @@ app.post('/api/admin/request-otp', async (req, res) => {
         const cleanPhone = phoneNumber?.toString().trim().replace(/\D/g, '').slice(-10);
         const fullPhone = `+91 ${cleanPhone}`;
 
-        console.log(`≡ƒöæ OTP Requested for: ${fullPhone}`);
+        console.log(`📧 OTP Requested for: ${fullPhone}`);
 
         const ADMIN_NUMBERS = ['9500591897', '9159659711'];
 
@@ -440,12 +479,12 @@ app.post('/api/admin/request-otp', async (req, res) => {
         const adminInDB = await Admin.findOne({ phoneNumber: new RegExp(cleanPhone, 'i') });
 
         if (!isMasterAdmin && !adminInDB) {
-            console.warn(`≡ƒ¢æ Unauthorized OTP attempt from: ${phoneNumber}`);
+            console.warn(`⚠️ Unauthorized OTP attempt from: ${phoneNumber}`);
             return res.status(401).json({ success: false, message: 'Unauthorized Admin Phone' });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log(`≡ƒöæ DEBUG: OTP for ${fullPhone} is: ${otp}`);
+        console.log(`🔐 DEBUG: OTP for ${fullPhone} is: ${otp}`);
 
         await OTP.findOneAndUpdate(
             { phoneNumber: cleanPhone },
@@ -453,35 +492,31 @@ app.post('/api/admin/request-otp', async (req, res) => {
             { upsert: true }
         );
 
-        // --- 1. SEND DUAL WHATSAPP OTP ---
-        const msg = `≡ƒöÉ *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ΓÅ│\n\nRequested from: ${fullPhone}`;
+        // --- SEND OTP VIA EMAIL (PRIMARY) ---
+        const adminEmail = process.env.EMAIL_USER || 'jpfarming10@gmail.com';
 
-        console.log(`≡ƒôñ Sending Dual WhatsApp OTP...`);
-        const waResults = await Promise.allSettled([
-            sendMessage(ADMIN_1, msg),
-            sendMessage(ADMIN_2, msg)
-        ]);
+        console.log(`📧 Sending OTP Email to: ${adminEmail}`);
+        const emailResult = await sendOtpEmail(adminEmail, otp, fullPhone);
 
-        const anySent = waResults.some(r => r.status === 'fulfilled' && r.value.success);
-
-        if (anySent) {
+        if (emailResult.success) {
             // Log to Notification History
             await NotificationLog.create({
-                type: 'WhatsApp',
-                recipient: `${ADMIN_1}, ${ADMIN_2}`,
+                type: 'Email',
+                recipient: adminEmail,
                 title: 'Admin OTP Login',
-                message: `OTP: ${otp} sent to ${ADMIN_1} & ${ADMIN_2}`,
+                message: `OTP: ${otp} sent to ${adminEmail}`,
                 status: 'Sent'
             });
 
-            res.json({ success: true, message: 'OTP sent to Admin WhatsApp numbers' });
+            res.json({ success: true, message: `OTP sent to your email: ${adminEmail}` });
         } else {
-            console.warn(`≡ƒ¢æ WhatsApp Failover: returning success anyway so user can enter OTP from terminal.`);
+            console.warn(`⚠️ Email Failed: ${emailResult.error}`);
             // FAILOVER: Still allow login if user has terminal access
-            res.json({ success: true, message: 'WhatsApp failed, but OTP generated. Check Server Terminal.' });
+            console.log(`\n${'='.repeat(50)}\n🔐 OTP FALLBACK: ${otp}\n${'='.repeat(50)}\n`);
+            res.json({ success: true, message: 'Email failed, but OTP generated. Check Server Terminal.' });
         }
     } catch (error) {
-        console.error('≡ƒöÑ OTP Request Server Error:', error);
+        console.error('❌ OTP Request Server Error:', error);
         res.status(500).json({ message: 'Internal Server Error: ' + error.message });
     }
 });
@@ -889,12 +924,35 @@ app.post('/api/contact', contactRateLimit, async (req, res) => {
 
         // Honeypot check
         if (decryptedData.website) {
-            console.log('≡ƒñû Bot detected via Honeypot field');
+            console.log('🤖 Bot detected via Honeypot field');
             return res.status(200).json({ message: 'Message sent successfully!' }); // Fake success for bots
         }
 
         const newMessage = new Contact(decryptedData);
         await newMessage.save();
+
+        // 📧 SEND EMAIL NOTIFICATION TO ADMIN
+        try {
+            await sendNotificationEmail(
+                'jpfarming10@gmail.com',
+                `New Contact Message from ${decryptedData.name}`,
+                `
+                <div style="font-family: Arial, sans-serif; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #022C22;">New Inquiry Received! 🍄</h2>
+                    <p><strong>From:</strong> ${decryptedData.name}</p>
+                    <p><strong>Email:</strong> ${decryptedData.email}</p>
+                    <p><strong>Subject:</strong> ${decryptedData.subject}</p>
+                    <hr style="border: 0; border-top: 1px solid #eee;" />
+                    <p><strong>Message:</strong></p>
+                    <p style="background: #f9f9f9; padding: 15px; border-radius: 5px;">${decryptedData.message}</p>
+                </div>
+                `
+            );
+            console.log('✅ Contact Notification Email Sent.');
+        } catch (emailErr) {
+            console.error('❌ Failed to send contact email:', emailErr);
+        }
+
         res.status(201).json({ message: 'Message sent successfully!' });
     } catch (error) {
         console.error(error);

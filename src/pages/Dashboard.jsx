@@ -962,193 +962,175 @@ const Dashboard = () => {
                             </div>
                         )}
 
-                        {/* Quick Stats */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div className="bg-white rounded-3xl p-8 shadow-xl border-l-4 border-green-500">
+                        {/* Quick Stats - MOBILE OPTIMIZED GRID */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl border-l-4 border-green-500">
                                 <div className="flex items-center justify-between mb-4">
-                                    <FaArrowUp className="text-green-500 text-2xl" />
-                                    <span className="text-xs font-bold uppercase text-gray-400">Total Sales</span>
+                                    <FaArrowUp className="text-green-500 text-xl md:text-2xl" />
+                                    <span className="text-[8px] md:text-xs font-bold uppercase text-gray-400">Total Sales</span>
                                 </div>
-                                <p className="text-4xl font-black text-gray-800">₹{stats?.totalSales || 0}</p>
+                                <p className="text-xl md:text-4xl font-black text-gray-800">₹{stats?.totalSales || 0}</p>
                             </div>
-                            <div className="bg-white rounded-3xl p-8 shadow-xl border-l-4 border-red-500">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl border-l-4 border-red-500">
                                 <div className="flex items-center justify-between mb-4">
-                                    <FaArrowDown className="text-red-500 text-2xl" />
-                                    <span className="text-xs font-bold uppercase text-gray-400">Expenditure</span>
+                                    <FaArrowDown className="text-red-500 text-xl md:text-2xl" />
+                                    <span className="text-[8px] md:text-xs font-bold uppercase text-gray-400">Expenditure</span>
                                 </div>
-                                <p className="text-4xl font-black text-gray-800">₹{stats?.totalExpenditure || 0}</p>
+                                <p className="text-xl md:text-4xl font-black text-gray-800">₹{stats?.totalExpenditure || 0}</p>
                             </div>
-                            <div className="bg-white rounded-3xl p-8 shadow-xl border-l-4 border-blue-500">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl border-l-4 border-blue-500">
                                 <div className="flex items-center justify-between mb-4">
-                                    <FaRupeeSign className="text-blue-500 text-2xl" />
-                                    <span className="text-xs font-bold uppercase text-gray-400">Net Profit</span>
+                                    <FaRupeeSign className="text-blue-500 text-xl md:text-2xl" />
+                                    <span className="text-[8px] md:text-xs font-bold uppercase text-gray-400">Net Profit</span>
                                 </div>
-                                <p className={`text-4xl font-black ${(stats?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                <p className={`text-xl md:text-4xl font-black ${(stats?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     ₹{stats?.netProfit || 0}
                                 </p>
                             </div>
-                            <div className="bg-white rounded-3xl p-8 shadow-xl border-l-4 border-purple-500">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl border-l-4 border-purple-500">
                                 <div className="flex items-center justify-between mb-4">
-                                    <FaUser className="text-purple-500 text-2xl" />
-                                    <span className="text-xs font-bold uppercase text-gray-400">Customers</span>
+                                    <FaUser className="text-purple-500 text-xl md:text-2xl" />
+                                    <span className="text-[8px] md:text-xs font-bold uppercase text-gray-400">Customers</span>
                                 </div>
-                                <p className="text-4xl font-black text-gray-800">{customers.length}</p>
+                                <p className="text-xl md:text-4xl font-black text-gray-800">{customers.length}</p>
                             </div>
                             {/* JANUARY BED COUNTER */}
-                            <div className="bg-white rounded-3xl p-8 shadow-xl border-l-4 border-amber-500">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl border-l-4 border-amber-500 col-span-2 lg:col-span-1">
                                 <div className="flex items-center justify-between mb-4">
-                                    <FaLayerGroup className="text-amber-500 text-2xl" />
-                                    <span className="text-xs font-bold uppercase text-gray-400">Total Beds (YTD)</span>
+                                    <FaLayerGroup className="text-amber-500 text-xl md:text-2xl" />
+                                    <span className="text-[8px] md:text-xs font-bold uppercase text-gray-400">Total Beds (YTD)</span>
                                 </div>
-                                <p className="text-4xl font-black text-gray-800">
+                                <p className="text-xl md:text-4xl font-black text-gray-800">
                                     {stats?.ytdBeds || 0}
                                 </p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase mt-2">Since Jan 1st, {new Date().getFullYear()}</p>
+                                <p className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase mt-2">Since Jan 1st, {new Date().getFullYear()}</p>
                             </div>
                         </div>
 
-                        {/* TJP SMART HUB (Alarms & Soaking) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                        {/* TJP SMART HUB - MOBILE OPTIMIZED */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+                            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl md:rounded-3xl p-5 md:p-8 text-white shadow-2xl relative overflow-hidden">
                                 <div className="relative z-10">
-                                    <h3 className="text-xl font-black uppercase tracking-wider mb-6 flex items-center gap-3">
-                                        <FaWater className="text-blue-200" /> Soaking Alarm (18 Hrs)
+                                    <h3 className="text-lg md:text-xl font-black uppercase tracking-wider mb-4 md:mb-6 flex items-center gap-3">
+                                        <FaWater className="text-blue-200" /> Soaking Alarm
                                     </h3>
-                                    <div className="space-y-6">
+                                    <div className="space-y-4 md:space-y-6">
                                         <div>
-                                            <label className="text-xs font-black uppercase text-blue-200 block mb-3 tracking-widest">Start Time (Today)</label>
+                                            <label className="text-[8px] md:text-xs font-black uppercase text-blue-200 block mb-2 tracking-widest">Start Time</label>
                                             <input
                                                 type="time"
-                                                className="w-full bg-white/20 border-2 border-white/30 rounded-2xl px-6 py-5 font-black text-3xl outline-none text-white focus:bg-white/30 transition-all"
+                                                className="w-full bg-white/20 border-2 border-white/30 rounded-xl md:rounded-2xl px-4 md:px-6 py-3 md:py-5 font-black text-xl md:text-3xl outline-none text-white focus:bg-white/30 transition-all"
                                                 onChange={(e) => handleSoakingChange(e.target.value)}
                                             />
                                         </div>
                                         {soakingStartTime && (
-                                            <div className="bg-white/10 p-5 rounded-2xl border border-white/10 backdrop-blur-md">
-                                                <p className="text-[10px] font-black uppercase text-blue-200 mb-2">Finish Alert (18 Hours Later)</p>
-                                                <p className="text-3xl font-black">
+                                            <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+                                                <p className="text-[8px] md:text-[10px] font-black uppercase text-blue-200 mb-1">Finish Alert (18 Hrs)</p>
+                                                <p className="text-xl md:text-3xl font-black">
                                                     {new Date(soakingStartTime.getTime() + 18 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
                                                 </p>
-                                                <p className="text-[10px] font-bold text-blue-300 mt-1 uppercase italic">
+                                                <p className="text-[8px] md:text-[10px] font-bold text-blue-300 mt-1 uppercase italic">
                                                     Tomorrow • {new Date(soakingStartTime.getTime() + 18 * 60 * 60 * 1000).toLocaleDateString()}
                                                 </p>
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                                <FaClock className="absolute top-[-20px] right-[-20px] text-[200px] text-white/5 rotate-12" />
+                                <FaClock className="absolute top-[-20px] right-[-20px] text-[150px] md:text-[200px] text-white/5 rotate-12" />
                             </div>
 
-                            <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex flex-col justify-between">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl border border-gray-100 flex flex-col justify-between">
                                 <div>
                                     <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                            <FaClock className="text-amber-500" /> Daily Routine Alarms
+                                        <h3 className="text-lg md:text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                            <FaClock className="text-amber-500" /> Daily Alarms
                                         </h3>
                                         <button
                                             onClick={() => {
                                                 setAlertForm({ id: null, title: 'WATER CHECK', message: '', scheduledTime: '06:00', icon: '💧' });
                                                 setIsAlertFormOpen(!isAlertFormOpen);
                                             }}
-                                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all flex items-center gap-2"
+                                            className="bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-xl text-[8px] md:text-[10px] font-black uppercase hover:bg-indigo-700 transition-all flex items-center gap-2"
                                         >
-                                            <FaPlusCircle /> {isAlertFormOpen ? 'Close' : 'Add New'}
+                                            <FaPlusCircle /> {isAlertFormOpen ? 'Close' : 'Add'}
                                         </button>
                                     </div>
 
                                     {isAlertFormOpen && (
-                                        <form onSubmit={handleAlertSubmit} className="mb-8 p-6 bg-indigo-50 rounded-2xl border-2 border-indigo-100 animate-fadeIn">
-                                            <div className="grid grid-cols-1 gap-4">
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Alarm Title</label>
-                                                    <input
-                                                        type="text"
-                                                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
-                                                        value={alertForm.title}
-                                                        onChange={e => setAlertForm({ ...alertForm, title: e.target.value })}
-                                                        placeholder="e.g. WATER CHECK"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Time</label>
-                                                        <input
-                                                            type="time"
-                                                            className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
-                                                            value={alertForm.scheduledTime}
-                                                            onChange={e => setAlertForm({ ...alertForm, scheduledTime: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Icon</label>
-                                                        <select
-                                                            className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
-                                                            value={alertForm.icon}
-                                                            onChange={e => setAlertForm({ ...alertForm, icon: e.target.value })}
-                                                        >
-                                                            <option value="💧">💧 Water</option>
-                                                            <option value="⏰">⏰ Alert</option>
-                                                            <option value="🍄">🍄 Mushroom</option>
-                                                            <option value="💨">💨 Fan</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Message</label>
-                                                    <input
-                                                        type="text"
-                                                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
-                                                        value={alertForm.message}
-                                                        onChange={e => setAlertForm({ ...alertForm, message: e.target.value })}
-                                                        placeholder="Description..."
-                                                    />
-                                                </div>
-                                                <button type="submit" className="w-full bg-indigo-600 text-white font-black uppercase py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition-all">
-                                                    {alertForm.id ? 'Save Changes' : 'Set Alarm Engine'}
-                                                </button>
+                                        <form onSubmit={handleAlertSubmit} className="mb-8 p-4 md:p-6 bg-indigo-50 rounded-2xl border-2 border-indigo-100 animate-fadeIn space-y-4">
+                                            <div>
+                                                <label className="text-[8px] md:text-[10px] font-black uppercase text-indigo-400 block mb-2">Title</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-2 md:py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
+                                                    value={alertForm.title}
+                                                    onChange={e => setAlertForm({ ...alertForm, title: e.target.value })}
+                                                    placeholder="WATER CHECK"
+                                                />
                                             </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-[8px] md:text-[10px] font-black uppercase text-indigo-400 block mb-2">Time</label>
+                                                    <input
+                                                        type="time"
+                                                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-2 md:py-3 font-bold text-gray-800"
+                                                        value={alertForm.scheduledTime}
+                                                        onChange={e => setAlertForm({ ...alertForm, scheduledTime: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[8px] md:text-[10px] font-black uppercase text-indigo-400 block mb-2">Icon</label>
+                                                    <select
+                                                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-2 md:py-3 font-bold text-gray-800"
+                                                        value={alertForm.icon}
+                                                        onChange={e => setAlertForm({ ...alertForm, icon: e.target.value })}
+                                                    >
+                                                        <option value="💧">💧 Water</option>
+                                                        <option value="⏰">⏰ Alert</option>
+                                                        <option value="🍄">🍄 Mushroom</option>
+                                                        <option value="💨">💨 Fan</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <button type="submit" className="w-full bg-indigo-600 text-white font-black uppercase py-3 md:py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition-all text-xs md:text-sm">
+                                                {alertForm.id ? 'Save Changes' : 'Set Alarm'}
+                                            </button>
                                         </form>
                                     )}
 
                                     <div className="grid grid-cols-1 gap-3">
                                         {alerts.length > 0 ? (
                                             alerts.map((alert, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border-l-8 border-indigo-600 group hover:bg-white hover:shadow-md transition-all">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shadow-lg">
+                                                <div key={idx} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-2xl border-l-4 md:border-l-8 border-indigo-600 group hover:bg-white hover:shadow-md transition-all">
+                                                    <div className="flex items-center gap-3 md:gap-4">
+                                                        <div className="bg-indigo-600 text-white w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center font-black text-[10px] shadow-lg">
                                                             {alert.icon || '💧'}
                                                         </div>
                                                         <div>
-                                                            <p className="font-black text-lg text-gray-800 leading-none">{alert.scheduledTime}</p>
-                                                            <p className="text-[10px] font-bold text-gray-500 uppercase mt-1">{alert.message || alert.title}</p>
+                                                            <p className="font-black text-sm md:text-lg text-gray-800 leading-none">{alert.scheduledTime}</p>
+                                                            <p className="text-[8px] md:text-[10px] font-bold text-gray-500 uppercase mt-1">{alert.message || alert.title}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                                            <span className="text-[10px] font-black text-green-600 uppercase">Live</span>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => handleAlertDelete(alert._id)}
-                                                            className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                                        >
-                                                            <FaEraser size={14} />
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        onClick={() => handleAlertDelete(alert._id)}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                    >
+                                                        <FaEraser size={12} />
+                                                    </button>
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="text-center py-10 font-bold text-gray-400 uppercase text-xs italic">No manual alarms set.</p>
+                                            <p className="text-center py-6 font-bold text-gray-400 uppercase text-[10px] italic">No alarms set.</p>
                                         )}
                                     </div>
                                 </div>
-                                <div className="mt-8 flex items-center gap-3 bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                                        <FaBell className="text-white animate-bounce" />
+                                <div className="mt-6 md:mt-8 flex items-center gap-3 bg-indigo-50 p-3 md:p-4 rounded-2xl border border-indigo-100">
+                                    <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-600 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg">
+                                        <FaBell className="text-white text-sm md:text-base animate-bounce" />
                                     </div>
                                     <div>
-                                        <p className="text-xs font-black text-indigo-900 uppercase tracking-tighter">{alerts.length} Automatic Routine Alerts</p>
-                                        <p className="text-[9px] font-bold text-indigo-600 uppercase opacity-80">Strictly Managed by Engine</p>
+                                        <p className="text-[8px] md:text-xs font-black text-indigo-900 uppercase tracking-tighter">{alerts.length} Active Alerts</p>
+                                        <p className="text-[7px] md:text-[9px] font-bold text-indigo-600 uppercase opacity-80">Managed by System</p>
                                     </div>
                                 </div>
                             </div>
@@ -1270,104 +1252,102 @@ const Dashboard = () => {
                 return (
                     <div className="space-y-8 animate-fadeIn">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Sales Form */}
-                            <div className="bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                            {/* Sales Form - MOBILE OPTIMIZED */}
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl">
+                                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 md:mb-8">
+                                    <h3 className="text-lg md:text-xl font-black uppercase text-gray-800 flex items-center gap-3">
                                         <FaShoppingCart className="text-green-500" /> Record Sale
                                     </h3>
-                                    <div className="flex items-center gap-2">
-                                        <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="text-xs font-bold border rounded-lg px-2 py-1">
-                                            <option value="">All Dates</option>
+                                    <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-2 md:pb-0">
+                                        <select value={selectedDate || ''} onChange={e => setSelectedDate(e.target.value ? Number(e.target.value) : null)} className="text-[10px] font-bold border rounded-lg px-2 py-1 flex-1 md:flex-none">
+                                            <option value="">Date</option>
                                             {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
-                                        <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
-                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                        <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-[10px] font-bold border rounded-lg px-2 py-1 flex-1 md:flex-none">
+                                            {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                                         </select>
-                                        <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="text-xs font-bold border rounded-lg px-2 py-1">
+                                        <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="text-[10px] font-bold border rounded-lg px-2 py-1 flex-1 md:flex-none">
                                             {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                                         </select>
                                     </div>
                                 </div>
-                                <form onSubmit={handleSaleSubmit} className="space-y-6">
+                                <form onSubmit={handleSaleSubmit} className="space-y-4 md:space-y-6">
                                     <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">Product Type</label>
+                                        <label className="text-[10px] md:text-sm font-black uppercase text-gray-400 block mb-2">Product</label>
                                         <select
                                             value={saleForm.productType}
                                             onChange={e => setSaleForm({ ...saleForm, productType: e.target.value })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all appearance-none"
+                                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl px-4 md:px-6 py-4 md:py-5 font-black text-base md:text-lg text-gray-800 focus:border-green-500 outline-none transition-all"
                                         >
                                             <option value="Mushroom">🍄 Mushroom</option>
                                             <option value="Seeds">🌱 Seeds</option>
                                         </select>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-sm font-black uppercase text-gray-600 block mb-3">Quantity</label>
+                                            <label className="text-[10px] md:text-sm font-black uppercase text-gray-400 block mb-2">Qty</label>
                                             <input
                                                 type="number"
                                                 min="1"
                                                 required
                                                 value={saleForm.quantity}
                                                 onChange={e => setSaleForm({ ...saleForm, quantity: Number(e.target.value) })}
-                                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all"
+                                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl px-4 md:px-6 py-4 md:py-5 font-black text-base md:text-lg text-gray-800 focus:border-green-500 outline-none transition-all"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-sm font-black uppercase text-gray-600 block mb-3">Price / Unit (₹)</label>
+                                            <label className="text-[10px] md:text-sm font-black uppercase text-gray-400 block mb-2">Price (₹)</label>
                                             <input
                                                 type="number"
                                                 min="1"
                                                 required
                                                 value={saleForm.pricePerUnit}
                                                 onChange={e => setSaleForm({ ...saleForm, pricePerUnit: Number(e.target.value) })}
-                                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all"
+                                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl px-4 md:px-6 py-4 md:py-5 font-black text-base md:text-lg text-gray-800 focus:border-green-500 outline-none transition-all"
                                             />
                                         </div>
                                     </div>
                                     <div className="relative">
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">Customer Name</label>
+                                        <label className="text-[10px] md:text-sm font-black uppercase text-gray-400 block mb-2">Customer Name</label>
                                         <input
                                             type="text"
                                             required
                                             value={saleForm.customerName}
                                             onChange={e => handleCustomerNameChange(e.target.value)}
                                             onBlur={() => setTimeout(() => setCustomerSuggestions([]), 200)}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800"
-                                            placeholder="Enter name (Auto-fill)"
+                                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl px-4 md:px-6 py-4 md:py-5 font-black text-base md:text-lg text-gray-800"
+                                            placeholder="Auto-fill name..."
                                         />
                                         {customerSuggestions.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl z-10 max-h-40 overflow-y-auto mt-1">
+                                            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto mt-1">
                                                 {customerSuggestions.map((customer, idx) => (
                                                     <div
                                                         key={idx}
                                                         onClick={() => selectCustomer(customer)}
-                                                        className="px-6 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                                        className="px-6 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-b-0"
                                                     >
                                                         <div className="font-black text-gray-800">{customer.name}</div>
-                                                        <div className="text-sm text-gray-500">{customer.contactNumber}</div>
+                                                        <div className="text-xs text-gray-400">{customer.contactNumber}</div>
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
                                     <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">Phone Number</label>
+                                        <label className="text-[10px] md:text-sm font-black uppercase text-gray-400 block mb-2">Phone</label>
                                         <input
                                             id="customerPhone"
                                             type="tel"
                                             required
                                             value={saleForm.contactNumber}
                                             onChange={e => setSaleForm({ ...saleForm, contactNumber: e.target.value })}
-                                            onInput={e => setSaleForm({ ...saleForm, contactNumber: e.target.value })}
-                                            onBlur={e => setSaleForm({ ...saleForm, contactNumber: e.target.value })}
-                                            className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-6 py-5 font-black text-lg text-gray-800 focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none transition-all"
-                                            placeholder="Auto-fills from name"
+                                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl px-4 md:px-6 py-4 md:py-5 font-black text-base md:text-lg text-gray-800"
+                                            placeholder="10 digits..."
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-black uppercase text-gray-600 block mb-3">💳 Selection Payment Type</label>
-                                        <div className="grid grid-cols-3 gap-3">
+                                        <label className="text-[10px] md:text-sm font-black uppercase text-gray-400 block mb-2">Payment</label>
+                                        <div className="grid grid-cols-3 gap-2">
                                             {[
                                                 { id: 'Cash', label: 'Cash', icon: '💵', color: 'green' },
                                                 { id: 'GPay', label: 'GPay', icon: '📱', color: 'purple' },
@@ -1377,15 +1357,15 @@ const Dashboard = () => {
                                                     key={type.id}
                                                     type="button"
                                                     onClick={() => setSaleForm({ ...saleForm, paymentType: type.id })}
-                                                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${saleForm.paymentType === type.id
-                                                        ? (type.color === 'green' ? 'bg-green-50 border-green-500 shadow-inner scale-95' :
-                                                            type.color === 'purple' ? 'bg-purple-50 border-purple-500 shadow-inner scale-95' :
-                                                                'bg-red-50 border-red-500 shadow-inner scale-95')
-                                                        : 'bg-white border-gray-100 hover:border-gray-300'
+                                                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${saleForm.paymentType === type.id
+                                                        ? (type.color === 'green' ? 'bg-green-50 border-green-500 shadow-inner' :
+                                                            type.color === 'purple' ? 'bg-purple-50 border-purple-500 shadow-inner' :
+                                                                'bg-red-50 border-red-500 shadow-inner')
+                                                        : 'bg-white border-gray-50 hover:border-gray-200'
                                                         }`}
                                                 >
-                                                    <span className="text-2xl mb-1">{type.icon}</span>
-                                                    <span className={`text-[10px] font-black uppercase ${saleForm.paymentType === type.id
+                                                    <span className="text-xl md:text-2xl mb-1">{type.icon}</span>
+                                                    <span className={`text-[8px] md:text-[10px] font-black uppercase ${saleForm.paymentType === type.id
                                                         ? (type.color === 'green' ? 'text-green-700' :
                                                             type.color === 'purple' ? 'text-purple-700' :
                                                                 'text-red-700')
@@ -1397,26 +1377,22 @@ const Dashboard = () => {
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="bg-green-100 rounded-2xl p-6 border-2 border-green-200 shadow-inner">
-                                        <p className="text-sm font-black text-green-700 uppercase mb-1">Total Amount</p>
-                                        <p className="text-5xl font-black text-green-900">₹{saleForm.quantity * saleForm.pricePerUnit}</p>
-                                    </div>
                                     <button
                                         type="submit"
-                                        className="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-6 rounded-2xl font-black text-xl uppercase tracking-wider hover:shadow-2xl active:scale-95 transition-all shadow-lg"
+                                        className="w-full bg-green-600 text-white font-black uppercase py-4 md:py-6 rounded-xl md:rounded-2xl shadow-xl hover:bg-green-700 transition-all text-sm md:text-lg"
                                     >
-                                        Record Sale & Send Bill
+                                        Complete Sale & Generate Bill
                                     </button>
                                 </form>
                             </div>
 
                             {/* Sales History & Summary */}
                             <div className="lg:col-span-2 space-y-8">
-                                {/* Totals Summary */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white rounded-3xl p-5 shadow-lg border-b-4 border-green-500">
-                                        <p className="text-[10px] font-black uppercase text-gray-400">Total Cash</p>
-                                        <p className="text-2xl font-black text-green-600">
+                                {/* Totals Summary - MOBILE RESPONSIVE GRID */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                                    <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-lg border-b-4 border-green-500">
+                                        <p className="text-[8px] md:text-[10px] font-black uppercase text-gray-400">Total Cash</p>
+                                        <p className="text-xl md:text-2xl font-black text-green-600">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
                                                 const matchesMonth = (d.getMonth() + 1) === selectedMonth;
@@ -1426,9 +1402,9 @@ const Dashboard = () => {
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
-                                    <div className="bg-white rounded-3xl p-5 shadow-lg border-b-4 border-purple-500">
-                                        <p className="text-[10px] font-black uppercase text-gray-400">Total GPay</p>
-                                        <p className="text-2xl font-black text-purple-600">
+                                    <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-lg border-b-4 border-purple-500">
+                                        <p className="text-[8px] md:text-[10px] font-black uppercase text-gray-400">Total GPay</p>
+                                        <p className="text-xl md:text-2xl font-black text-purple-600">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
                                                 const matchesMonth = (d.getMonth() + 1) === selectedMonth;
@@ -1438,9 +1414,9 @@ const Dashboard = () => {
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
-                                    <div className="bg-white rounded-3xl p-5 shadow-lg border-b-4 border-red-500">
-                                        <p className="text-[10px] font-black uppercase text-gray-400">Total Kadan</p>
-                                        <p className="text-2xl font-black text-red-600">
+                                    <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-lg border-b-4 border-red-500">
+                                        <p className="text-[8px] md:text-[10px] font-black uppercase text-gray-400">Total Kadan</p>
+                                        <p className="text-xl md:text-2xl font-black text-red-600">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
                                                 const matchesMonth = (d.getMonth() + 1) === selectedMonth;
@@ -1450,9 +1426,9 @@ const Dashboard = () => {
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
-                                    <div className="bg-gray-900 rounded-3xl p-5 shadow-xl text-white">
-                                        <p className="text-[10px] font-black uppercase text-gray-400">Total Income</p>
-                                        <p className="text-2xl font-black">
+                                    <div className="bg-gray-900 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xl text-white">
+                                        <p className="text-[8px] md:text-[10px] font-black uppercase text-gray-400">Total Income</p>
+                                        <p className="text-xl md:text-2xl font-black">
                                             ₹{sales.filter(s => {
                                                 const d = new Date(s.date);
                                                 const matchesMonth = (d.getMonth() + 1) === selectedMonth;
@@ -1462,16 +1438,16 @@ const Dashboard = () => {
                                             }).reduce((sum, s) => sum + s.totalAmount, 0)}
                                         </p>
                                     </div>
-                                </div>
+                                </div >
 
-                                <div className="bg-white rounded-3xl p-8 shadow-xl">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl">
+                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                                        <h3 className="text-lg md:text-xl font-black uppercase text-gray-800 flex items-center gap-3">
                                             <FaHistory className="text-blue-500" /> Recent Sales
                                         </h3>
                                         <button
                                             onClick={exportSalesToExcel}
-                                            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
+                                            className="w-full md:w-auto bg-blue-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                                         >
                                             <FaFileExcel /> Export Excel
                                         </button>
@@ -1694,9 +1670,9 @@ const Dashboard = () => {
                                         </table>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
+                            </div >
+                        </div >
+                    </div >
                 );
 
             case 'expenditure':
@@ -2133,42 +2109,45 @@ const Dashboard = () => {
                             </div>
                         )}
 
-                        {/* 3. Master List Table */}
-                        <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] p-8 shadow-2xl overflow-hidden border border-white">
-                            <div className="flex items-center gap-3 mb-8">
-                                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                                    <FaWarehouse className="text-amber-600" />
+                        {/* 3. Master List Table - Mobile Friendly Wrapper */}
+                        <div className="bg-white/90 backdrop-blur-sm rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 shadow-2xl overflow-hidden border border-white mt-8">
+                            <div className="flex flex-col md:flex-row items-center gap-3 mb-8">
+                                <div className="flex items-center gap-3 w-full">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                        <FaWarehouse className="text-amber-600" />
+                                    </div>
+                                    <h3 className="text-lg md:text-xl font-black uppercase text-gray-800">Inventory Master List</h3>
                                 </div>
-                                {/* --- MANUAL BLOG FORM --- */}
-                                <div className="glass-box" style={{ padding: '20px', marginTop: '20px', background: 'rgba(255, 255, 255, 0.1)' }}>
-                                    <h3 style={{ color: '#fff' }}>🍄 Post New Mushroom Blog</h3>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                                {/* --- MANUAL BLOG FORM - Mobile Optimized --- */}
+                                <div className="w-full glass-box p-4 md:p-5 mt-4 md:mt-0 bg-white/20 border-white/40">
+                                    <h3 className="text-white text-sm md:text-base font-black mb-3 italic">🍄 Post Mushroom Blog</h3>
+                                    <div className="flex flex-col gap-3">
                                         <input
                                             type="text"
                                             placeholder="Blog Title"
                                             value={blogData.title}
                                             onChange={(e) => setBlogData({ ...blogData, title: e.target.value })}
-                                            style={{ padding: '10px', borderRadius: '5px', border: 'none' }}
+                                            className="w-full p-3 rounded-xl border-none outline-none font-bold text-gray-800 text-xs md:text-sm shadow-inner"
                                         />
                                         <textarea
                                             placeholder="Mushroom Growing Secrets..."
                                             value={blogData.content}
                                             onChange={(e) => setBlogData({ ...blogData, content: e.target.value })}
-                                            style={{ padding: '10px', borderRadius: '5px', border: 'none', height: '80px' }}
+                                            className="w-full p-3 rounded-xl border-none outline-none font-bold text-gray-800 text-xs md:text-sm h-20 shadow-inner"
                                         />
                                         <input
                                             type="text"
                                             placeholder="Anti-Gravity Image Link"
                                             value={blogData.image}
                                             onChange={(e) => setBlogData({ ...blogData, image: e.target.value })}
-                                            style={{ padding: '10px', borderRadius: '5px', border: 'none' }}
+                                            className="w-full p-3 rounded-xl border-none outline-none font-bold text-gray-800 text-xs md:text-sm shadow-inner"
                                         />
-                                        <button onClick={handleBlogSubmit} style={{ background: '#FFD700', padding: '10px', fontWeight: 'bold', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                                        <button onClick={handleBlogSubmit} className="w-full bg-[#FFD700] p-3 font-black uppercase tracking-widest rounded-xl hover:bg-yellow-500 scale-button text-xs md:text-sm">
                                             PUBLISH BLOG
                                         </button>
                                     </div>
                                 </div>
-                                <h3 className="text-xl font-black uppercase text-gray-800">Inventory Master List</h3>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
@@ -2364,18 +2343,16 @@ const Dashboard = () => {
                 return (
                     <div className="space-y-8 animate-fadeIn p-8 rounded-[2.5rem]" style={{ backgroundColor: '#CBCCCB', minHeight: '100vh' }}>
 
-                        {/* 📊 Summary Cards Section - Requested Style */}
-                        <div className="flex flex-wrap gap-6 mb-8">
+                        {/* 📊 Summary Cards Section - MOBILE RESPONSIVE */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
                             {/* Total Customer Count Card */}
-                            <div className="bg-[#333] text-white p-8 rounded-3xl min-w-[280px] shadow-2xl transition-transform hover:scale-105 border-b-8 border-indigo-500">
-                                <h3 className="text-gray-400 text-xs font-black uppercase tracking-widest mb-2">Total Unique Customers</h3>
-                                <p className="text-5xl font-black flex items-center gap-3">
-                                    {customers.length} <span className="text-3xl opacity-80">👤</span>
+                            <div className="bg-[#333] text-white p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl transition-transform hover:scale-105 border-b-8 border-indigo-500">
+                                <h3 className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-2">Total Unique Customers</h3>
+                                <p className="text-3xl md:text-5xl font-black flex items-center gap-3">
+                                    {customers.length} <span className="text-2xl md:text-3xl opacity-80">👤</span>
                                 </p>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase mt-4 tracking-tighter">Verified Database Entries</p>
+                                <p className="text-[8px] md:text-[10px] font-bold text-gray-500 uppercase mt-4 tracking-tighter">Verified Database Entries</p>
                             </div>
-
-                            {/* Optional: Add more cards like Total Sales here */}
                         </div>
 
                         <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 shadow-xl border border-white">
@@ -2557,56 +2534,55 @@ const Dashboard = () => {
                 return (
                     <div className="space-y-8 animate-fadeIn">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div className="bg-white rounded-3xl p-8 shadow-xl">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                            <div className="bg-white rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-xl">
+                                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                                    <h3 className="text-lg md:text-xl font-black uppercase text-gray-800 flex items-center gap-3">
                                         <FaFan className="text-blue-400" /> Climate Capture
                                     </h3>
-                                    <div className="flex items-center gap-2">
-                                        <select value={entryDate.day} onChange={e => setEntryDate({ ...entryDate, day: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
+                                    <div className="flex items-center gap-2 w-full md:w-auto">
+                                        <select value={entryDate.day} onChange={e => setEntryDate({ ...entryDate, day: Number(e.target.value) })} className="flex-1 md:flex-none text-[10px] font-bold border rounded p-2">
                                             {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
-                                        <select value={entryDate.month} onChange={e => setEntryDate({ ...entryDate, month: Number(e.target.value) })} className="text-[10px] font-bold border rounded p-1">
+                                        <select value={entryDate.month} onChange={e => setEntryDate({ ...entryDate, month: Number(e.target.value) })} className="flex-1 md:flex-none text-[10px] font-bold border rounded p-2">
                                             {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                                         </select>
                                     </div>
                                 </div>
-                                <form onSubmit={handleClimateSubmit} className="space-y-5">
+                                <form onSubmit={handleClimateSubmit} className="space-y-4 md:space-y-5">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Temp (°C)</label>
+                                            <label className="text-[10px] md:text-xs font-bold uppercase text-gray-400 block mb-2">Temp (°C)</label>
                                             <input
                                                 type="text"
                                                 value={cTemp}
                                                 onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCTemp(e.target.value) }}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 md:py-4 font-black text-gray-800 text-lg"
                                                 placeholder="28.0"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold uppercase text-gray-400 block mb-2">Moist (%)</label>
+                                            <label className="text-[10px] md:text-xs font-bold uppercase text-gray-400 block mb-2">Moist (%)</label>
                                             <input
                                                 type="text"
                                                 value={cMoist}
                                                 onChange={e => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setCMoist(e.target.value) }}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 md:py-4 font-black text-gray-800 text-lg"
                                                 placeholder="80"
                                             />
                                         </div>
                                     </div>
-                                    <div className="mt-4">
-                                        <label className="text-xs font-black uppercase text-blue-600 block mb-2 flex items-center gap-2">
+                                    <div>
+                                        <label className="text-[10px] md:text-xs font-black uppercase text-blue-600 block mb-2 flex items-center gap-2">
                                             <FaHistory className="text-[10px]" /> Observations
                                         </label>
                                         <textarea
                                             value={cNotes}
                                             onChange={(e) => setCNotes(e.target.value)}
-                                            className="w-full bg-white border-2 border-blue-50 rounded-xl px-4 py-3 font-bold text-gray-800 h-32 focus:border-blue-400 outline-none transition-all"
-                                            placeholder="Detailed observations..."
+                                            className="w-full bg-white border-2 border-blue-50 rounded-xl px-4 py-3 font-bold text-gray-800 h-24 md:h-32 focus:border-blue-400 outline-none transition-all"
+                                            placeholder="Climate details..."
                                         />
-                                        <p className="text-[9px] font-bold text-blue-400 mt-1 uppercase tracking-widest italic">Status: <span className="text-green-500 font-black">ACTIVE & SYNCED</span></p>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col sm:flex-row gap-3">
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -2614,11 +2590,11 @@ const Dashboard = () => {
                                                 setCMoist('');
                                                 setCNotes('');
                                             }}
-                                            className="w-full bg-gray-200 text-gray-700 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-gray-300 transition-all flex items-center justify-center gap-2"
+                                            className="flex-1 bg-gray-200 text-gray-700 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-gray-300 transition-all flex items-center justify-center gap-2 text-xs"
                                         >
                                             <FaEraser /> Reset
                                         </button>
-                                        <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all">
+                                        <button type="submit" className="flex-[2] bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-700 transition-all text-sm">
                                             Add Reading
                                         </button>
                                     </div>
@@ -3203,33 +3179,33 @@ const Dashboard = () => {
                 </div>
             </header>
 
-            {/* Navigation Tabs */}
+            {/* Navigation Tabs - MOBILE RESPONSIVE SCROLL */}
             <nav className="bg-white shadow-lg sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex overflow-x-auto gap-2 py-4">
+                <div className="max-w-7xl mx-auto px-2 md:px-6">
+                    <div className="flex overflow-x-auto no-scrollbar gap-2 py-3 md:py-4">
                         {[
                             { id: 'overview', label: 'Overview', icon: FaChartBar },
                             { id: 'batches', label: 'Production', icon: FaLayerGroup },
                             { id: 'sales', label: 'Sales', icon: FaShoppingCart },
-                            { id: 'kadan', label: 'Kadan Ledger', icon: FaBook },
-                            { id: 'expenditure', label: 'Expenditure', icon: FaMoneyBillWave },
+                            { id: 'kadan', label: 'Kadan', icon: FaBook },
+                            { id: 'expenditure', label: 'Expenses', icon: FaMoneyBillWave },
                             { id: 'inventory', label: 'Inventory', icon: FaWarehouse },
-                            { id: 'water', label: 'Water Status', icon: FaWater },
+                            { id: 'water', label: 'Water', icon: FaWater },
                             { id: 'climate', label: 'Climate', icon: FaFan },
-                            { id: 'loyalty', label: 'Loyalty Hub', icon: FaGift },
-                            { id: 'finance', label: 'Finance Report', icon: FaFileExcel },
+                            { id: 'loyalty', label: 'Loyalty', icon: FaGift },
+                            { id: 'finance', label: 'Finance', icon: FaFileExcel },
                             { id: 'analytics', label: 'Analytics', icon: FaChartBar }
                         ].map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-3 px-8 py-5 rounded-2xl font-black text-base uppercase whitespace-nowrap transition-all shadow-sm ${activeTab === tab.id
+                                className={`flex items-center gap-2 md:gap-3 px-4 md:px-8 py-3 md:py-5 rounded-xl md:rounded-2xl font-black text-[10px] md:text-base uppercase whitespace-nowrap transition-all shadow-sm ${activeTab === tab.id
                                     ? 'bg-gray-900 text-white shadow-2xl scale-105'
                                     : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
                                     }`}
                             >
-                                <tab.icon className="text-xl" />
-                                {tab.label}
+                                <tab.icon className="text-sm md:text-xl" />
+                                <span>{tab.label}</span>
                             </button>
                         ))}
                     </div>

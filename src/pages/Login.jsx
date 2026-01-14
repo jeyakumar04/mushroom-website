@@ -6,7 +6,7 @@ import Footer from '../Component/Footer';
 const Login = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
     const [otp, setOtp] = useState('');
-    const [step, setStep] = useState(1); // 1: Login, 2: Phone, 3: OTP
+    const [step, setStep] = useState(1); // 1: Login, 2: Email, 3: OTP
     const [phoneNumber, setPhoneNumber] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -116,31 +116,12 @@ const Login = () => {
         }
     };
 
-    // --- WHATSAPP STATUS CHECK & QR CODE ---
-    const [qrCode, setQrCode] = useState(null);
-    const [waStatus, setWaStatus] = useState('checking');
+    // --- EMAIL STATUS CHECK (Simplified) ---
+    const [waStatus, setWaStatus] = useState('connected'); // Force connected to bypass WA checks now using Email
 
     useEffect(() => {
-        let interval;
-        const checkStatus = async () => {
-            try {
-                const res = await fetch('/api/admin/whatsapp-status');
-                const data = await res.json();
-                setWaStatus(data.status);
-                if (data.status === 'scan_needed' && data.qrCode) {
-                    setQrCode(data.qrCode);
-                } else if (data.status === 'connected') {
-                    setQrCode(null);
-                }
-            } catch (e) {
-                setWaStatus('error');
-            }
-        };
-
-        checkStatus(); // Initial check
-        interval = setInterval(checkStatus, 5000); // Poll every 5s
-
-        return () => clearInterval(interval);
+        // No longer polling for WA QR as we use Email for OTP
+        setWaStatus('connected');
     }, []);
 
     return (
@@ -150,41 +131,22 @@ const Login = () => {
 
                 <div className="max-w-md w-full relative z-10">
                     <div className="text-center mb-10">
-                        <div className="w-20 h-20 bg-white/50 border border-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl relative">
-                            <FaShieldAlt className={`text-3xl text-gray-800 ${waStatus === 'connected' ? '' : 'animate-pulse'}`} />
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-white/50 border border-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl relative">
+                            <FaShieldAlt className={`text-2xl md:text-3xl text-gray-800 ${waStatus === 'connected' ? '' : 'animate-pulse'}`} />
                             {/* Status Indicator Dot */}
                             <div className={`absolute top-0 right-0 w-4 h-4 rounded-full border-2 border-white ${waStatus === 'connected' ? 'bg-green-500' : waStatus === 'scan_needed' ? 'bg-red-500 animate-ping' : 'bg-yellow-500'}`} title={`WhatsApp Status: ${waStatus}`}></div>
                         </div>
-                        <h1 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase mb-2">
+                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 italic tracking-tighter uppercase mb-2">
                             Admin <span className="text-green-800">Portal</span>
                         </h1>
                         <p className="text-gray-600 font-bold uppercase tracking-[0.2em] text-[10px]">
-                            {step === 1 ? 'Secure Gateway Access' : step === 2 ? 'Phone Verification' : 'Identity Verification Required'}
+                            {step === 1 ? 'Secure Gateway Access' : step === 2 ? 'Identity Verification' : 'Email Verification Required'}
                         </p>
                     </div>
 
-                    {/* WHATSAPP STATUS FEEDBACK */}
-                    {waStatus !== 'connected' && waStatus !== 'scan_needed' && (
-                        <div className="mb-6 bg-yellow-50 border border-yellow-200 p-4 rounded-xl flex items-center justify-center gap-3 animate-pulse">
-                            <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-yellow-700 font-bold text-xs uppercase tracking-wider">
-                                {waStatus === 'initializing' ? 'Initializing WhatsApp...' : 'Reconnecting to Server...'}
-                            </span>
-                        </div>
-                    )}
+                    {/* WHATSAPP STATUS FEEDBACK REMOVED - USING EMAIL OTP */}
 
-                    {/* QR CODE MODAL / OVERLAY */}
-                    {qrCode && waStatus === 'scan_needed' && (
-                        <div className="mb-8 bg-white p-6 rounded-2xl shadow-xl text-center border-2 border-red-100 animate-slide-up">
-                            <h3 className="text-red-600 font-black uppercase text-xs tracking-widest mb-4">⚠️ WhatsApp Disconnected</h3>
-                            <div className="bg-gray-100 p-4 rounded-xl inline-block mb-4">
-                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCode)}`} alt="Scan QR" className="w-48 h-48 mix-blend-multiply" />
-                            </div>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase">Scan with WhatsApp (Linked Devices) to Enable OTP</p>
-                        </div>
-                    )}
-
-                    <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white shadow-2xl relative overflow-hidden">
+                    <div className="bg-white/80 backdrop-blur-xl p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.5rem] border border-white shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-600/40 to-transparent"></div>
 
                         {step === 1 ? (
@@ -228,7 +190,7 @@ const Login = () => {
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full py-5 bg-gray-900 text-white font-black text-lg rounded-2xl shadow-xl hover:bg-black active:scale-95 transition-all duration-300 uppercase tracking-widest flex items-center justify-center gap-4 group italic"
+                                    className="w-full py-4 md:py-5 bg-gray-900 text-white font-black text-base md:text-lg rounded-xl md:rounded-2xl shadow-xl hover:bg-black active:scale-95 transition-all duration-300 uppercase tracking-widest flex items-center justify-center gap-4 group italic"
                                 >
                                     {isLoading ? 'Checking...' : 'Next Step'}
                                     {!isLoading && <FaArrowRight className="group-hover:translate-x-2 transition-transform" />}
@@ -267,7 +229,7 @@ const Login = () => {
                                 <button
                                     type="submit"
                                     disabled={isLoading || !isAuthorized || waStatus === 'scan_needed'}
-                                    className={`w-full py-5 font-black text-lg rounded-2xl transition-all duration-300 uppercase tracking-widest flex items-center justify-center gap-4 group italic ${isAuthorized && waStatus !== 'scan_needed' ? 'bg-green-700 text-white shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                    className={`w-full py-4 md:py-5 font-black text-base md:text-lg rounded-xl md:rounded-2xl transition-all duration-300 uppercase tracking-widest flex items-center justify-center gap-4 group italic ${isAuthorized && waStatus !== 'scan_needed' ? 'bg-green-700 text-white shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                                 >
                                     {isLoading ? 'Sending...' : 'Send OTP'}
                                     {!isLoading && <FaArrowRight className="group-hover:translate-x-2 transition-transform" />}
@@ -283,11 +245,12 @@ const Login = () => {
                         ) : (
                             <form onSubmit={handleVerifyOtp} className="space-y-6">
                                 <div className="text-center mb-6">
-                                    <p className="text-gray-600 text-sm">OTP sent to <b>{phoneNumber}</b> via WhatsApp</p>
+                                    <p className="text-gray-600 text-sm">OTP sent to <b>jpfarming10@gmail.com</b></p>
+                                    <p className="text-[10px] text-gray-400 uppercase mt-1">Check your inbox/spam folder</p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">
-                                        <FaShieldAlt className="text-green-600/50" /> WhatsApp OTP
+                                        <FaShieldAlt className="text-green-600/50" /> Secure OTP
                                     </label>
                                     <input
                                         type="text"

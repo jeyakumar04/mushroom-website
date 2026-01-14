@@ -11,6 +11,40 @@ const Home = () => {
   const [offset, setOffset] = useState(0);
 
 
+  const [customerCount, setCustomerCount] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
+
+  useEffect(() => {
+    // Fetch real count from API relative to host
+    fetch('/api/public/stats')
+      .then(res => res.json())
+      .then(data => {
+        setCustomerCount(data.customerCount || 32);
+      })
+      .catch(() => setCustomerCount(450)); // Fallback
+  }, []);
+
+  useEffect(() => {
+    // Animated counter logic
+    if (customerCount > 0) {
+      let start = 0;
+      const end = customerCount;
+      const duration = 2000; // 2 seconds
+      const increment = end / (duration / 16); // ~60fps
+
+      const timer = setInterval(() => {
+        start += increment;
+        if (start >= end) {
+          setDisplayCount(end);
+          clearInterval(timer);
+        } else {
+          setDisplayCount(Math.floor(start));
+        }
+      }, 16);
+      return () => clearInterval(timer);
+    }
+  }, [customerCount]);
+
   useEffect(() => {
     const handleScroll = () => setOffset(window.pageYOffset);
     window.addEventListener('scroll', handleScroll);
@@ -35,32 +69,44 @@ const Home = () => {
 
         <div className="z-20 relative px-4 max-w-5xl mx-auto text-center flex flex-col items-center">
           {/* Centered Logo */}
-          <img src={logo} alt="TJP Logo" className="h-32 mb-8 animate-float-slow filter drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]" />
+          <img src={logo} alt="TJP Logo" className="h-40 md:h-56 mb-4 animate-float-slow filter drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]" />
 
-          <h1 className="text-6xl md:text-9xl font-black text-white mb-6 tracking-tighter filter drop-shadow-2xl">
+          <h1 className="text-6xl md:text-9xl font-black text-white mb-6 tracking-tighter filter drop-shadow-2xl leading-none">
             TJP <span className="text-tjp-gold uppercase italic">Mushrooms</span>
           </h1>
-          <div className="inline-block bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-12 max-w-2xl animate-float-medium">
-            <p className="text-xl md:text-3xl text-[#CBCCCB] font-['Kavivanar'] leading-loose tracking-wide">
+          <div className="inline-block bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-6 max-w-2xl animate-float-medium">
+            <p className="text-lg md:text-3xl text-[#CBCCCB] font-['Kavivanar'] leading-relaxed tracking-wide">
               "இயற்கையோடு இணைந்த சுவை, நாவிற்கு விருந்து, உடலிற்கு மருந்து!"
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link to="/products" className="px-12 py-5 bg-tjp-gold text-[#01221a] font-black rounded-full text-xl shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:scale-105 transition-all duration-300 uppercase tracking-widest">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <Link to="/products" className="px-12 py-5 bg-tjp-gold text-[#01221a] font-black rounded-full text-xl shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:scale-105 transition-all duration-300 uppercase tracking-widest leading-none">
               Order Fresh
             </Link>
+
+            {/* Happy Customers Badge - Fixed Width & Proper Alignment */}
+            <div className="w-fit bg-white/5 backdrop-blur-xl border border-white/20 rounded-[2rem] px-8 py-4 flex items-center gap-4 group hover:border-tjp-gold/40 transition-all duration-500 shadow-2xl hover:bg-white/10">
+              <div className="text-left">
+                <div className="text-4xl font-black text-white leading-none tracking-tighter">
+                  {displayCount}<span className="text-tjp-gold ml-1">+</span>
+                </div>
+                <div className="text-[10px] text-tjp-gold font-black uppercase tracking-[0.2em] mt-2 opacity-80 group-hover:opacity-100 transition-opacity">Happy Customers</div>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-tjp-gold/10 flex items-center justify-center text-tjp-gold text-2xl border border-tjp-gold/20 group-hover:bg-tjp-gold group-hover:text-black transition-all duration-500 shadow-lg">
+                <FaLeaf className="animate-pulse" />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce z-20">
-          <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center pt-2">
-            <div className="w-1.5 h-1.5 bg-tjp-gold rounded-full animate-ping"></div>
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 animate-bounce z-20 hidden xs:block">
+          <div className="w-5 h-8 border-2 border-white/30 rounded-full flex justify-center pt-1">
+            <div className="w-1 h-1 bg-tjp-gold rounded-full animate-ping"></div>
           </div>
         </div>
       </section>
 
-      {/* 2. Nutritional Powerhouse (Moved Up) */}
       {/* 2. Nutritional Powerhouse (Moved Up) */}
       <section className="relative z-30 pt-10 pb-20 px-4 bg-[#022C22]">
         <div className="max-w-7xl mx-auto">
@@ -113,8 +159,8 @@ const Home = () => {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-tjp-gold/5 blur-[120px] rounded-full z-0 pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-          <h2 className="text-tjp-gold text-sm tracking-[0.4em] uppercase font-black mb-4">The Daily Harvest</h2>
-          <h3 className="text-4xl md:text-5xl font-black text-white mb-12 tracking-tighter uppercase italic">Fresh From <span className="text-tjp-gold">Our Farm</span></h3>
+          <h2 className="text-tjp-gold text-xs tracking-[0.4em] uppercase font-black mb-4 font-sans">The Daily Harvest</h2>
+          <h3 className="text-responsive-h2 font-black text-white mb-12 tracking-tighter uppercase italic">Fresh From <span className="text-tjp-gold">Our Farm</span></h3>
 
           <div className="flex flex-wrap justify-center gap-8 mb-16">
             {/* Product 1 */}
@@ -160,7 +206,7 @@ const Home = () => {
 
           </div>
 
-          <Link to="/products" className="gold-button px-14 py-5 text-xl tracking-widest inline-block">
+          <Link to="/products" className="gold-button px-8 md:px-14 py-4 md:py-5 text-lg md:text-xl tracking-widest inline-block">
             EXPLORE OUR SHOP
           </Link>
         </div>
@@ -227,8 +273,8 @@ const Home = () => {
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-tjp-gold/5 via-transparent to-transparent"></div>
 
         <div className="max-w-7xl mx-auto px-4 md:px-12 text-center relative z-10">
-          <h2 className="text-tjp-gold text-sm tracking-[0.4em] uppercase font-black mb-4">The Purity Path</h2>
-          <h3 className="text-4xl md:text-6xl font-black text-white mb-20 tracking-tighter uppercase italic">Our Farming <span className="text-tjp-gold">Process</span></h3>
+          <h2 className="text-tjp-gold text-xs tracking-[0.4em] uppercase font-black mb-4 font-sans">The Purity Path</h2>
+          <h3 className="text-responsive-h2 font-black text-white mb-16 md:mb-20 tracking-tighter uppercase italic">Our Farming <span className="text-tjp-gold">Process</span></h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaPaperPlane, FaWhatsapp, FaInstagram, FaFacebookF } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 import CryptoJS from 'crypto-js';
@@ -9,7 +9,7 @@ const Contact = () => {
         email: '',
         subject: '',
         message: '',
-        website: '' // Honeypot field
+        website: '' // Honeypot field (Invisible Bot Protection)
     });
 
     const handleChange = (e) => {
@@ -19,15 +19,15 @@ const Contact = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // 1. Honeypot check
+        // 1. Honeypot check (Silent Security - No user input needed)
         if (formData.website) {
-            console.log("Bot detected!");
+            console.log("Bot detected via Honeypot!");
             return;
         }
 
         try {
-            // 2. Encrypt Data
-            const secretKey = 'tjp_encryption_key_2026'; // Match with backend
+            // 2. Encrypt Data for Extra Security
+            const secretKey = 'tjp_encryption_key_2026';
             const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(formData), secretKey).toString();
 
             const res = await fetch('http://localhost:5000/api/contact', {
@@ -35,6 +35,7 @@ const Contact = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ payload: encryptedData })
             });
+
             if (res.ok) {
                 alert('TJP Mushroom Farming-க்கு உங்கள் செய்தி அனுப்பப்பட்டது! விரைவில் உங்களைத் தொடர்பு கொள்கிறோம். ✨');
                 setFormData({ name: '', email: '', subject: '', message: '', website: '' });

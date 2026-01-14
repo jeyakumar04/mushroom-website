@@ -38,18 +38,49 @@
   }
 }
 
-/* 📍 App.css-la paste panna vendiyadhu */
+/* --- 📱 TJP RESPONSIVE DESIGN SYSTEM --- */
 
+:root {
+  --safe-padding: clamp(1rem, 5vw, 2.5rem);
+}
+
+/* Fluid Typography for Hero Sections */
+.text-responsive-h1 {
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.text-responsive-h2 {
+  font-size: clamp(1.8rem, 5vw, 3.5rem);
+  line-height: 1.1;
+}
+
+/* Glass box with mobile improvements */
+.glass-box {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: clamp(1.2rem, 4vw, 2.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevents horizontal scrolling on small screens */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+/* Original Fade Animations */
 .home-bg {
   min-height: 100vh;
-  padding: 20px;
   background: linear-gradient(-45deg, #CBCCCB, #e0e0e0, #ffffff, #CBCCCB);
   background-size: 400% 400%;
-  animation:
-    fadeIn 2s ease-out forwards,
-    /* 0-la irundhu start aagum */
-    gradientFlow 10s ease infinite;
-  /* Continuously move aagum */
+  animation: fadeIn 2s ease-out forwards, gradientFlow 10s ease infinite;
 }
 
 @keyframes fadeIn {
@@ -76,13 +107,4 @@
   100% {
     background-position: 0% 50%;
   }
-}
-
-.glass-box {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(12px);
-  border-radius: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  transition: all 0.4s ease;
 }

@@ -16,8 +16,8 @@ const client = new Client({
         dataPath: path.join(__dirname, '../.wwebjs_auth') // Absolute path for session
     }),
     puppeteer: {
-        headless: true,
-        timeout: 60000, // Increased timeout to 60s
+        headless: "new", // 🔥 Updated to new headless mode to avoid detection
+        timeout: 60000,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -27,7 +27,8 @@ const client = new Client({
             '--disable-extensions',
             '--no-default-browser-check',
             '--disable-gpu',
-            '--disable-software-rasterizer' // Added
+            '--disable-software-rasterizer',
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ]
     }
 });
@@ -110,36 +111,29 @@ const sendMessage = async (contactNumber, message) => {
         if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
         const chatId = `${cleanNumber}@c.us`;
 
-        // Try multiple approaches to bypass markedUnread error
+        // Try multiple approaches to bypass internal WhatsApp errors
         try {
-            // Method 1: Direct send
-            await client.sendMessage(chatId, message);
+            // Wake up chat session
+            const chat = await client.getChatById(chatId);
+            await chat.sendStateTyping();
+
+            // Method 1: Direct send with link preview disabled
+            await client.sendMessage(chatId, message, { linkPreview: false });
             console.log(`✅ WhatsApp sent to: ${cleanNumber}`);
             return { success: true };
         } catch (err1) {
-            console.log(`⚠️ Method 1 failed, trying alternative...`);
+            console.log(`⚠️ Method 1 failed (${err1.message}), trying Method 2...`);
 
             try {
-                // Method 2: Get chat first
-                const chat = await client.getChatById(chatId);
-                await chat.sendMessage(message);
+                // Method 2: Create MessageMedia text fallback
+                const numberObj = await client.getNumberId(cleanNumber);
+                const target = numberObj ? numberObj._serialized : chatId;
+                await client.sendMessage(target, message);
                 console.log(`✅ WhatsApp sent to: ${cleanNumber} (Method 2)`);
                 return { success: true };
             } catch (err2) {
-                console.log(`⚠️ Method 2 failed, trying Method 3...`);
-
-                try {
-                    // Method 3: Create MessageMedia text
-                    const numberObj = await client.getNumberId(cleanNumber);
-                    if (numberObj) {
-                        await client.sendMessage(numberObj._serialized, message);
-                        console.log(`✅ WhatsApp sent to: ${cleanNumber} (Method 3)`);
-                        return { success: true };
-                    }
-                    throw new Error('Number not found on WhatsApp');
-                } catch (err3) {
-                    throw err3;
-                }
+                console.log(`⚠️ Method 2 failed, giving up...`);
+                throw err2;
             }
         }
     } catch (error) {
@@ -159,6 +153,13 @@ const sendImage = async (contactNumber, imageBase64, caption) => {
         if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
         const chatId = `${cleanNumber}@c.us`;
         const media = new MessageMedia('image/png', imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'bill.png');
+
+        // Wake up session
+        try {
+            const chat = await client.getChatById(chatId);
+            await chat.sendStateTyping();
+        } catch (e) { }
+
         await client.sendMessage(chatId, media, { caption });
         return { success: true };
     } catch (error) {

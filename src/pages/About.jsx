@@ -94,7 +94,7 @@ const About = () => {
                             <div className="p-6 bg-white/5 rounded-2xl border-l-4 border-[#CBCCCB]">
                                 <h4 className="text-white text-xl font-bold mb-3 uppercase tracking-wider">Our <span className="text-tjp-gold">Story</span></h4>
                                 <p className="text-[#CBCCCB] text-lg leading-relaxed">
-                                    TJP Mushroom Farming was founded by two brothers, <span className="text-white font-bold">Jeyakumar</span> (M.Sc. Computer Science) and <span className="text-white font-bold">Parthasarathy</span> (B.Sc. Computer Science). Though we come from a technical background, our passion for agriculture, organic food, and healthy living led us to build a reliable mushroom farming business focused on quality and sustainability.
+                                    TJP Mushroom Farming was founded by two brothers, <span className="text-white font-bold">JEYAKUMAR  .T</span> (M.Sc. Computer Science) and <span className="text-white font-bold">PARTHASARATHY .T</span> (B.Sc. Computer Science). Though we come from a technical background, our passion for agriculture, organic food, and healthy living led us to build a reliable mushroom farming business focused on quality and sustainability.
                                 </p>
                             </div>
                         </div>

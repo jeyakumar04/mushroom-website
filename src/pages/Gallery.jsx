@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaInstagram, FaLeaf, FaMicroscope, FaHandHoldingHeart, FaUsers } from 'react-icons/fa';
+import { FaInstagram, FaLeaf, FaMicroscope, FaHandHoldingHeart, FaUsers, FaGraduationCap } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 
 const Gallery = () => {
@@ -9,47 +9,92 @@ const Gallery = () => {
     const images = [
         {
             id: 1,
-            url: 'https://images.unsplash.com/photo-1504624244670-393bc746bc4b?q=80&w=2070&auto=format&fit=crop',
-            title: 'Oyster Mushroom Cluster',
+            url: '/uploads/uploaded_image_0_1768417494350.jpg',
+            title: 'TJP Mushroom Benefits Info',
+            category: 'Research',
+            icon: <FaHandHoldingHeart />
+        },
+        {
+            id: 2,
+            url: '/uploads/uploaded_image_1_1768417494350.jpg',
+            title: 'Fresh Mushroom Clusters',
             category: 'Harvest',
             icon: <FaLeaf />
         },
         {
-            id: 2,
-            url: 'https://images.unsplash.com/photo-1590483736622-39da8af75620?q=80&w=2127&auto=format&fit=crop',
-            title: 'Training Session',
-            category: 'Training',
-            icon: <FaUsers />
-        },
-        {
             id: 3,
-            url: 'https://images.unsplash.com/photo-1628556270448-4d4e4148e1b1?q=80&w=2070&auto=format&fit=crop',
-            title: 'Spawn Quality Control',
-            category: 'Research',
+            url: '/uploads/uploaded_image_2_1768417494350.jpg',
+            title: 'Cultivation Bag Setup',
+            category: 'Farming',
             icon: <FaMicroscope />
         },
         {
             id: 4,
-            url: 'https://images.unsplash.com/photo-1588614959060-49e446f2863c?q=80&w=2000&auto=format&fit=crop',
-            title: 'Farm Maintenance',
-            category: 'Farming',
-            icon: <FaHandHoldingHeart />
-        },
-        {
-            id: 5,
-            url: 'https://images.unsplash.com/photo-1534123235357-91b582bb6e32?q=80&w=2070&auto=format&fit=crop',
-            title: 'Milky Mushroom Growth',
+            url: '/uploads/uploaded_image_3_1768417494350.jpg',
+            title: 'Vertical Farming Rows',
             category: 'Farming',
             icon: <FaLeaf />
         },
         {
+            id: 5,
+            url: '/uploads/uploaded_image_4_1768417494350.png',
+            title: 'Premium Oyster Harvest',
+            category: 'Harvest',
+            icon: <FaHandHoldingHeart />
+        },
+        // --- NEW TRAINING IMAGES ---
+        {
             id: 6,
-            url: 'https://images.unsplash.com/photo-1520232175114-03708949826d?q=80&w=2030&auto=format&fit=crop',
-            title: 'Youth Training Program',
+            url: '/uploads/uploaded_image_0_1768417621406.jpg',
+            title: 'Hands-on Substrate Prep',
             category: 'Training',
-            icon: <FaUsers />
+            icon: <FaGraduationCap />
+        },
+        {
+            id: 7,
+            url: '/uploads/uploaded_image_1_1768417621406.png',
+            title: 'TNAU Certification',
+            category: 'Training',
+            icon: <FaLeaf />
+        },
+        {
+            id: 8,
+            url: '/uploads/uploaded_image_2_1768417621406.jpg',
+            title: 'Student Demonstration',
+            category: 'Training',
+            icon: <FaMicroscope />
+        },
+        {
+            id: 9,
+            url: '/uploads/uploaded_image_3_1768417621406.jpg',
+            title: 'Training Group Photo',
+            category: 'Training',
+            icon: <FaHandHoldingHeart />
+        },
+        {
+            id: 10,
+            url: '/uploads/uploaded_image_4_1768417621406.jpg',
+            title: 'Classroom Explanation',
+            category: 'Training',
+            icon: <FaGraduationCap />
+        },
+        {
+            id: 11,
+            url: '/uploads/uploaded_image_0_1768417790816.jpg',
+            title: 'Rural Training Workshop',
+            category: 'Training',
+            icon: <FaGraduationCap />
+        },
+        {
+            id: 12,
+            url: '/uploads/uploaded_image_1_1768417790816.jpg',
+            title: 'Prepared Cultivation Bags',
+            category: 'Farming',
+            icon: <FaMicroscope />
         }
     ];
+
+    const [selectedImg, setSelectedImg] = useState(null);
 
     const filteredImages = activeCategory === 'All'
         ? images
@@ -72,8 +117,8 @@ const Gallery = () => {
                             key={cat}
                             onClick={() => setActiveCategory(cat)}
                             className={`px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-all duration-300 border ${activeCategory === cat
-                                    ? 'bg-[#F4D03F] text-[#022C22] border-[#F4D03F]'
-                                    : 'text-[#CBCCCB] border-[#CBCCCB]/20 hover:border-[#F4D03F]'
+                                ? 'bg-[#F4D03F] text-[#022C22] border-[#F4D03F]'
+                                : 'text-[#CBCCCB] border-[#CBCCCB]/20 hover:border-[#F4D03F]'
                                 }`}
                         >
                             {cat}
@@ -86,7 +131,8 @@ const Gallery = () => {
                     {filteredImages.map((img) => (
                         <div
                             key={img.id}
-                            className="group relative h-[400px] rounded-[2.5rem] overflow-hidden bg-white/5 border border-white/10"
+                            onClick={() => setSelectedImg(img)}
+                            className="group relative h-[400px] rounded-[2.5rem] overflow-hidden bg-white/5 border border-white/10 cursor-pointer"
                         >
                             {/* Image with overlay */}
                             <img
@@ -111,7 +157,7 @@ const Gallery = () => {
                             </div>
 
                             {/* Corner Accent */}
-                            <div className="absolute top-8 right-8 w-12 h-12 rounded-full border border-white/20 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-[#F4D03F] hover:text-[#022C22] cursor-pointer">
+                            <div className="absolute top-8 right-8 w-12 h-12 rounded-full border border-white/20 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 hover:bg-[#F4D03F] hover:text-[#022C22]">
                                 <FaInstagram />
                             </div>
                         </div>
@@ -137,6 +183,38 @@ const Gallery = () => {
                     </div>
                 </div>
             </main>
+
+            {/* FULL IMAGE MODAL */}
+            {selectedImg && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 md:p-10 animate-fade-in"
+                    onClick={() => setSelectedImg(null)}
+                >
+                    <button
+                        className="absolute top-10 right-10 text-white/50 hover:text-tjp-gold text-4xl font-light transition-colors z-[110]"
+                        onClick={() => setSelectedImg(null)}
+                    >
+                        &times;
+                    </button>
+
+                    <div className="relative max-w-5xl w-full h-full flex flex-col items-center justify-center gap-6" onClick={e => e.stopPropagation()}>
+                        <img
+                            src={selectedImg.url}
+                            alt={selectedImg.title}
+                            className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-scale-up"
+                        />
+                        <div className="text-center">
+                            <h2 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter">
+                                {selectedImg.title}
+                            </h2>
+                            <p className="text-[#F4D03F] uppercase tracking-[0.4em] text-xs font-bold mt-2">
+                                {selectedImg.category}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <Footer />
         </div>
     );
