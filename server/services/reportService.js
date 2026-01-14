@@ -65,8 +65,8 @@ const sendMonthlyReport = async (sales, expenditures, inventory, climate, custom
         const custData = customers.map(c => ({
             Name: c.name,
             Phone: c.contactNumber,
-            LoyaltyCount: c.loyaltyCount,
-            LifetimePockets: c.lifetimePockets,
+            LoyaltyCount: c.cycleCount,
+            LifetimePockets: c.totalLifetime,
             TotalOrders: c.totalOrders
         }));
         const custWS = XLSX.utils.json_to_sheet(custData);

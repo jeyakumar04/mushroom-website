@@ -1,19 +1,23 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 
 /**
- * WhatsApp Service - OFFICIAL SESSION PERSISTENCE VERSION
- * Uses unique clientId for permanent login.
+ * WhatsApp Service - PERMANENT SESSION VERSION
+ * Uses unique clientId for permanent login with QR fallback.
  */
+
+let latestQR = null;
 
 const client = new Client({
     authStrategy: new LocalAuth({
-        clientId: 'TJP_OFFICIAL',
-        dataPath: './.wwebjs_auth' // Explicit path to save login
+        clientId: 'TJP_PERMANENT',
+        dataPath: path.join(__dirname, '../.wwebjs_auth') // Absolute path for session
     }),
     puppeteer: {
-        headless: true, // Login saved, so headless mode for faster startup
+        headless: true,
+        timeout: 0, // Disable timeout for stability
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -21,7 +25,8 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--disable-extensions',
-            '--no-default-browser-check'
+            '--no-default-browser-check',
+            '--disable-gpu'
         ]
     }
 });
@@ -30,22 +35,56 @@ let isReady = false;
 const ADMIN_1 = '919159659711';
 const ADMIN_2 = '919500591897';
 
+// QR Code Event - Shows when session expired or first login
+client.on('qr', (qr) => {
+    latestQR = qr;
+    console.log('\n');
+    console.log('╔════════════════════════════════════════════════════╗');
+    console.log('║    📱 WHATSAPP QR CODE - SCAN TO LOGIN PERMANENTLY ║');
+    console.log('╠════════════════════════════════════════════════════╣');
+    qrcode.generate(qr, { small: true });
+    console.log('╚════════════════════════════════════════════════════╝');
+    console.log('⏳ Waiting for QR scan... Session will be saved permanently.');
+    console.log('\n');
+});
+
 client.on('ready', () => {
     isReady = true;
-    console.log('✅ SESSION LOCKED & READY!');
+    latestQR = null;
+    console.log('\n');
+    console.log('╔════════════════════════════════════════════════════╗');
+    console.log('║  ✅ WHATSAPP CONNECTED - SESSION SAVED PERMANENTLY ║');
+    console.log('╠════════════════════════════════════════════════════╣');
+    console.log('║  📱 Messages will now be sent via WhatsApp         ║');
+    console.log('║  🔒 No QR needed on next server restart            ║');
+    console.log('╚════════════════════════════════════════════════════╝');
+    console.log('\n');
 });
 
 client.on('authenticated', () => {
-    console.log('🔐 WhatsApp Authenticated (Session Saved)');
+    console.log('🔐 WhatsApp Authenticated - Session Locked!');
 });
 
-// Initialization with new stable session
+client.on('auth_failure', (msg) => {
+    console.log('❌ WhatsApp Auth Failed:', msg);
+    isReady = false;
+});
+
+client.on('disconnected', (reason) => {
+    console.log('⚠️ WhatsApp Disconnected:', reason);
+    isReady = false;
+    // Try to reconnect after 5 seconds
+    setTimeout(() => {
+        console.log('🔄 Attempting to reconnect...');
+        client.initialize();
+    }, 5000);
+});
+
+// Initialization
 async function startTJPService() {
     try {
-        console.log('📡 Initializing WhatsApp with optimized settings...');
-        client.initialize(); // Enabled with optimized headless mode
-
-        // Pairing code removed to rely on QR scan / Session Persistence
+        console.log('📡 Initializing WhatsApp (Permanent Session Mode)...');
+        await client.initialize();
     } catch (err) {
         console.log('🔥 Initialization Error: ' + err.message);
     }
@@ -94,7 +133,7 @@ module.exports = {
     sendDigitalBill: (phone, img, name) => sendImage(phone, img, name),
     sendLoyaltyNotification: (phone, msg) => sendMessage(phone, msg),
     isClientReady: () => isReady,
-    getLatestQr: () => "",
+    getLatestQr: () => latestQR,
     client,
     ADMIN_1,
     ADMIN_2

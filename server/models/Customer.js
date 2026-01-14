@@ -12,10 +12,11 @@ const customerSchema = new mongoose.Schema({
     name: { type: String, required: true },
     contactNumber: { type: String, required: true, unique: true },
     password: { type: String },
-    loyaltyCycleCount: { type: Number, default: 0 }, // 0-20 cycle
-    lifetimePockets: { type: Number, default: 0 }, // Permanent history
+    cycleCount: { type: Number, default: 0 }, // 0-10 cycle
+    totalLifetime: { type: Number, default: 0 }, // Permanent history (total pockets)
     totalOrders: { type: Number, default: 0 },
-    freePocketsRedeemed: { type: Number, default: 0 },
+    freePocketsClaimed: { type: Number, default: 0 }, // Total Earned
+    rewardsRedeemed: { type: Number, default: 0 }, // Total Given to Customer
     lastNotificationSent: { type: Date },
     createdAt: { type: Date, default: Date.now }
 }, { collection: 'customers' });

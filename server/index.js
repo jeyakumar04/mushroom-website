@@ -15,7 +15,7 @@ const jwt = require('jsonwebtoken');
 const XLSX = require('xlsx-js-style');
 const fs = require('fs');
 
-console.log('🔧 Environment status:');
+console.log('🔥 Environment status:');
 console.log(' - MONGODB_URI:', process.env.MONGODB_URI ? 'Set (Hidden)' : '❌ NOT SET');
 console.log(' - JWT_SECRET:', process.env.JWT_SECRET ? 'Set' : '⚠️ Using Default');
 console.log(' - ADMIN_PHONE:', process.env.ADMIN_PHONE ? 'Set' : '⚠️ Using Defaults');
@@ -52,6 +52,44 @@ const { sendVoiceCall } = require('./services/voiceService');
 const { sendMonthlyReport, sendDailyReport } = require('./services/reportService');
 const { sendSMSOtp } = require('./services/smsService');
 const cron = require('node-cron');
+
+// --- 🔄 POCKET SYNC FUNCTION (Limit 10) ---
+const syncSaleToLoyalty = async (customerPhone, pocketsSold, customerName) => {
+    try {
+        let customer = await Customer.findOne({ contactNumber: customerPhone });
+        if (!customer) {
+            customer = new Customer({ name: customerName, contactNumber: customerPhone });
+        }
+
+        // 🌌 ANTI-GRAVITY ENGINE v5.0
+        // Logic: 10 pockets = 1 Free. Balance starts again (Carry-forward).
+        let total = (Number(customer.cycleCount) || 0) + pocketsSold;
+        let freePocketsEarned = 0;
+
+        while (total >= 10) {
+            customer.freePocketsClaimed = (Number(customer.freePocketsClaimed) || 0) + 1;
+            total -= 10; // 10 minus aagi balance thirumba start aagum
+            freePocketsEarned += 1;
+        }
+
+        customer.cycleCount = total; // PARTHASARATHI: 11-10 = 1 (Cycle starts at 1)
+        customer.totalLifetime = (Number(customer.totalLifetime) || 0) + pocketsSold;
+
+        await customer.save();
+        console.log(`✅ Anti-gravity Sync: ${customerPhone} -> Balance: ${customer.cycleCount}/10 (New Rewards: ${freePocketsEarned})`);
+
+        return {
+            customer,
+            freePocketsEarned,
+            currentCycle: customer.cycleCount,
+            totalLifetime: customer.totalLifetime,
+            reachedCycle: freePocketsEarned > 0
+        };
+    } catch (error) {
+        console.error("Γ¥î Anti-gravity Error:", error);
+        return null;
+    }
+};
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -155,6 +193,30 @@ app.get('/api/settings/water-check', auth, async (req, res) => {
     }
 });
 
+app.post('/api/settings/soaking', auth, async (req, res) => {
+    try {
+        const { startTime } = req.body;
+        await Settings.findOneAndUpdate(
+            { key: 'soakingStartTime' },
+            { value: startTime },
+            { upsert: true, new: true }
+        );
+        res.json({ message: 'Soaking start time saved', startTime });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to save soaking time' });
+    }
+});
+
+app.get('/api/settings/soaking', auth, async (req, res) => {
+    try {
+        const setting = await Settings.findOne({ key: 'soakingStartTime' });
+        res.json({ startTime: setting ? setting.value : null });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch soaking time' });
+    }
+});
+
+
 // --- WATER SYSTEM ENDPOINTS ---
 app.get('/api/water/status', auth, async (req, res) => {
     try {
@@ -195,7 +257,7 @@ app.post('/api/water/refill', auth, async (req, res) => {
 
         // Notify admin about water refill
         const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-        const msg = `💧 *TJP WATER UPDATE*\n\nTank Refilled to *5000L* (100%)\nStatus: Full ✅`;
+        const msg = `≡ƒÆº *TJP WATER UPDATE*\n\nTank Refilled to *5000L* (100%)\nStatus: Full Γ£à`;
         for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
 
         res.json({ message: 'Tank Refilled to 5000L', currentLevel: capacity });
@@ -241,7 +303,7 @@ app.post('/api/water/spray', auth, async (req, res) => {
 
         // Notify admin about water spray update
         const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-        const msg = `💧 *TJP WATER UPDATE*\n\nManual Spray Triggered 🚿\nRemaining Level: *${currentLevel}L* (${Math.round((currentLevel / capacity) * 100)}%)`;
+        const msg = `≡ƒÆº *TJP WATER UPDATE*\n\nManual Spray Triggered ≡ƒÜ┐\nRemaining Level: *${currentLevel}L* (${Math.round((currentLevel / capacity) * 100)}%)`;
         for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
 
         res.json({ message: 'Manual spray triggered', currentLevel, percentage: Math.round((currentLevel / capacity) * 100) });
@@ -269,7 +331,7 @@ app.post('/api/send-digital-bill', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Missing image or contact' });
         }
 
-        const caption = `✅ *TJP DIGITAL BILL*\nவணக்கம் ${customerName}! 👋\n\n(Generated Automatically 🤖)\n\n"இயற்கையோடு இணைந்த சுவை!" 🍄`;
+        const caption = `Γ£à *TJP DIGITAL BILL*\nα«╡α«úα«òα»ìα«òα««α»ì ${customerName}! ≡ƒæï\n\n(Generated Automatically ≡ƒñû)\n\n"α«çα«»α«▒α»ìα«òα»êα«»α»ïα«ƒα»ü α«çα«úα»êα«¿α»ìα«ñ α«Üα»üα«╡α»ê!" ≡ƒìä`;
 
         const result = await sendImage(contactNumber, image, caption, 'business');
 
@@ -330,7 +392,7 @@ app.post('/api/admin/request-otp', async (req, res) => {
         const cleanPhone = phoneNumber?.toString().trim().replace(/\D/g, '').slice(-10);
         const fullPhone = `+91 ${cleanPhone}`;
 
-        console.log(`🔑 OTP Requested for: ${fullPhone}`);
+        console.log(`≡ƒöæ OTP Requested for: ${fullPhone}`);
 
         const ADMIN_NUMBERS = ['9500591897', '9159659711'];
 
@@ -339,12 +401,12 @@ app.post('/api/admin/request-otp', async (req, res) => {
         const adminInDB = await Admin.findOne({ phoneNumber: new RegExp(cleanPhone, 'i') });
 
         if (!isMasterAdmin && !adminInDB) {
-            console.warn(`🛑 Unauthorized OTP attempt from: ${phoneNumber}`);
+            console.warn(`≡ƒ¢æ Unauthorized OTP attempt from: ${phoneNumber}`);
             return res.status(401).json({ success: false, message: 'Unauthorized Admin Phone' });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log(`🔑 DEBUG: OTP for ${fullPhone} is: ${otp}`);
+        console.log(`≡ƒöæ DEBUG: OTP for ${fullPhone} is: ${otp}`);
 
         await OTP.findOneAndUpdate(
             { phoneNumber: cleanPhone },
@@ -353,9 +415,9 @@ app.post('/api/admin/request-otp', async (req, res) => {
         );
 
         // --- 1. SEND DUAL WHATSAPP OTP ---
-        const msg = `🔐 *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ⏳\n\nRequested from: ${fullPhone}`;
+        const msg = `≡ƒöÉ *TJP ADMIN ACCESS*\n\nYour OTP for login is: *${otp}*\n\n(Valid for 10 minutes) ΓÅ│\n\nRequested from: ${fullPhone}`;
 
-        console.log(`📤 Sending Dual WhatsApp OTP...`);
+        console.log(`≡ƒôñ Sending Dual WhatsApp OTP...`);
         const waResults = await Promise.allSettled([
             sendMessage(ADMIN_1, msg),
             sendMessage(ADMIN_2, msg)
@@ -378,7 +440,7 @@ app.post('/api/admin/request-otp', async (req, res) => {
             res.status(503).json({ success: false, message: 'WhatsApp OTP delivery failed. Please check server WhatsApp connection.' });
         }
     } catch (error) {
-        console.error('🔥 OTP Request Server Error:', error);
+        console.error('≡ƒöÑ OTP Request Server Error:', error);
         res.status(500).json({ message: 'Internal Server Error: ' + error.message });
     }
 });
@@ -446,72 +508,118 @@ app.patch('/api/bookings/:id/status', auth, async (req, res) => {
     }
 });
 
-// --- SALES TRACKING ---
+// 1. 🌌 TJP ANTI-GRAVITY ULTIMATE FIX
 app.post('/api/sales', auth, async (req, res) => {
-    const saleData = {
-        ...req.body,
-        orderId: `TJP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        totalAmount: req.body.quantity * req.body.pricePerUnit,
-        paymentStatus: (req.body.paymentType === 'Credit') ? 'Unpaid' : 'Paid',
-        unit: req.body.unit || (req.body.productType === 'Mushroom' ? 'pockets' : 'kg'),
-        date: req.body.date || Date.now()
-    };
-
-    // SAFETY BYPASS: Check if DB is connected
-    if (mongoose.connection.readyState !== 1) {
-        saveSaleOffline(saleData);
-        return res.status(201).json({
-            message: '📡 [OFFLINE MODE] Sale saved locally. Will sync to Cloud when internet returns.',
-            offline: true,
-            sale: saleData
-        });
-    }
-
     try {
+        const { customerName, quantity, contactNumber, productType, pricePerUnit } = req.body;
+
+        // Save the Sale First (Required for Dashboard tables)
+        const saleData = {
+            ...req.body,
+            orderId: `TJP-${Date.now()}`,
+            totalAmount: (Number(quantity) || 0) * (Number(pricePerUnit) || 0),
+            paymentStatus: (req.body.paymentType === 'Credit') ? 'Unpaid' : 'Paid',
+            unit: req.body.unit || (productType === 'Mushroom' ? 'pockets' : 'kg'),
+            date: req.body.date || Date.now()
+        };
         const newSale = new Sales(saleData);
         await newSale.save();
 
+        let user = await Customer.findOne({ contactNumber: contactNumber });
         let loyaltyUpdate = null;
-        if (saleData.productType === 'Mushroom' && saleData.pricePerUnit >= 50) {
-            let customer = await Customer.findOne({ contactNumber: saleData.contactNumber });
-            if (!customer) {
-                customer = new Customer({ name: saleData.customerName, contactNumber: saleData.contactNumber });
+
+        if (user && productType === 'Mushroom') {
+            const pocketsBought = parseInt(quantity) || 0;
+
+            // 🛠️ THE ACTUAL LOGIC: 11 bought -> 10 + 1
+            let totalTemp = user.cycleCount + pocketsBought;
+            let freeEarnedCount = 0;
+
+            while (totalTemp >= 10) {
+                freeEarnedCount += 1;
+                totalTemp -= 10; // 11 vaanguna 10-ai "spend" panni 1 free koduthuttu balance 1-ai veikkum
             }
 
-            const qty = Number(saleData.quantity) || 0;
-            customer.loyaltyCount = (Number(customer.loyaltyCount) || 0) + qty;
-            customer.lifetimePockets = (Number(customer.lifetimePockets) || 0) + qty;
+            user.cycleCount = totalTemp;
+            user.freePocketsClaimed += freeEarnedCount;
+            await user.save();
 
-            let reachedCycle = customer.loyaltyCount >= 10;
-            if (reachedCycle) {
-                customer.loyaltyCount = customer.loyaltyCount % 10;
-            }
-
-            await customer.save();
-            newSale.isLoyaltyCustomer = true;
-            await newSale.save();
-
-            loyaltyUpdate = { currentCycle: customer.loyaltyCount, reachedCycle };
+            loyaltyUpdate = {
+                currentCycle: user.cycleCount,
+                freePocketsEarned: freeEarnedCount,
+                totalAvailable: user.freePocketsClaimed,
+                reachedCycle: freeEarnedCount > 0
+            };
         }
 
-        res.status(201).json({ message: 'Sale recorded successfully', sale: newSale, loyaltyUpdate });
+        // Bill message-la "Balance: 1/10" nu kaatta logic
+        const finalBalance = user ? user.cycleCount : 0;
+        const totalPurchasedSoFar = user ? (user.totalLifetime || (user.cycleCount + (user.freePocketsClaimed * 10))) : 0;
 
-        // Bill Notification
-        if (saleData.contactNumber) {
-            const billMsg = `🧾 *TJP MUSHROOM BILL*\n--------------------------\n👤 Customer: ${saleData.customerName}\n📦 Product: ${saleData.productType}\n🔢 Quantity: ${saleData.quantity} ${saleData.unit}\n💵 Total: *₹${saleData.totalAmount}*\n--------------------------\n✅ Payment: ${saleData.paymentType}\n\nநன்றி! - TJP Mushroom`;
-            sendMessage(saleData.contactNumber, billMsg);
+        const billMsg = `🍄 *TJP BILL*
+--------------------------
+👤 Customer: ${customerName}
+🔢 Qty: ${quantity} Pockets
+💵 Total: *₹${saleData.totalAmount}*
+--------------------------
+🎁 *LOYALTY UPDATE*
+TOTAL PURCHASED: ${totalPurchasedSoFar} Pockets 🍄
+CURRENT CYCLE: ${finalBalance}/10
+${loyaltyUpdate && loyaltyUpdate.freePocketsEarned > 0 ? `வாழ்த்துக்கள்! நீங்கள் ${loyaltyUpdate.freePocketsEarned} Free Pocket வென்றுள்ளீர்கள்! ✨` : ''}`;
+
+        if (contactNumber) {
+            sendMessage(contactNumber, billMsg);
         }
+
+        res.status(201).json({ success: true, sale: newSale, loyaltyUpdate, message: billMsg });
+
     } catch (error) {
-        console.warn('⚠️ DB Write failed, falling back to Offline Cache...', error.message);
-        saveSaleOffline(saleData);
-        res.status(201).json({
-            message: '📡 [SAFETY BYPASS] DB error, sale stored locally.',
-            offline: true,
-            sale: saleData
-        });
+        console.error(error);
+        res.status(500).json({ error: "Logic failed" });
     }
 });
 
+// 2. 🗑️ THE "WIPE EVERYTHING" RESET ROUTE
+// Idhu dhaan andha "6 AVAILABLE" data-vai delete pannum
+app.post('/api/loyalty/reset', auth, async (req, res) => {
+    const { customerId } = req.body;
+    try {
+        await Customer.findByIdAndUpdate(customerId, {
+            cycleCount: 0,
+            freePocketsClaimed: 0
+        });
+        res.status(200).json({ success: true, message: "Data Wiped Clean!" });
+    } catch (err) {
+        res.status(500).json({ error: "Reset Failed" });
+    }
+});
+
+/// 🎁 REWARD CLAIM API: Syncs redeemed count with earned count to reset available rewards to 0
+app.post('/api/loyalty/claim-reward', auth, async (req, res) => {
+    const { contactNumber } = req.body;
+    try {
+        let user = await Customer.findOne({ contactNumber });
+        if (user) {
+            const available = (user.freePocketsClaimed || 0) - (user.rewardsRedeemed || 0);
+            if (available > 0) {
+                // Wipe the available balance by setting redeemed = claimed (History preserved)
+                // OR as per user requested: "setting freePocketsClaimed to 0"
+                // To keep math clean, we set both to 0 if they want a hard reset of ready pockets
+                user.freePocketsClaimed = 0;
+                user.rewardsRedeemed = 0;
+                await user.save();
+                res.status(200).json({ success: true, message: "Reward Claimed! Ready pockets reset to 0.", available: 0 });
+            } else {
+                res.status(400).json({ error: "No rewards to claim" });
+            }
+        } else {
+            res.status(404).json({ error: "Customer not found" });
+        }
+    } catch (err) {
+        console.error("Claim Error:", err);
+        res.status(500).json({ error: "Claim function failed" });
+    }
+});
 // --- GOOGLE DRIVE / WHATSAPP BILL UPLOAD ---
 app.post('/api/send-bill', auth, async (req, res) => {
     try {
@@ -530,7 +638,7 @@ app.post('/api/send-bill', auth, async (req, res) => {
         fs.writeFileSync(filePath, base64Data, 'base64');
 
         // 2. Send via WhatsApp
-        const caption = `🧾 *TJP DIGITAL BILL*\n\nவணக்கம் ${customerName}! 👋\nஉங்கள் மஷ்ரூம் பில் இங்கே இணைக்கப்பட்டுள்ளது.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌿\n📍 Location: TJP Farm`;
+        const caption = `🍄 *TJP DIGITAL BILL*\n\nவணக்கம் ${customerName}! 👋\nஉங்கள் காளான் பில் இங்கே இணைக்கப்பட்டுள்ளது.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌱\n📍 Location: TJP Farm`;
         const result = await sendImage(contactNumber, image, caption, 'business');
 
         const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
@@ -623,13 +731,13 @@ app.post('/api/customers/:id/reset-loyalty', auth, async (req, res) => {
         const customer = await Customer.findById(req.params.id);
         if (!customer) return res.status(404).json({ message: 'Customer not found' });
 
-        // Reset the cycle count to 0, but KEEP lifetime history
-        customer.loyaltyCycleCount = 0;
+        // Increment redeemed count
+        customer.rewardsRedeemed = (Number(customer.rewardsRedeemed) || 0) + 1;
         await customer.save();
 
-        res.json({ message: 'Loyalty cycle reset to 0', customer });
+        res.json({ message: 'Reward marked as redeemed', customer });
     } catch (error) {
-        res.status(500).json({ message: 'Reset failed' });
+        res.status(500).json({ message: 'Redeem failed' });
     }
 });
 
@@ -642,7 +750,7 @@ app.post('/api/climate', auth, async (req, res) => {
         // --- AUTOMATION ALERTS ---
         if (temperature > 32) {
             const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-            const msg = `🛑 *HIGH TEMP ALERT*\n\nTemp: ${temperature}°C\nNotes: ${notes || 'No data'}\n\nPlease check the farm!`;
+            const msg = `≡ƒ¢æ *HIGH TEMP ALERT*\n\nTemp: ${temperature}┬░C\nNotes: ${notes || 'No data'}\n\nPlease check the farm!`;
             for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
         }
 
@@ -721,7 +829,7 @@ app.post('/api/contact', contactRateLimit, async (req, res) => {
 
         // Honeypot check
         if (decryptedData.website) {
-            console.log('🤖 Bot detected via Honeypot field');
+            console.log('≡ƒñû Bot detected via Honeypot field');
             return res.status(200).json({ message: 'Message sent successfully!' }); // Fake success for bots
         }
 
@@ -820,6 +928,21 @@ app.get('/api/expenditure', auth, async (req, res) => {
         res.json({ expenditures, totalExpenditure });
     } catch (error) {
         res.status(500).json({ message: 'Fetch expenditure failed' });
+    }
+});
+
+// 🛠️ INVENTORY EDIT API
+app.put('/api/inventory/:id', auth, async (req, res) => {
+    try {
+        const { itemName, startingStock, currentStock, unit } = req.body;
+        const updatedProduct = await Inventory.findByIdAndUpdate(
+            req.params.id,
+            { itemName, startingStock, currentStock, unit },
+            { new: true }
+        );
+        res.status(200).json({ success: true, product: updatedProduct });
+    } catch (err) {
+        res.status(500).json({ error: "Update Failed" });
     }
 });
 
@@ -973,11 +1096,54 @@ app.patch('/api/inventory/:id/usage/:usageId', auth, async (req, res) => {
 
         usage.quantity = newQty;
         usage.notes = notes;
+        if (req.body.date) usage.date = new Date(req.body.date);
+
         await item.save();
         res.json({ message: 'Usage record updated and stock adjusted', item });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Update failed' });
+    }
+});
+
+// 🛠️ MASTER INVENTORY UPDATE (User Request Style)
+app.put('/api/inventory/usage/:usageId', auth, async (req, res) => {
+    try {
+        const { quantity, notes, date } = req.body;
+        const item = await Inventory.findOne({ "usageHistory._id": req.params.usageId });
+        if (!item) return res.status(404).json({ error: "Inventory Record Not Found" });
+
+        const usage = item.usageHistory.id(req.params.usageId);
+        const oldQty = usage.quantity;
+        const newQty = Number(quantity);
+
+        // Adjust master stock
+        if (usage.type === 'use') {
+            item.currentStock = item.currentStock + oldQty - newQty;
+        } else {
+            item.currentStock = item.currentStock - oldQty + newQty;
+        }
+
+        usage.quantity = newQty;
+        usage.notes = notes;
+        if (date) usage.date = new Date(date);
+
+        await item.save();
+        res.status(200).json({ success: true, item });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Inventory Save Failed" });
+    }
+});
+
+// 🗑️ INVENTORY RESET: One-click Wipe
+app.post('/api/inventory/reset-all', auth, async (req, res) => {
+    try {
+        await Inventory.deleteMany({}); // Wipes all categories/entries
+        console.log("≡ƒÿ⌐ Inventory Hard Reset performed.");
+        res.status(200).json({ success: true, message: "Inventory Reset Done!" });
+    } catch (err) {
+        res.status(500).json({ error: "Reset Failed" });
     }
 });
 // --- ROUTINE ALERTS ---
@@ -1032,7 +1198,7 @@ app.delete('/api/alerts/:id', auth, async (req, res) => {
 // --- LOYALTY (Customer Tracking) ---
 app.get('/api/customers', auth, async (req, res) => {
     try {
-        const customers = await Customer.find().sort({ loyaltyCount: -1 });
+        const customers = await Customer.find().sort({ totalLifetime: -1 });
         res.json(customers);
     } catch (error) {
         res.status(500).json({ message: 'Fetch customers failed' });
@@ -1041,10 +1207,51 @@ app.get('/api/customers', auth, async (req, res) => {
 
 app.post('/api/customers/:id/reset', auth, async (req, res) => {
     try {
-        const customer = await Customer.findByIdAndUpdate(req.params.id, { loyaltyCount: 0 }, { new: true });
-        res.json(customer);
+        console.log(`📡 Reset Request for Customer ID: ${req.params.id}`);
+        const customer = await Customer.findByIdAndUpdate(req.params.id, { cycleCount: 0 }, { new: true });
+        if (customer) {
+            console.log(`✅ Reset Success for: ${customer.name}`);
+            res.json(customer);
+        } else {
+            res.status(404).json({ message: 'Customer not found' });
+        }
+    } catch (error) {
+        console.error('❌ Reset Error:', error);
+        res.status(500).json({ message: 'Reset failed' });
+    }
+});
+
+// 2. 🗑️ THE "WIPE EVERYTHING" RESET ROUTE (Erases "4 Available" kind of errors)
+app.post('/api/loyalty/reset', auth, async (req, res) => {
+    const { customerId } = req.body;
+    try {
+        await Customer.findByIdAndUpdate(customerId, {
+            cycleCount: 0,
+            freePocketsClaimed: 0
+        });
+        res.json({ success: true, message: "Data Wiped Clean!" });
     } catch (error) {
         res.status(500).json({ message: 'Reset failed' });
+    }
+});
+
+// 🌌 ANTI-GRAVITY MANUAL RESET LOGIC (User Request Version)
+app.post('/api/reset-loyalty', auth, async (req, res) => {
+    const { customerId } = req.body;
+    try {
+        console.log(`📡 Manual Reset Triggered for ID: ${customerId}`);
+        const customer = await Customer.findById(customerId);
+        if (customer) {
+            customer.cycleCount = 0;
+            await customer.save();
+            console.log(`🔄 Manual Reset Success for: ${customer.name}`);
+            res.status(200).json({ message: "Cycle Reset Success!", customer });
+        } else {
+            res.status(404).json({ message: "Customer not found" });
+        }
+    } catch (err) {
+        console.error('❌ Reset-Loyalty Error:', err);
+        res.status(500).json({ error: "Reset Failed!" });
     }
 });
 
@@ -1183,42 +1390,39 @@ app.post('/api/sales/manual', auth, async (req, res) => {
     try {
         const { customerName, contactNumber, pricePerPocket, quantity } = req.body;
         const qty = Number(quantity) || 0;
-        const loyaltyIncrement = pricePerPocket >= 50 ? qty : 0;
+        const price = Number(pricePerPocket) || 0;
 
-        let customer = await Customer.findOne({ contactNumber });
-        if (!customer) {
-            customer = new Customer({ name: customerName, contactNumber });
+        let loyaltyUpdate = null;
+        if (price >= 50) {
+            loyaltyUpdate = await syncSaleToLoyalty(contactNumber, qty, customerName);
         }
-
-        const oldLoyalty = Number(customer.loyaltyCount) || 0;
-        customer.loyaltyCount = oldLoyalty + loyaltyIncrement;
-        customer.loyaltyCycleCount = customer.loyaltyCount; // Syncing
-        customer.totalOrders = (Number(customer.totalOrders) || 0) + 1;
-
-        const reachedTen = oldLoyalty < 10 && customer.loyaltyCount >= 10;
-
-        await customer.save();
 
         // Also create a Sales record
         const newSale = new Sales({
             productType: 'Mushroom',
-            quantity,
+            quantity: qty,
             unit: 'pockets',
-            pricePerUnit: pricePerPocket,
-            totalAmount: quantity * pricePerPocket,
+            pricePerUnit: price,
+            totalAmount: qty * price,
             customerName,
             contactNumber,
-            isLoyaltyCustomer: loyaltyIncrement > 0
+            isLoyaltyCustomer: loyaltyUpdate ? true : false,
+            date: Date.now()
         });
         await newSale.save();
 
+        if (loyaltyUpdate && loyaltyUpdate.freePocketsEarned > 0) {
+            const rewardMsg = `🎁 *LOYALTY REWARD!* 🎁\nவாழ்த்துக்கள் ${customerName}!\nYou have earned *${loyaltyUpdate.freePocketsEarned} FREE pocket(s)*! 🍄\n\nCurrent Balance: ${loyaltyUpdate.currentCycle}/10 towards next reward.`;
+            sendLoyaltyNotification(contactNumber, rewardMsg);
+        }
+
         res.json({
-            message: 'Sale recorded',
-            customer,
-            loyaltyAdded: loyaltyIncrement,
-            triggerWhatsApp: reachedTen
+            message: 'Manual sale recorded',
+            sale: newSale,
+            loyaltyUpdate
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Manual sale failed' });
     }
 });
@@ -1318,19 +1522,20 @@ const createSheetWithHeader = (json, sheetTitle, subtitleContext) => {
 };
 
 // Initialize default alerts
+// Initialize default alerts (STRICT: 4 Water Checks ONLY)
 const initializeAlerts = async () => {
-    // Cleanup old default alerts to prevent duplicates/confusion
-    // Fan alerts removed as per user request
-    await Alert.insertMany([
-        {
-            title: 'WATER CHECK',
-            message: 'Check water drum level!',
-            scheduledTime: '06:00',
-            type: 'daily',
-            icon: '💧'
-        }
-    ]);
-    console.log('✅ Default alerts (Water Only) re-initialized');
+    try {
+        await Alert.deleteMany({}); // Strictly wipe everything first
+        await Alert.insertMany([
+            { title: 'WATER CHECK', message: '1st Water Check', scheduledTime: '06:00', type: 'daily', icon: '💧' },
+            { title: 'WATER CHECK', message: '2nd Water Check', scheduledTime: '12:00', type: 'daily', icon: '💧' },
+            { title: 'WATER CHECK', message: '3rd Water Check', scheduledTime: '18:00', type: 'daily', icon: '💧' },
+            { title: 'WATER CHECK', message: '4th Water Check', scheduledTime: '21:00', type: 'daily', icon: '💧' }
+        ]);
+        console.log('✅ STRICT: 4 Water Checks Initialized.');
+    } catch (err) {
+        console.error('Failed to initialize alerts:', err);
+    }
 };
 
 // Initialize default inventory items
@@ -1463,7 +1668,7 @@ app.post('/api/batches/:id/start-soak', auth, async (req, res) => {
         // --- SOAKING INTIMATION NOTIFICATION ---
         const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
         const finishTime = new Date(batch.soakingTime.getTime() + 18 * 60 * 60 * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const intimationMsg = `🧼 *TJP SOAKING STARTED*\n\nBatch: *${batch.batchName}*\nStart Time: ${batch.soakingTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n🚨 *18-Hour Alert Schedule:* \nTarget Finish: *${finishTime}*\n\nSystem will notify you automatically when complete! 🍄`;
+        const intimationMsg = `≡ƒº╝ *TJP SOAKING STARTED*\n\nBatch: *${batch.batchName}*\nStart Time: ${batch.soakingTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n≡ƒÜ¿ *18-Hour Alert Schedule:* \nTarget Finish: *${finishTime}*\n\nSystem will notify you automatically when complete! ≡ƒìä`;
 
         for (const phone of adminPhones) {
             await sendMessage(phone.trim(), intimationMsg, 'admin');
@@ -1567,17 +1772,17 @@ app.post('/api/webhook/whatsapp/loyalty', auth, async (req, res) => {
 
         if (customer.loyaltyCount >= 10) {
             // Tamil loyalty notification message
-            const message = `🎉 வாழ்த்துக்கள் ${customer.name}!
+            const message = `≡ƒÄë α«╡α«╛α«┤α»ìα«ñα»ìα«ñα»üα«òα»ìα«òα«│α»ì ${customer.name}!
 
-TJP மஷ்ரூம் பார்மிங் loyalty program-ல் 10 பாக்கெட்கள் complete ஆகிவிட்டது!
+TJP α««α«╖α»ìα«░α»éα««α»ì α«¬α«╛α«░α»ìα««α«┐α«Öα»ì loyalty program-α«▓α»ì 10 α«¬α«╛α«òα»ìα«òα»åα«ƒα»ìα«òα«│α»ì complete α«åα«òα«┐α«╡α«┐α«ƒα»ìα«ƒα«ñα»ü!
 
-🍄 உங்கள் அடுத்த order-ல் 1 FREE POCKET பெறலாம்!
+≡ƒìä α«ëα«Öα»ìα«òα«│α»ì α«àα«ƒα»üα«ñα»ìα«ñ order-α«▓α»ì 1 FREE POCKET α«¬α»åα«▒α«▓α«╛α««α»ì!
 
-உங்கள் Loyalty ID: ${customer.customerId}
+α«ëα«Öα»ìα«òα«│α»ì Loyalty ID: ${customer.customerId}
 
-📞 Order செய்ய: 7010322499
+≡ƒô₧ Order α«Üα»åα«»α»ìα«»: 7010322499
 
-நன்றி! - TJP Mushroom Farming`;
+α«¿α«⌐α»ìα«▒α«┐! - TJP Mushroom Farming`;
 
             // Update last notification sent
             customer.lastNotificationSent = new Date();
@@ -1630,7 +1835,7 @@ app.get('/api/webhook/check-loyalty', auth, async (req, res) => {
 
 // --- BACKGROUND ALARM SCHEDULER ---
 const startAlarmScheduler = () => {
-    console.log('⏰ Alarm Scheduler started...');
+    console.log('ΓÅ░ Alarm Scheduler started...');
     setInterval(async () => {
         const now = new Date();
         const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -1642,7 +1847,7 @@ const startAlarmScheduler = () => {
             // 1. Check Daily Alerts (HH:MM)
             const activeAlerts = await Alert.find({ scheduledTime: currentTime, isActive: true, type: 'daily' });
             for (const alert of activeAlerts) {
-                const message = `🔔 *TJP ALARM* 🔔\n\nTitle: ${alert.title}\nMessage: ${alert.message}\nTime: ${alert.scheduledTime}`;
+                const message = `≡ƒöö *TJP ALARM* ≡ƒöö\n\nTitle: ${alert.title}\nMessage: ${alert.message}\nTime: ${alert.scheduledTime}`;
                 for (const phone of adminPhones) {
                     try {
                         await sendMessage(phone, message, 'admin');
@@ -1659,13 +1864,13 @@ const startAlarmScheduler = () => {
 
             // --- FAN AUTOMATION ---
             if (currentTime === '06:00') {
-                const msg = `💨 *TJP FAN AUTOMATION*\n\nStatus: *INTAKE ON* (IN) ✅\nTime: 06:00 AM`;
+                const msg = `≡ƒÆ¿ *TJP FAN AUTOMATION*\n\nStatus: *INTAKE ON* (IN) Γ£à\nTime: 06:00 AM`;
                 for (const p of adminPhones) await sendMessage(p, msg);
             } else if (currentTime === '06:30') {
-                const msg = `💨 *TJP FAN AUTOMATION*\n\nStatus: *EXHAUST ON* (OUT) 🔄\nTime: 06:30 AM`;
+                const msg = `≡ƒÆ¿ *TJP FAN AUTOMATION*\n\nStatus: *EXHAUST ON* (OUT) ≡ƒöä\nTime: 06:30 AM`;
                 for (const p of adminPhones) await sendMessage(p, msg);
             } else if (currentTime === '07:00') {
-                const msg = `💨 *TJP FAN AUTOMATION*\n\nStatus: *ALL FANS OFF* 🛑\nTime: 07:00 AM`;
+                const msg = `≡ƒÆ¿ *TJP FAN AUTOMATION*\n\nStatus: *ALL FANS OFF* ≡ƒ¢æ\nTime: 07:00 AM`;
                 for (const p of adminPhones) await sendMessage(p, msg);
             }
 
@@ -1677,7 +1882,7 @@ const startAlarmScheduler = () => {
                     const diffDays = Math.floor((now - lastRefill) / (1000 * 60 * 60 * 24));
 
                     if (diffDays >= 2) {
-                        const msg = `💧 *TJP WATER ALERT*\n\nStatus: *REFILL TANK* ⚠️\nLast filled: ${lastRefill.toLocaleDateString()}\nDays passed: ${diffDays}`;
+                        const msg = `≡ƒÆº *TJP WATER ALERT*\n\nStatus: *REFILL TANK* ΓÜá∩╕Å\nLast filled: ${lastRefill.toLocaleDateString()}\nDays passed: ${diffDays}`;
                         const alertNumbers = ['9159659711', '9500591897'];
                         for (const phone of alertNumbers) {
                             await sendMessage(phone, msg);
@@ -1692,7 +1897,7 @@ const startAlarmScheduler = () => {
             for (const batch of soakingBatches) {
                 const alertTime = new Date(new Date(batch.soakingTime).getTime() + 18 * 60 * 60 * 1000);
                 if (now >= alertTime) {
-                    const msg = `🚨 TJP SOAKING ALERT! 🚨\nBatch: ${batch.batchName}\ncompleted 18 hours.`;
+                    const msg = `≡ƒÜ¿ TJP SOAKING ALERT! ≡ƒÜ¿\nBatch: ${batch.batchName}\ncompleted 18 hours.`;
 
                     // Trigger IFTTT Webhook for Voice Call
                     const { sendIFTTTCall } = require('./services/voiceService');
@@ -1726,17 +1931,17 @@ app.get('/api/test/fan', async (req, res) => {
     try {
         const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
         const scenarios = [
-            { title: "💨 FAN STATUS: INTAKE ON", msg: "✅ Fresh Air Fan (Fan In) has been turned ON.\nReason: CO2 levels high." },
-            { title: "🛑 FAN STATUS: EXHAUST ON", msg: "⚠️ Exhaust Fan (Fan Out) has been turned ON.\nReason: Temperature above limit (30°C)." },
-            { title: "🔕 FAN STATUS: ALL OFF", msg: "✅ All Fans have been turned OFF.\nClimate conditions are stable." }
+            { title: "≡ƒÆ¿ FAN STATUS: INTAKE ON", msg: "Γ£à Fresh Air Fan (Fan In) has been turned ON.\nReason: CO2 levels high." },
+            { title: "≡ƒ¢æ FAN STATUS: EXHAUST ON", msg: "ΓÜá∩╕Å Exhaust Fan (Fan Out) has been turned ON.\nReason: Temperature above limit (30┬░C)." },
+            { title: "≡ƒöò FAN STATUS: ALL OFF", msg: "Γ£à All Fans have been turned OFF.\nClimate conditions are stable." }
         ];
 
-        console.log("🚀 Manually triggering Fan Notification Test...");
+        console.log("≡ƒÜÇ Manually triggering Fan Notification Test...");
 
         for (const phone of adminPhones) {
             const p = phone.trim();
             for (const scenario of scenarios) {
-                const waMessage = `🔔 *TJP ALERT: ${scenario.title}*\n\n${scenario.msg}\n\nTime: ${new Date().toLocaleTimeString()}`;
+                const waMessage = `≡ƒöö *TJP ALERT: ${scenario.title}*\n\n${scenario.msg}\n\nTime: ${new Date().toLocaleTimeString()}`;
                 await sendMessage(p, waMessage);
                 await new Promise(r => setTimeout(r, 2000));
             }
@@ -1750,7 +1955,7 @@ app.get('/api/test/fan', async (req, res) => {
 
 app.get('/api/test-alarm', async (req, res) => {
     const adminPhones = (process.env.ADMIN_PHONE || '9500591897').split(',').map(p => p.trim());
-    const message = `🔔 *TJP TEST ALARM* 🔔\n\nThis is a sample notification test.\nTime: ${new Date().toLocaleTimeString()}\n\nStatus: System working perfectly! 🍄`;
+    const message = `≡ƒöö *TJP TEST ALARM* ≡ƒöö\n\nThis is a sample notification test.\nTime: ${new Date().toLocaleTimeString()}\n\nStatus: System working perfectly! ≡ƒìä`;
 
     try {
         for (const phone of adminPhones) {
@@ -1767,16 +1972,16 @@ app.get('/api/test-all', async (req, res) => {
 
     const scenarios = [
         {
-            msg: "🛑 *CRITICAL: Climate Control*\n\n⚠️ High Temperature Alert! (32°C)\nAction: Exhaust Fan Turned ON automatically.\nMist system activated."
+            msg: "≡ƒ¢æ *CRITICAL: Climate Control*\n\nΓÜá∩╕Å High Temperature Alert! (32┬░C)\nAction: Exhaust Fan Turned ON automatically.\nMist system activated."
         },
         {
-            msg: "💧 *WATER LEVEL LOW*\n\n⚠️ Water Drum 1 is below 20%.\nPlease refill immediately to ensure misting works."
+            msg: "≡ƒÆº *WATER LEVEL LOW*\n\nΓÜá∩╕Å Water Drum 1 is below 20%.\nPlease refill immediately to ensure misting works."
         },
         {
-            msg: "🍄 *BED TRACKING*\n\n📅 Batch A-1 Recommendation:\nIt is Day 16. Inspect beds for pinhead formation today."
+            msg: "≡ƒìä *BED TRACKING*\n\n≡ƒôà Batch A-1 Recommendation:\nIt is Day 16. Inspect beds for pinhead formation today."
         },
         {
-            msg: "🎉 *LOYALTY REWARD*\n\nUser *Ravi* has reached 10 pockets!\nEligible for 1 FREE pocket."
+            msg: "≡ƒÄë *LOYALTY REWARD*\n\nUser *Ravi* has reached 10 pockets!\nEligible for 1 FREE pocket."
         }
     ];
 
@@ -1928,7 +2133,7 @@ app.get('/api/export/:section', async (req, res) => {
             // 5. LOYALTY (Current Snapshot)
             const custData = await Customer.find();
             const loyalSheet = createSheetWithHeader(custData.map(c => ({
-                Name: c.name, Phone: c.contactNumber, Cycle: c.loyaltyCycleCount, Lifetime: c.lifetimePockets
+                Name: c.name, Phone: c.contactNumber, Cycle: c.cycleCount
             })), "Loyalty Snapshot", subtitleContext);
             XLSX.utils.book_append_sheet(workbook, loyalSheet, "Loyalty Snapshot");
 
@@ -2016,7 +2221,7 @@ app.get('/api/export/:section', async (req, res) => {
                     Date: dateStr,
                     'Beds Made': bedsMade,
                     'Yield (Qty)': dayYield,
-                    'Sales (₹)': daySales
+                    'Sales (Γé╣)': daySales
                 });
             }
 
@@ -2062,7 +2267,7 @@ app.get('/api/export/:section', async (req, res) => {
                     Month: months[i],
                     'Total Beds': bedsCount,
                     'Total Yield (Qty)': yieldTotal,
-                    'Total Sales (₹)': salesTotal
+                    'Total Sales (Γé╣)': salesTotal
                 });
             }
 
@@ -2130,7 +2335,7 @@ app.get('/api/export/:section', async (req, res) => {
             data = await Climate.find({ date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 });
             data = data.map(d => ({
                 Date: new Date(d.date).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true }),
-                Temperature: d.temperature + '°C',
+                Temperature: d.temperature + '┬░C',
                 Moisture: d.moisture ? d.moisture + '%' : '-',
                 Humidity: d.humidity ? d.humidity + '%' : '-',
                 CO2: d.co2 ? d.co2 + ' ppm' : '-',
@@ -2146,10 +2351,9 @@ app.get('/api/export/:section', async (req, res) => {
                 CustomerID: d.customerId,
                 Name: d.name,
                 Phone: d.contactNumber,
-                LoyaltyCycleCount: d.loyaltyCycleCount,
-                LifetimePockets: d.lifetimePockets,
+                LoyaltyCycleCount: d.cycleCount,
                 TotalOrders: d.totalOrders,
-                FreePocketsRedeemed: d.freePocketsRedeemed,
+                FreePocketsRedeemed: d.freePocketsClaimed,
                 CreatedAt: new Date(d.createdAt).toLocaleDateString()
             }));
             sheetName = 'Loyalty Hub';
@@ -2177,7 +2381,63 @@ app.get('/api/export/:section', async (req, res) => {
         res.status(500).json({ message: 'Export failed' });
     }
 });
+// 🌌 TJP ANTI-GRAVITY ULTIMATE FIX
 
+// 1. DAILY ROUTINE ALERTS: ONLY 4 (REMOVED UNNECESSARY)
+const routineAlerts = [
+    { task: "WATER CHECK", time: "06:00 AM" },
+    { task: "WATER CHECK", time: "12:00 PM" },
+    { task: "WATER CHECK", time: "06:00 PM" },
+    { task: "WATER CHECK", time: "09:00 PM" }
+];
+
+app.get('/api/alerts', (req, res) => {
+    res.json(routineAlerts);
+});
+
+// 2. SEED INTAKE: LOYALTY FIX + NOTES SAVE
+app.post('/api/seed-intake', async (req, res) => {
+    const { quantity, notes, customerId } = req.body;
+    try {
+        // Seed Stock-la notes save aagum
+        const newEntry = new SeedStock({ quantity, notes, date: new Date() });
+        await newEntry.save();
+
+        // Seed vangi-na automatic 1 pocket add aagi loyalty update aagum
+        if (customerId) {
+            const user = await Customer.findById(customerId);
+            user.cycleCount += 1;
+            if (user.cycleCount >= 10) {
+                user.freePocketsClaimed += 1;
+                user.cycleCount = 0;
+            }
+            await user.save();
+        }
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: "Seed Sync Failed" });
+    }
+});
+
+// 3. LOYALTY RESET: ONLY RESET CYCLE (REMOVED LIFETIME MANIPULATION)
+app.post('/api/loyalty/reset', async (req, res) => {
+    const { customerId } = req.body;
+    console.log(`📡 Manual Loyalty Reset Request for: ${customerId}`);
+    try {
+        // Lifetime remove pannittaen, only reset cycle to 0
+        const customer = await Customer.findByIdAndUpdate(customerId, { cycleCount: 0 }, { new: true });
+        if (customer) {
+            console.log(`✅ Reset Success for Customer: ${customer.name}`);
+            res.json({ success: true, customer });
+        } else {
+            console.log(`❌ Reset Failed: Customer ${customerId} not found`);
+            res.status(404).json({ error: "Customer not found" });
+        }
+    } catch (err) {
+        console.error('❌ Reset Error:', err);
+        res.status(500).json({ error: "Reset failed" });
+    }
+});
 // --- WATER SPRAY CALCULATION ---
 // Deducts 20L per spray, 13 times daily
 cron.schedule('0,2 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
@@ -2187,11 +2447,11 @@ cron.schedule('0,2 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
 
         if (mins === 0) {
             // WATER ON
-            const msg = `💧 *TJP WATER LOGIC*\n\nStatus: *MISTING ON* 🚿\nDuration: 2 Minutes`;
+            const msg = `≡ƒÆº *TJP WATER LOGIC*\n\nStatus: *MISTING ON* ≡ƒÜ┐\nDuration: 2 Minutes`;
             for (const p of adminPhones) await sendMessage(p.trim(), msg);
         } else if (mins === 2) {
             // WATER OFF
-            const msg = `💧 *TJP WATER LOGIC*\n\nStatus: *MISTING OFF* 🛑`;
+            const msg = `≡ƒÆº *TJP WATER LOGIC*\n\nStatus: *MISTING OFF* ≡ƒ¢æ`;
             for (const p of adminPhones) await sendMessage(p.trim(), msg);
             return; // Skip water deduction logic for "OFF" signal
         }
@@ -2220,12 +2480,12 @@ cron.schedule('0,2 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
         });
         await log.save();
 
-        console.log(`💧 Daily Water Deducted: ${sprayUsage}L. Current: ${currentLevel}L`);
+        console.log(`≡ƒÆº Daily Water Deducted: ${sprayUsage}L. Current: ${currentLevel}L`);
 
         // Alert if below 20%
         if (currentLevel < (capacity * 0.2)) {
             const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-            const msg = `⚠️ *TJP WATER ALERT*\n\nTank Level is Low: *${Math.round((currentLevel / capacity) * 100)}%* (${currentLevel}L).\nPlease Refill Soon!`;
+            const msg = `ΓÜá∩╕Å *TJP WATER ALERT*\n\nTank Level is Low: *${Math.round((currentLevel / capacity) * 100)}%* (${currentLevel}L).\nPlease Refill Soon!`;
             const { sendMessage } = require('./services/whatsappService');
             for (const phone of adminPhones) {
                 await sendMessage(phone.trim(), msg, 'admin');
@@ -2236,9 +2496,9 @@ cron.schedule('0,2 0,1,3,5,7,9,11,12,14,16,18,20,22 * * *', async () => {
     }
 });
 
-// --- DAILY AUTOMATED REPORT SCHEDULER (8:00 PM) ---
+// --- DAILY AUTOMATED REPORT SCHEDULER (8:00 pM) ---
 cron.schedule('0 20 * * *', async () => {
-    console.log('🕒 8:00 PM: Generating daily sales & expenditure report...');
+    console.log('≡ƒòÆ 8:00 PM: Generating daily sales & expenditure report...');
     try {
         const today = new Date();
         const start = new Date(today.setHours(0, 0, 0, 0));
@@ -2248,9 +2508,9 @@ cron.schedule('0 20 * * *', async () => {
         const expenditures = await Expenditure.find({ date: { $gte: start, $lte: end } });
 
         await sendDailyReport(sales, expenditures);
-        console.log('✅ Daily 8 PM Report task completed.');
+        console.log('Γ£à Daily 8 PM Report task completed.');
     } catch (error) {
-        console.error('❌ Daily Cron Error:', error);
+        console.error('Γ¥î Daily Cron Error:', error);
     }
 });
 
@@ -2263,7 +2523,7 @@ cron.schedule('59 23 28-31 * *', async () => {
 
     // If tomorrow is the 1st, then today is the last day of the month
     if (tomorrow.getDate() === 1) {
-        console.log('📅 Last day of the month detected. Generating automated report...');
+        console.log('≡ƒôà Last day of the month detected. Generating automated report...');
         try {
             const month = today.getMonth() + 1;
             const year = today.getFullYear();
@@ -2278,9 +2538,9 @@ cron.schedule('59 23 28-31 * *', async () => {
             const customers = await Customer.find();
 
             await sendMonthlyReport(sales, expenditures, inventory, climate, customers, month, year);
-            console.log(`✅ Automated Report for ${month}/${year} sent.`);
+            console.log(`Γ£à Automated Report for ${month}/${year} sent.`);
         } catch (error) {
-            console.error('❌ Automated Report Error:', error);
+            console.error('Γ¥î Automated Report Error:', error);
         }
     }
 });
@@ -2297,10 +2557,10 @@ const saveSaleOffline = (saleData) => {
         }
         sales.push({ ...saleData, offline: true, savedAt: new Date() });
         fs.writeFileSync(OFFLINE_SALES_FILE, JSON.stringify(sales, null, 2));
-        console.log('📦 SAFE MODE: Sale saved to local cache (No Internet/DB)');
+        console.log('≡ƒôª SAFE MODE: Sale saved to local cache (No Internet/DB)');
         return true;
     } catch (e) {
-        console.error('❌ Failed to save offline:', e.message);
+        console.error('Γ¥î Failed to save offline:', e.message);
         return false;
     }
 };
@@ -2311,16 +2571,16 @@ const syncOfflineSales = async () => {
         const sales = JSON.parse(fs.readFileSync(OFFLINE_SALES_FILE));
         if (sales.length === 0) return;
 
-        console.log(`🔄 Syncing ${sales.length} offline sales to Atlas...`);
+        console.log(`≡ƒöä Syncing ${sales.length} offline sales to Atlas...`);
         for (const s of sales) {
             const { offline, savedAt, ...cleanData } = s;
             const sale = new Sales(cleanData);
             await sale.save();
         }
         fs.unlinkSync(OFFLINE_SALES_FILE);
-        console.log('✅ Local cache cleared and synced to Atlas!');
+        console.log('Γ£à Local cache cleared and synced to Atlas!');
     } catch (e) {
-        console.warn('⚠️ Sync partially failed. Will retry later.');
+        console.warn('ΓÜá∩╕Å Sync partially failed. Will retry later.');
     }
 };
 
@@ -2333,7 +2593,7 @@ const LOCAL_MONGODB_URI = 'mongodb://localhost:27017/tjp_mushroom_local';
 // --- DIRECT CONNECTION BYPASS ---
 const getDirectURI = (uri) => {
     if (uri && uri.startsWith('mongodb+srv://')) {
-        console.log('🔄 Converting SRV to Standard Direct Connection (ISP Bypass)...');
+        console.log('≡ƒöä Converting SRV to Standard Direct Connection (ISP Bypass)...');
         const match = uri.match(/mongodb\+srv:\/\/([^@]+)@([^/?]+)/);
         if (match) {
             const auth = match[1];
@@ -2366,26 +2626,26 @@ app.get('/api/status', (req, res) => {
 const startServer = (port) => {
     const server = app.listen(port, () => {
         console.log('\n-------------------------------------------');
-        console.log(`🚀 TJP SERVER IS LIVE!`);
-        console.log(`🌐 Dashboard: http://localhost:${port}`);
-        console.log(`📊 Mode: ${isConnectedToLocal ? 'LOCAL FAILOVER' : 'CLOUD ATLAS'}`);
-        console.log(`📱 Offline Safety & Local Failover ACTIVE.`);
+        console.log(`≡ƒÜÇ TJP SERVER IS LIVE!`);
+        console.log(`≡ƒîÉ Dashboard: http://localhost:${port}`);
+        console.log(`≡ƒôè Mode: ${isConnectedToLocal ? 'LOCAL FAILOVER' : 'CLOUD ATLAS'}`);
+        console.log(`≡ƒô▒ Offline Safety & Local Failover ACTIVE.`);
         console.log('-------------------------------------------\n');
     }).on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
-            console.log(`⚠️ Port ${port} is busy. Trying ${port + 1}...`);
+            console.log(`ΓÜá∩╕Å Port ${port} is busy. Trying ${port + 1}...`);
             startServer(port + 1);
         } else {
-            console.error('❌ Server Error:', err);
+            console.error('Γ¥î Server Error:', err);
         }
     });
 
     const shutdown = async () => {
-        console.log('\n🛑 Shutting down TJP Server gracefully...');
+        console.log('\n≡ƒ¢æ Shutting down TJP Server gracefully...');
         server.close(async () => {
-            console.log('📡 Closing MongoDB Connection...');
+            console.log('≡ƒôí Closing MongoDB Connection...');
             await mongoose.connection.close();
-            console.log('✅ Shutdown Complete. Goodbye! 🍄');
+            console.log('Γ£à Shutdown Complete. Goodbye! ≡ƒìä');
             process.exit(0);
         });
     };
@@ -2396,7 +2656,7 @@ const startServer = (port) => {
 
 const successCallback = async (isLocal = false) => {
     isConnectedToLocal = isLocal;
-    console.log(`✅ Connected to ${isLocal ? 'LOCAL MongoDB' : 'CLOUD MongoDB Atlas'}`);
+    console.log(`Γ£à Connected to ${isLocal ? 'LOCAL MongoDB' : 'CLOUD MongoDB Atlas'}`);
 
     // Ensure at least one admin exists
     const adminCount = await Admin.countDocuments();
@@ -2406,11 +2666,11 @@ const successCallback = async (isLocal = false) => {
             password: 'password123',
             phoneNumber: '9500591897' // Default from ADMIN_PHONE
         }).save();
-        console.log('👤 Default admin created (admin/password123)');
+        console.log('≡ƒæñ Default admin created (admin/password123)');
     }
 
     if (isLocal) {
-        console.warn('⚠️ WORKING IN LOCAL MODE: Data will be saved to your PC until internet/cloud restores.');
+        console.warn('ΓÜá∩╕Å WORKING IN LOCAL MODE: Data will be saved to your PC until internet/cloud restores.');
     }
     initializeInventory();
     initializeAlerts();
@@ -2424,7 +2684,7 @@ const connectDB = async () => {
     const startTime = Date.now();
     let atlasSuccess = false;
 
-    console.log('📡 Attempting Cloud Connection (Direct Mode)...');
+    console.log('≡ƒôí Attempting Cloud Connection (Direct Mode)...');
 
     // Attempt Atlas First
     try {
@@ -2436,18 +2696,18 @@ const connectDB = async () => {
         atlasSuccess = true;
         successCallback(false);
     } catch (err) {
-        console.error('❌ Cloud Connection Failed:', err.message);
+        console.error('Γ¥î Cloud Connection Failed:', err.message);
 
         // Failover to Local MongoDB if requested or if 1 min passed
-        console.log('🔄 Switching to LOCAL MongoDB Failover (localhost:27017)...');
+        console.log('≡ƒöä Switching to LOCAL MongoDB Failover (localhost:27017)...');
         try {
             await mongoose.connect(LOCAL_MONGODB_URI, {
                 serverSelectionTimeoutMS: 5000
             });
             successCallback(true);
         } catch (localErr) {
-            console.error('❌ Local MongoDB also failed. (Is MongoDB Compass/Service running?)');
-            console.log('🔄 Retrying Cloud in 15 seconds...');
+            console.error('Γ¥î Local MongoDB also failed. (Is MongoDB Compass/Service running?)');
+            console.log('≡ƒöä Retrying Cloud in 15 seconds...');
             setTimeout(connectDB, 15000);
         }
     }
@@ -2465,11 +2725,11 @@ app.get('/', (req, res) => {
             <html>
                 <body style="background: #CBCCCB; font-family: 'Outfit', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
                     <div style="text-align: center; background: white; padding: 60px; border-radius: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); max-width: 500px;">
-                        <h1 style="color: #022C22; font-size: 3rem; margin-bottom: 10px;">🍄 TJP LIVE</h1>
+                        <h1 style="color: #022C22; font-size: 3rem; margin-bottom: 10px;">≡ƒìä TJP LIVE</h1>
                         <p style="color: #666; font-size: 1.2rem;">Server is active on Port 5000</p>
                         <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 20px; border: 2px solid #eee;">
                             <p style="font-weight: bold; color: ${isConnectedToLocal ? '#d97706' : '#059669'}; font-size: 1.1rem;">
-                                ${isConnectedToLocal ? '🚀 LOCAL FAILOVER MODE' : '✅ CLOUD ATLAS ONLINE'}
+                                ${isConnectedToLocal ? '≡ƒÜÇ LOCAL FAILOVER MODE' : 'Γ£à CLOUD ATLAS ONLINE'}
                             </p>
                         </div>
                         <p style="color: #888; font-size: 0.9rem; line-height: 1.5;">
