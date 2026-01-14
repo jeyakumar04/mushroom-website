@@ -17,7 +17,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        timeout: 0, // Disable timeout for stability
+        timeout: 60000, // Increased timeout to 60s
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -26,7 +26,8 @@ const client = new Client({
             '--no-first-run',
             '--disable-extensions',
             '--no-default-browser-check',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-software-rasterizer' // Added
         ]
     }
 });
@@ -66,18 +67,25 @@ client.on('authenticated', () => {
 });
 
 client.on('auth_failure', (msg) => {
-    console.log('❌ WhatsApp Auth Failed:', msg);
+    console.error('❌ WhatsApp Auth Failed:', msg);
     isReady = false;
+    latestQR = null;
+    // Retry immediately with a fresh session attempt if possible, or wait for QR
+    setTimeout(() => {
+        console.log('🔄 Auth failed. Re-initializing...');
+        client.initialize();
+    }, 2000);
 });
 
 client.on('disconnected', (reason) => {
-    console.log('⚠️ WhatsApp Disconnected:', reason);
+    console.warn('⚠️ WhatsApp Disconnected:', reason);
     isReady = false;
-    // Try to reconnect after 5 seconds
+    latestQR = null;
+    // Try to reconnect faster
     setTimeout(() => {
-        console.log('🔄 Attempting to reconnect...');
+        console.log('🔄 Disconnected. Attempting to reconnect...');
         client.initialize();
-    }, 5000);
+    }, 2000); // Reduced from 5000
 });
 
 // Initialization
@@ -101,10 +109,41 @@ const sendMessage = async (contactNumber, message) => {
         let cleanNumber = contactNumber.replace(/\D/g, '');
         if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
         const chatId = `${cleanNumber}@c.us`;
-        await client.sendMessage(chatId, message);
-        console.log(`✅ WhatsApp sent to: ${cleanNumber}`);
-        return { success: true };
+
+        // Try multiple approaches to bypass markedUnread error
+        try {
+            // Method 1: Direct send
+            await client.sendMessage(chatId, message);
+            console.log(`✅ WhatsApp sent to: ${cleanNumber}`);
+            return { success: true };
+        } catch (err1) {
+            console.log(`⚠️ Method 1 failed, trying alternative...`);
+
+            try {
+                // Method 2: Get chat first
+                const chat = await client.getChatById(chatId);
+                await chat.sendMessage(message);
+                console.log(`✅ WhatsApp sent to: ${cleanNumber} (Method 2)`);
+                return { success: true };
+            } catch (err2) {
+                console.log(`⚠️ Method 2 failed, trying Method 3...`);
+
+                try {
+                    // Method 3: Create MessageMedia text
+                    const numberObj = await client.getNumberId(cleanNumber);
+                    if (numberObj) {
+                        await client.sendMessage(numberObj._serialized, message);
+                        console.log(`✅ WhatsApp sent to: ${cleanNumber} (Method 3)`);
+                        return { success: true };
+                    }
+                    throw new Error('Number not found on WhatsApp');
+                } catch (err3) {
+                    throw err3;
+                }
+            }
+        }
     } catch (error) {
+        console.error(`🔥 Send Failed to ${contactNumber}:`, error.message);
         return { success: false, error: error.message };
     }
 };
@@ -127,13 +166,36 @@ const sendImage = async (contactNumber, imageBase64, caption) => {
     }
 };
 
+/**
+ * Utility: Send Document/File
+ */
+const sendFile = async (contactNumber, filePath, caption) => {
+    try {
+        if (!isReady) return { success: false, error: 'Client not ready' };
+        const { MessageMedia } = require('whatsapp-web.js');
+        let cleanNumber = contactNumber.replace(/\D/g, '');
+        if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
+        const chatId = `${cleanNumber}@c.us`;
+
+        const media = MessageMedia.fromFilePath(filePath);
+        await client.sendMessage(chatId, media, { caption });
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = {
     sendMessage,
     sendImage,
+    sendFile,
     sendDigitalBill: (phone, img, name) => sendImage(phone, img, name),
     sendLoyaltyNotification: (phone, msg) => sendMessage(phone, msg),
     isClientReady: () => isReady,
     getLatestQr: () => latestQR,
+    destroyClient: async () => {
+        if (client) await client.destroy();
+    },
     client,
     ADMIN_1,
     ADMIN_2

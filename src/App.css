@@ -32,7 +32,57 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 📍 App.css-la paste panna vendiyadhu */
+
+.home-bg {
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(-45deg, #CBCCCB, #e0e0e0, #ffffff, #CBCCCB);
+  background-size: 400% 400%;
+  animation:
+    fadeIn 2s ease-out forwards,
+    /* 0-la irundhu start aagum */
+    gradientFlow 10s ease infinite;
+  /* Continuously move aagum */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glass-box {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  border-radius: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s ease;
 }

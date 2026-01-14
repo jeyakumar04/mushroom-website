@@ -116,26 +116,23 @@ const sendMonthlyReport = async (sales, expenditures, inventory, climate, custom
     }
 };
 
+// Import WhatsApp Service
+const { sendMessage, sendFile } = require('./whatsappService');
+
 const sendDailyReport = async (sales, expenditures) => {
     try {
         const adminEmail1 = process.env.REPORT_EMAIL || 'jpfarming10@gmail.com';
-        const adminEmail2 = process.env.REPORT_EMAIL_2 || '9500591897@gmail.com'; // Fallback or placeholder
+        const adminEmail2 = process.env.REPORT_EMAIL_2 || '9500591897@gmail.com';
         const smtpUser = process.env.SMTP_USER;
         const smtpPass = process.env.SMTP_PASS;
 
-        if (!smtpUser || !smtpPass) {
-            console.error('❌ Daily Report Error: SMTP credentials missing');
-            return;
-        }
-
-        const todayStr = new Date().toLocaleDateString();
-
-        // 1. Calculate Summary
+        // --- 1. Calculate Summary ---
         const totalSales = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
         const totalExp = expenditures.reduce((sum, e) => sum + (e.amount || 0), 0);
         const netProfit = totalSales - totalExp;
+        const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        // 2. Create Excel
+        // --- 2. Create Excel ---
         const workbook = XLSX.utils.book_new();
 
         const salesData = sales.map(s => ({
@@ -158,63 +155,65 @@ const sendDailyReport = async (sales, expenditures) => {
         const expWS = XLSX.utils.json_to_sheet(expData);
         XLSX.utils.book_append_sheet(workbook, expWS, "Daily Expenditure");
 
-        const fileName = `TJP_Daily_Backup_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const fileName = `TJP_Report_${todayStr.replace(/ /g, '_')}.xlsx`;
         const filePath = path.join(__dirname, '..', 'public', 'reports', fileName);
         if (!fs.existsSync(path.dirname(filePath))) fs.mkdirSync(path.dirname(filePath), { recursive: true });
         XLSX.writeFile(workbook, filePath);
 
-        // 3. Email Body (Table)
-        const emailHTML = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
-                <h2 style="color: #022C22; text-align: center;">🍄 TJP Mushroom Daily Summary</h2>
-                <p style="text-align: center; color: #666;">Date: ${todayStr}</p>
-                
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                    <thead>
-                        <tr style="background-color: #f4f4f4;">
+        // --- 3. WHATSAPP NOTIFICATION (NEW) ---
+        const adminPhones = ['9500591897', '9159659711']; // Masters
+        const waMessage = `📊 *TJP DAILY REPORT* (${todayStr})\n\n💰 *Sales:* ₹${totalSales.toLocaleString()}\n📉 *Expenses:* ₹${totalExp.toLocaleString()}\n-----------------------\n💵 *NET PROFIT: ₹${netProfit.toLocaleString()}*\n-----------------------\n\n✅ Excel Backup Created.`;
+
+        console.log('Sending WhatsApp Report...');
+        for (const phone of adminPhones) {
+            await sendMessage(phone, waMessage); // Send Summary Text
+            await sendFile(phone, filePath, `📄 Daily Report: ${todayStr}`); // Send Excel File
+        }
+
+        // --- 4. EMAIL NOTIFICATION ---
+        if (smtpUser && smtpPass) {
+            const emailHTML = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #022C22; text-align: center;">🍄 TJP Daily Summary</h2>
+                    <p style="text-align: center; color: #666;">Date: ${todayStr}</p>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                         <tr style="background-color: #f4f4f4;">
                             <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Category</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (₹)</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount</th>
                         </tr>
-                    </thead>
-                    <tbody>
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #ddd;">Today's Total Sales</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Total Sales</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: green;">₹${totalSales.toLocaleString()}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 10px; border: 1px solid #ddd;">Today's Total Expenses</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Total Expenses</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: red;">₹${totalExp.toLocaleString()}</td>
                         </tr>
                         <tr style="background-color: #e8f5e9;">
                             <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Net Profit</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: darkgreen;">₹${netProfit.toLocaleString()}</td>
                         </tr>
-                    </tbody>
-                </table>
-                
-                <p style="margin-top: 20px; font-size: 0.9rem; color: #888;">Attached: Excel Master Backup (Today's Data)</p>
-                <hr style="border: 0.5px solid #eee; margin-top: 30px;">
-                <p style="text-align: center; font-style: italic; color: #aaa;">Generated Automatically by TJP System</p>
-            </div>
-        `;
+                    </table>
+                </div>
+            `;
 
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: smtpUser, pass: smtpPass }
-        });
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user: smtpUser, pass: smtpPass }
+            });
 
-        const recipients = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [adminEmail1, adminEmail2];
-
-        const mailOptions = {
-            from: `"TJP Mushroom Farming" <${smtpUser}>`,
-            to: recipients.join(', '),
-            subject: `📊 TJP Daily Report - ${todayStr}`,
-            html: emailHTML,
-            attachments: [{ filename: fileName, path: filePath }]
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Daily 8 PM Report Sent:', info.messageId);
+            const recipients = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [adminEmail1, adminEmail2];
+            await transporter.sendMail({
+                from: `"TJP Analytics" <${smtpUser}>`,
+                to: recipients.join(', '),
+                subject: `📊 TJP Daily Report - ${todayStr}`,
+                html: emailHTML,
+                attachments: [{ filename: fileName, path: filePath }]
+            });
+            console.log('✅ Daily Report Email Sent');
+        } else {
+            console.warn('⚠️ SMTP Missing - Email Skipped');
+        }
 
     } catch (error) {
         console.error('❌ Daily Report Error:', error);

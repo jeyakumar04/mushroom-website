@@ -20,6 +20,34 @@ const Dashboard = () => {
     const [billSentStatus, setBillSentStatus] = useState(null); // null, 'success', 'error'
     const [bookings, setBookings] = useState([]);
     const [orders, setOrders] = useState([]);
+    // --- BLOG STATE & LOGIC (MANUAL PASTE) ---
+    const [blogData, setBlogData] = useState({
+        title: '',
+        content: '',
+        image: '',
+        category: 'Growing Tips'
+    });
+
+    const handleBlogSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('http://localhost:5000/api/blogs/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(blogData)
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert("✅ Mushroom Blog Published Successfully!");
+                setBlogData({ title: '', content: '', image: '', category: 'Growing Tips' });
+            }
+        } catch (err) {
+            alert("❌ Error posting blog. Backend check pannunga.");
+        }
+    };
     const [inventory, setInventory] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [sales, setSales] = useState([]);
@@ -53,6 +81,7 @@ const Dashboard = () => {
     const [editingSalesId, setEditingSalesId] = useState(null);
     const [editingInventoryId, setEditingInventoryId] = useState(null);
     const [editingClimateId, setEditingClimateId] = useState(null);
+    const [editingExpenditureId, setEditingExpenditureId] = useState(null);
     const [editingSeedIdx, setEditingSeedIdx] = useState(null);
     const [editedData, setEditedData] = useState({});
 
@@ -94,9 +123,10 @@ const Dashboard = () => {
 
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-    const [selectedDate, setSelectedDate] = useState(null); // null means show all dates
+    const [selectedDate, setSelectedDate] = useState(new Date().getDate()); // Default to Today
     const [lastWaterCheck, setLastWaterCheck] = useState(null);
     const [reportArchives, setReportArchives] = useState([]);
+    const [editingProduct, setEditingProduct] = useState(null);
     const [notificationLogs, setNotificationLogs] = useState([]);
     const [connectionMode, setConnectionMode] = useState({ isLocal: false, mode: 'CLOUD' });
 
@@ -144,7 +174,7 @@ const Dashboard = () => {
         setIsLoading(true);
         try {
             const headers = { 'Authorization': `Bearer ${token}` };
-            const [bookRes, orderRes, invRes, statRes, custRes, salesRes, expRes, alertRes, finRes, batchRes, climateRes, waterCheckRes, reportsRes, logsRes, kadanRes] = await Promise.all([
+            const [bookRes, orderRes, invRes, statRes, custRes, salesRes, expRes, alertRes, finRes, batchRes, climateRes, waterCheckRes, reportsRes, logsRes, kadanRes, sokRes] = await Promise.all([
                 fetch('http://localhost:5000/api/bookings', { headers }),
                 fetch('http://localhost:5000/api/orders', { headers }),
                 fetch('http://localhost:5000/api/inventory', { headers }),
@@ -159,14 +189,15 @@ const Dashboard = () => {
                 fetch('http://localhost:5000/api/settings/water-check', { headers }),
                 fetch('http://localhost:5000/api/admin/reports-list', { headers }),
                 fetch('http://localhost:5000/api/admin/notification-logs', { headers }),
-                fetch('http://localhost:5000/api/sales/kadan', { headers })
+                fetch('http://localhost:5000/api/sales/kadan', { headers }),
+                fetch('http://localhost:5000/api/settings/soaking', { headers })
             ]);
 
-            const [bData, oData, iData, sData, cData, sld, exd, ald, finD, bthD, clmD, wtrR, rptL, nLog, kdnL] = await Promise.all([
+            const [bData, oData, iData, sData, cData, sld, exd, ald, finD, bthD, clmD, wtrR, rptL, nLog, kdnL, sokD] = await Promise.all([
                 bookRes.json(), orderRes.json(), invRes.json(), statRes.json(),
                 custRes.json(), salesRes.json(), expRes.json(), alertRes.json(),
                 finRes.json(), batchRes.json(), climateRes.json(), waterCheckRes.json(),
-                reportsRes.json(), logsRes.json(), kadanRes.json()
+                reportsRes.json(), logsRes.json(), kadanRes.json(), sokRes.json()
             ]);
 
             setBookings(Array.isArray(bData) ? bData : []);
@@ -184,6 +215,9 @@ const Dashboard = () => {
             setLastWaterCheck(wtrR?.lastCheck || null);
             setWaterLevel(wtrR?.percentage || 70);
             setLowWaterAlert(wtrR?.isLow || false);
+            if (sokD?.startTime) {
+                setSoakingStartTime(new Date(sokD.startTime));
+            }
 
             // Calculate next spray time
             const getNextSprayTime = () => {
@@ -232,7 +266,10 @@ const Dashboard = () => {
         const currentTimeString = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
 
         const routineAlarms = [
-            // Fan alarms removed as per user request
+            { time: "06:00", title: "WATER CHECK", msg: "Time for 1st Water Check" },
+            { time: "12:00", title: "WATER CHECK", msg: "Time for 2nd Water Check" },
+            { time: "18:00", title: "WATER CHECK", msg: "Time for 3rd Water Check" },
+            { time: "21:00", title: "WATER CHECK", msg: "Time for 4th Water Check" }
         ];
 
         const triggered = routineAlarms.filter(a => a.time === currentTimeString);
@@ -284,6 +321,93 @@ const Dashboard = () => {
         }
     };
 
+    const handleReset = async (customerId) => {
+        if (!window.confirm("Pazhaya loyalty data-vai delete panni fresh-ah start pannaatuma?")) return;
+        try {
+            const response = await fetch('http://localhost:5000/api/loyalty/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ customerId })
+            });
+
+            if (response.ok) {
+                alert("Data Reset! Ready for new entries.");
+                fetchData(); // Dashboard refresh aagum
+            } else {
+                alert("Reset failed");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Reset error");
+        }
+    };
+
+    const handleResetLoyalty = async (customerId) => {
+        if (!window.confirm("Confirm: Mark 1 Free Pocket as claimed?")) return;
+        try {
+            // Find the customer to get their contact number
+            const customer = customers.find(c => c._id === customerId);
+            if (!customer) {
+                alert('Customer not found');
+                return;
+            }
+
+            const res = await fetch(`http://localhost:5000/api/loyalty/claim-reward`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ contactNumber: customer.contactNumber })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert(`✅ Reward Claimed! ${data.available} free pocket(s) remaining.`);
+                fetchData();
+            } else {
+                alert(data.error || 'Claim failed');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Claim failed');
+        }
+    };
+
+    const handleClaim = async (contactNumber) => {
+        if (!token) {
+            alert("Session expired. Please re-login.");
+            return;
+        }
+        if (window.confirm("Indha Free Pocket-ai claim pannaatuma? (Idhu 0 aagi vidum)")) {
+            try {
+                // Determine API URL based on current host
+                const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+                const response = await fetch(`${apiUrl}/api/loyalty/claim-reward`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ contactNumber })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert("✅ Reward Claimed Successfully! 🍄");
+                    fetchData(); // Dashboard refresh
+                } else {
+                    alert("❌ " + (data.error || "Claim failed"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Network error: Claim failed");
+            }
+        }
+    };
+
     // SALES HANDLER
     const handleSaleSubmit = async (e) => {
         e.preventDefault();
@@ -298,27 +422,14 @@ const Dashboard = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                // Loyalty Notification (Text via Backend)
-                if (data.loyaltyUpdate?.reachedCycle) {
-                    const message = `🎉 வாழ்த்துக்கள் ${saleForm.customerName}! 20 பாக்கெட்கள் cycle complete ஆகிவிட்டது! உங்கள் அடுத்த order-ல் FREE POCKET பெறலாம்! 🍄`;
-                    // Send directly via backend (no redirect)
-                    fetch('http://localhost:5000/api/send-message', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ contactNumber: saleForm.contactNumber, message })
-                    }).catch(console.error);
-                }
-
-                if (data.loyaltyUpdate?.bulkOffer) {
-                    alert('🔥 BULK OFFER: 2 Free Pockets for 20+ order!');
-                }
-
-                // Milestones (10 and 20)
+                // 🌌 ANTI-GRAVITY LOYALTY NOTIFICATIONS
                 if (data.loyaltyUpdate) {
-                    if (data.loyaltyUpdate.reachedCycle) {
-                        alert(`🎉 CYCLE COMPLETE! ${saleForm.customerName} can get 2 FREE POCKETS or a Bulk Reward!`);
-                    } else if (data.loyaltyUpdate.currentCycle >= 10 && data.loyaltyUpdate.currentCycle - saleForm.quantity < 10) {
-                        alert(`🎁 1 FREE POCKET ALERT! ${saleForm.customerName} has reached 10 pockets!`);
+                    const { freePocketsEarned, currentCycle, reachedCycle } = data.loyaltyUpdate;
+
+                    if (reachedCycle) {
+                        alert(`🎁 *LOYALTY REWARD!* \n${saleForm.customerName} can get ${freePocketsEarned} FREE POCKET(s) now! \nBalance: ${currentCycle}/10`);
+                    } else if (currentCycle >= 8) {
+                        alert(`🔥 ALMOST THERE! \n${saleForm.customerName} has ${currentCycle}/10 pockets. Just ${10 - currentCycle} more for FREE!`);
                     }
                 }
 
@@ -332,6 +443,24 @@ const Dashboard = () => {
         } catch (err) {
             console.error(err);
             alert('Sale recording failed');
+        }
+    };
+
+    const handleSoakingChange = async (val) => {
+        if (!val) return;
+        const [h, m] = val.split(':');
+        const start = new Date();
+        start.setHours(h, m, 0, 0);
+        setSoakingStartTime(start);
+
+        try {
+            await fetch('http://localhost:5000/api/settings/soaking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ startTime: start.toISOString() })
+            });
+        } catch (e) {
+            console.error("Save soaking failed", e);
         }
     };
 
@@ -375,11 +504,17 @@ const Dashboard = () => {
             // Set data for the hidden bill component
             setBillData({
                 sale: { ...sale, pricePerPocket: sale.pricePerUnit },
-                customer: { loyaltyCount: loyaltyUpdate?.currentCycle || 0 }
+                customer: {
+                    loyaltyCount: loyaltyUpdate?.currentCycle || 0,
+                    rewardsEarned: loyaltyUpdate?.freePocketsEarned || 0,
+                    totalLifetime: loyaltyUpdate?.totalLifetime || 0,
+                    reachedCycle: loyaltyUpdate?.reachedCycle || false
+                }
             });
 
             // Wait for render and generate image
             await new Promise(r => setTimeout(r, 600));
+            const { toPng } = await import('html-to-image');
             const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
 
             // Upload to server & Send via WhatsApp Backend
@@ -428,7 +563,7 @@ const Dashboard = () => {
         // Small delay: if the protocol fails to open, fallback to Web WhatsApp
         setTimeout(() => {
             if (document.hasFocus()) {
-               window.open(webUrl, '_blank');
+                window.open(webUrl, '_blank');
             }
         }, 500);
     };
@@ -466,18 +601,6 @@ const Dashboard = () => {
             console.error(err);
             alert('Expenditure recording failed');
         }
-    };
-
-    // Loyalty Reset
-    const handleResetLoyalty = async (customerId) => {
-        if (!window.confirm("Free Pocket Given? Reset counter to 0?")) return;
-        try {
-            const res = await fetch(`http://localhost:5000/api/customers/${customerId}/reset-loyalty`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) fetchData();
-        } catch (err) { alert('Reset failed'); }
     };
 
     // Climate Submit
@@ -586,6 +709,48 @@ const Dashboard = () => {
         } catch (err) {
             console.error(err);
             alert('Inventory update failed');
+        }
+    };
+
+    // 🛠️ INVENTORY EDIT HANDLER
+    const handleUpdateInventory = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`http://localhost:5000/api/inventory/${editingProduct._id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(editingProduct)
+            });
+            if (res.ok) {
+                alert("✅ Product Updated!");
+                setEditingProduct(null);
+                fetchData();
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Update Failed");
+        }
+    };
+
+    const handleResetInventory = async () => {
+        if (!window.confirm("ΓÜá∩╕Å DANGER: Motha inventory data-vaiyum erase panni fresh-ah start pannaatuma? Indha step-ai undo panna mudiyaadhu!")) return;
+        try {
+            const res = await fetch('http://localhost:5000/api/inventory/reset-all', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                alert("Γ£à Inventory Reset Done! Starting fresh.");
+                fetchData();
+            } else {
+                alert("Reset failed");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Reset Error");
         }
     };
 
@@ -753,7 +918,6 @@ const Dashboard = () => {
         if (!month || !year) return;
 
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:5000/api/export/${section}?month=${month}&year=${year}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -856,12 +1020,7 @@ const Dashboard = () => {
                                             <input
                                                 type="time"
                                                 className="w-full bg-white/20 border-2 border-white/30 rounded-2xl px-6 py-5 font-black text-3xl outline-none text-white focus:bg-white/30 transition-all"
-                                                onChange={(e) => {
-                                                    const [h, m] = e.target.value.split(':');
-                                                    const start = new Date();
-                                                    start.setHours(h, m, 0, 0);
-                                                    setSoakingStartTime(start);
-                                                }}
+                                                onChange={(e) => handleSoakingChange(e.target.value)}
                                             />
                                         </div>
                                         {soakingStartTime && (
@@ -882,182 +1041,116 @@ const Dashboard = () => {
 
                             <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex flex-col justify-between">
                                 <div>
-                                    <h3 className="text-xl font-black uppercase text-gray-800 mb-4 flex items-center gap-3">
-                                        <FaHistory className="text-amber-500" /> Routine Alarms
-                                    </h3>
-                                    <ul className="space-y-4">
-                                        <li className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border-l-8 border-blue-500">
-                                            <div>
-                                                <p className="font-black text-sm uppercase text-gray-800">06:00 AM</p>
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase">Water Level Check</p>
-                                            </div>
-                                            <FaWater className="text-blue-500" />
-                                        </li>
-                                        <li className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border-l-8 border-green-500">
-                                            <div>
-                                                <p className="font-black text-sm uppercase text-gray-800">06:30 AM</p>
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase">Bed Change Routine</p>
-                                            </div>
-                                            <FaLayerGroup className="text-green-500" />
-                                        </li>
-                                    </ul>
-                                </div>
-                                <div className="mt-6 flex items-center gap-3 bg-red-50 p-4 rounded-xl border border-red-100">
-                                    <FaBell className="text-red-500 animate-pulse" />
-                                    <p className="text-xs font-black text-red-700 uppercase tracking-tighter">Sticky alarms remain active 24/7</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* SYSTEM LOGS TRACKING */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
-                                <FaHistory className="text-indigo-500" /> System Actions Tracking (Live Calls/Messages)
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {notificationLogs.length > 0 ? notificationLogs.map((log, idx) => (
-                                    <div key={idx} className={`p-4 rounded-2xl border-l-4 ${log.type === 'VoiceCall' ? 'bg-amber-50 border-amber-500' : 'bg-green-50 border-green-500'} flex flex-col justify-between`}>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${log.type === 'VoiceCall' ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}`}>
-                                                {log.type}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-gray-400">
-                                                {new Date(log.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                            </span>
-                                        </div>
-                                        <p className="font-black text-gray-800 text-sm">{log.title}</p>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase truncate">{log.message || log.recipient}</p>
-                                        <div className="mt-2 flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${log.status === 'Sent' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                            <span className="text-[9px] font-black uppercase text-gray-400">{log.status}</span>
-                                        </div>
-                                    </div>
-                                )) : (
-                                    <div className="col-span-full py-12 text-center text-gray-400 italic">No recent system actions found.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Routine Alerts Schedule */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
-                                    <FaClock className="text-amber-500" /> Daily Routine Alerts
-                                </h3>
-                                <button
-                                    onClick={() => {
-                                        setIsAlertFormOpen(!isAlertFormOpen);
-                                        if (!isAlertFormOpen) setAlertForm({ id: null, title: '', message: '', scheduledTime: '06:00', icon: '⏰' });
-                                    }}
-                                    className="bg-gray-900 text-white px-4 py-2 rounded-xl font-black text-xs uppercase hover:bg-black transition-all"
-                                >
-                                    {isAlertFormOpen ? 'Close Form' : '+ New Alert'}
-                                </button>
-                            </div>
-
-                            {/* ALERT FORM */}
-                            {isAlertFormOpen && (
-                                <form onSubmit={handleAlertSubmit} className="mb-8 p-6 bg-amber-50 rounded-2xl border border-amber-100 animate-fadeIn">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-gray-500 block mb-1">Title</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={alertForm.title}
-                                                onChange={e => setAlertForm({ ...alertForm, title: e.target.value })}
-                                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800"
-                                                placeholder="e.g. FAN ON"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase text-gray-500 block mb-1">Time (24h)</label>
-                                            <input
-                                                type="time"
-                                                required
-                                                value={alertForm.scheduledTime}
-                                                onChange={e => setAlertForm({ ...alertForm, scheduledTime: e.target.value })}
-                                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="mb-4">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 block mb-1">Message</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={alertForm.message}
-                                            onChange={e => setAlertForm({ ...alertForm, message: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800"
-                                            placeholder="What to do..."
-                                        />
-                                    </div>
-                                    <div className="mb-4">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 block mb-1">Icon Emoji</label>
-                                        <select
-                                            value={alertForm.icon}
-                                            onChange={e => setAlertForm({ ...alertForm, icon: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800"
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
+                                            <FaClock className="text-amber-500" /> Daily Routine Alarms
+                                        </h3>
+                                        <button
+                                            onClick={() => {
+                                                setAlertForm({ id: null, title: 'WATER CHECK', message: '', scheduledTime: '06:00', icon: '💧' });
+                                                setIsAlertFormOpen(!isAlertFormOpen);
+                                            }}
+                                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all flex items-center gap-2"
                                         >
-                                            <option value="⏰">⏰ Clock</option>
-                                            <option value="🌀">🌀 Fan</option>
-                                            <option value="💧">💧 Water</option>
-                                            <option value="🍄">🍄 Mushroom</option>
-                                            <option value="🔥">🔥 Fire/Heat</option>
-                                            <option value="📢">📢 Announcement</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button type="submit" className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-amber-600 transition-all">
-                                            {alertForm.id ? 'Save Changes' : 'Create Alert'}
+                                            <FaPlusCircle /> {isAlertFormOpen ? 'Close' : 'Add New'}
                                         </button>
-                                        {alertForm.id && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setAlertForm({ id: null, title: '', message: '', scheduledTime: '06:00', icon: '⏰' });
-                                                    setIsAlertFormOpen(false);
-                                                }}
-                                                className="px-6 bg-gray-200 text-gray-600 rounded-xl font-black uppercase text-xs"
-                                            >
-                                                Cancel
-                                            </button>
+                                    </div>
+
+                                    {isAlertFormOpen && (
+                                        <form onSubmit={handleAlertSubmit} className="mb-8 p-6 bg-indigo-50 rounded-2xl border-2 border-indigo-100 animate-fadeIn">
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Alarm Title</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
+                                                        value={alertForm.title}
+                                                        onChange={e => setAlertForm({ ...alertForm, title: e.target.value })}
+                                                        placeholder="e.g. WATER CHECK"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Time</label>
+                                                        <input
+                                                            type="time"
+                                                            className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
+                                                            value={alertForm.scheduledTime}
+                                                            onChange={e => setAlertForm({ ...alertForm, scheduledTime: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Icon</label>
+                                                        <select
+                                                            className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
+                                                            value={alertForm.icon}
+                                                            onChange={e => setAlertForm({ ...alertForm, icon: e.target.value })}
+                                                        >
+                                                            <option value="💧">💧 Water</option>
+                                                            <option value="⏰">⏰ Alert</option>
+                                                            <option value="🍄">🍄 Mushroom</option>
+                                                            <option value="💨">💨 Fan</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase text-indigo-400 block mb-2">Message</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-indigo-500"
+                                                        value={alertForm.message}
+                                                        onChange={e => setAlertForm({ ...alertForm, message: e.target.value })}
+                                                        placeholder="Description..."
+                                                    />
+                                                </div>
+                                                <button type="submit" className="w-full bg-indigo-600 text-white font-black uppercase py-4 rounded-xl shadow-lg hover:bg-indigo-700 transition-all">
+                                                    {alertForm.id ? 'Save Changes' : 'Set Alarm Engine'}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    )}
+
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {alerts.length > 0 ? (
+                                            alerts.map((alert, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border-l-8 border-indigo-600 group hover:bg-white hover:shadow-md transition-all">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shadow-lg">
+                                                            {alert.icon || '💧'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-lg text-gray-800 leading-none">{alert.scheduledTime}</p>
+                                                            <p className="text-[10px] font-bold text-gray-500 uppercase mt-1">{alert.message || alert.title}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                            <span className="text-[10px] font-black text-green-600 uppercase">Live</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleAlertDelete(alert._id)}
+                                                            className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                        >
+                                                            <FaEraser size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-center py-10 font-bold text-gray-400 uppercase text-xs italic">No manual alarms set.</p>
                                         )}
                                     </div>
-                                </form>
-                            )}
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {alerts.map((alert, idx) => (
-                                    <div key={idx} className="flex items-center gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100 group relative">
-                                        <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center text-2xl">
-                                            {alert.icon}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-black text-gray-800">{alert.title}</p>
-                                            <p className="text-sm text-gray-500">{alert.message}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-2xl font-black text-amber-600">{alert.scheduledTime}</span>
-                                        </div>
-
-                                        {/* HOVER ACTIONS */}
-                                        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => openEditAlert(alert)}
-                                                className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-200"
-                                            >
-                                                <FaStore size={12} /> {/* Using Store icon as edit placeholder */}
-                                            </button>
-                                            <button
-                                                onClick={() => handleAlertDelete(alert._id)}
-                                                className="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-200"
-                                            >
-                                                <FaEraser size={12} />
-                                            </button>
-                                        </div>
+                                </div>
+                                <div className="mt-8 flex items-center gap-3 bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                                        <FaBell className="text-white animate-bounce" />
                                     </div>
-                                ))}
+                                    <div>
+                                        <p className="text-xs font-black text-indigo-900 uppercase tracking-tighter">{alerts.length} Automatic Routine Alerts</p>
+                                        <p className="text-[9px] font-bold text-indigo-600 uppercase opacity-80">Strictly Managed by Engine</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1693,12 +1786,22 @@ const Dashboard = () => {
                                             placeholder="Enter amount"
                                         />
                                     </div>
-                                    <button
-                                        type="submit"
-                                        className="w-full bg-gradient-to-r from-red-600 to-rose-700 text-white py-6 rounded-2xl font-black text-xl uppercase tracking-wider hover:shadow-2xl active:scale-95 transition-all shadow-lg"
-                                    >
-                                        Record Expenditure
-                                    </button>
+                                    <div className="flex gap-4">
+                                        <button
+                                            type="submit"
+                                            className="flex-1 bg-gradient-to-r from-red-600 to-rose-700 text-white py-6 rounded-2xl font-black text-xl uppercase tracking-wider hover:shadow-2xl active:scale-95 transition-all shadow-lg"
+                                        >
+                                            Record Expenditure
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpenditureForm({ category: 'Seeds', description: '', quantity: 0, unit: 'kg', amount: 0, addToInventory: false })}
+                                            className="bg-gray-100 text-gray-500 px-6 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                                            title="Clear Form"
+                                        >
+                                            <FaEraser />
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
 
@@ -1723,42 +1826,124 @@ const Dashboard = () => {
                                                 <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Category</th>
                                                 <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Description</th>
                                                 <th className="text-left py-4 text-xs font-black uppercase text-gray-400">Amount</th>
+                                                <th className="text-right py-4 text-xs font-black uppercase text-gray-400">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {expenditures.filter(e => {
                                                 const d = new Date(e.date);
-                                                return (d.getMonth() + 1) === selectedMonth && d.getFullYear() === selectedYear;
+                                                const matchesMonth = (d.getMonth() + 1) === selectedMonth;
+                                                const matchesYear = d.getFullYear() === selectedYear;
+                                                const matchesDate = selectedDate === null || d.getDate() === selectedDate;
+                                                return matchesMonth && matchesYear && matchesDate;
                                             }).map((exp, idx) => (
                                                 <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
                                                     <td className="py-4 text-sm font-bold text-gray-600">
-                                                        {formatDate(exp.date)}
+                                                        {editingExpenditureId === exp._id ? (
+                                                            <input
+                                                                type="date"
+                                                                value={editedData[exp._id]?.date?.split('T')[0] ?? new Date(exp.date).toISOString().split('T')[0]}
+                                                                onChange={(e) => setEditedData(prev => ({
+                                                                    ...prev,
+                                                                    [exp._id]: { ...prev[exp._id], date: e.target.value }
+                                                                }))}
+                                                                className="w-full px-2 py-1 border rounded text-xs"
+                                                            />
+                                                        ) : (
+                                                            formatDate(exp.date)
+                                                        )}
                                                     </td>
                                                     <td className="py-4">
                                                         <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700">
                                                             {exp.category}
                                                         </span>
                                                     </td>
-                                                    <td className="py-4 text-sm text-gray-600 font-bold">{exp.description || '-'}</td>
-                                                    <td className="py-4 text-sm font-black text-red-600">₹{exp.amount}</td>
-                                                    <td className="py-4 text-right flex gap-3 justify-end">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const newAmt = prompt("Edit Amount:", exp.amount);
-                                                                if (newAmt) {
-                                                                    await fetch(`http://localhost:5000/api/edit/expenditure/${exp._id}`, {
-                                                                        method: 'PATCH',
-                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                        body: JSON.stringify({ amount: Number(newAmt) })
-                                                                    });
-                                                                    fetchData();
-                                                                }
-                                                            }}
-                                                            className="text-blue-500 font-black text-[10px] hover:underline"
-                                                        >
-                                                            EDIT
-                                                        </button>
-                                                        <button onClick={() => handleDelete('expenditure', exp._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
+                                                    <td className="py-4 text-sm text-gray-600 font-bold">
+                                                        {editingExpenditureId === exp._id ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editedData[exp._id]?.description ?? exp.description ?? ''}
+                                                                onChange={(e) => setEditedData(prev => ({
+                                                                    ...prev,
+                                                                    [exp._id]: { ...prev[exp._id], description: e.target.value }
+                                                                }))}
+                                                                className="w-full px-2 py-1 border rounded text-xs"
+                                                            />
+                                                        ) : (
+                                                            exp.description || '-'
+                                                        )}
+                                                    </td>
+                                                    <td className="py-4 text-sm font-black text-red-600">
+                                                        {editingExpenditureId === exp._id ? (
+                                                            <input
+                                                                type="number"
+                                                                value={editedData[exp._id]?.amount ?? exp.amount ?? 0}
+                                                                onChange={(e) => setEditedData(prev => ({
+                                                                    ...prev,
+                                                                    [exp._id]: { ...prev[exp._id], amount: Number(e.target.value) }
+                                                                }))}
+                                                                className="w-20 px-2 py-1 border rounded text-xs"
+                                                            />
+                                                        ) : (
+                                                            `₹${exp.amount}`
+                                                        )}
+                                                    </td>
+                                                    <td className="py-4 text-right flex gap-3 justify-end items-center">
+                                                        {editingExpenditureId === exp._id ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        const updateBody = editedData[exp._id];
+                                                                        if (updateBody) {
+                                                                            await fetch(`http://localhost:5000/api/edit/expenditure/${exp._id}`, {
+                                                                                method: 'PATCH',
+                                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                                body: JSON.stringify(updateBody)
+                                                                            });
+                                                                            setEditingExpenditureId(null);
+                                                                            setEditedData(prev => {
+                                                                                const rd = { ...prev };
+                                                                                delete rd[exp._id];
+                                                                                return rd;
+                                                                            });
+                                                                            fetchData();
+                                                                        }
+                                                                    }}
+                                                                    className="text-green-600 font-black text-[10px] uppercase hover:underline"
+                                                                >
+                                                                    SAVE
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingExpenditureId(null);
+                                                                        setEditedData(prev => {
+                                                                            const rd = { ...prev };
+                                                                            delete rd[exp._id];
+                                                                            return rd;
+                                                                        });
+                                                                    }}
+                                                                    className="text-orange-500 font-black text-[10px] uppercase hover:underline"
+                                                                >
+                                                                    RESET
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setEditingExpenditureId(exp._id)}
+                                                                    className="text-blue-500 font-black text-[10px] uppercase hover:underline"
+                                                                >
+                                                                    EDIT
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDelete('expenditure', exp._id)}
+                                                                    className="text-red-400 hover:text-red-700 transition-all"
+                                                                    title="Delete"
+                                                                >
+                                                                    <FaEraser />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -1866,70 +2051,71 @@ const Dashboard = () => {
 
             case 'inventory':
                 return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <h2 className="text-2xl font-black uppercase text-gray-800">Inventory Management</h2>
-                            <div className="flex flex-wrap items-center gap-2">
-                                {/* Date Selectors */}
-                                <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
-                                </select>
-                                <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold text-gray-800">
-                                    {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                                </select>
-                                <button
-                                    onClick={() => exportMonthlyReport('inventory')}
-                                    className="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-green-700 transition-all flex items-center gap-2"
-                                >
-                                    <FaFileExcel /> Inventory
+                    <div className="space-y-8 animate-fadeIn p-6 rounded-[2.5rem] shadow-inner" style={{ backgroundColor: '#CBCCCB' }}>
+                        {/* 1. Header & Quick Actions */}
+                        <div className="flex flex-col md:flex-row justify-between items-center bg-white/40 backdrop-blur-md p-6 rounded-3xl border border-white/50 gap-4">
+                            <div>
+                                <h2 className="text-3xl font-black uppercase text-gray-800 tracking-tighter">Inventory Hub</h2>
+                                <p className="text-xs font-bold text-gray-600 uppercase italic">Master Stock & Daily Consumption</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center gap-2 bg-white/50 p-2 rounded-2xl border border-white">
+                                    <select value={exportMonth} onChange={e => setExportMonth(Number(e.target.value))} className="bg-transparent border-none outline-none text-xs font-black text-gray-800 px-2">
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                    <select value={exportYear} onChange={e => setExportYear(Number(e.target.value))} className="bg-transparent border-none outline-none text-xs font-black text-gray-800 px-2">
+                                        {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                                <button onClick={() => exportMonthlyReport('inventory')} className="bg-green-600 text-white px-5 py-3 rounded-2xl text-[10px] font-black uppercase hover:scale-105 transition-all shadow-lg flex items-center gap-2">
+                                    <FaFileExcel /> Export Inventory
                                 </button>
-                                <button
-                                    onClick={() => exportMonthlyReport('seed')}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-blue-700 transition-all flex items-center gap-2"
-                                >
-                                    <FaSeedling /> Seeds
+                                <button onClick={handleResetInventory} className="bg-red-600 text-white px-5 py-3 rounded-2xl text-[10px] font-black uppercase hover:scale-105 transition-all shadow-lg flex items-center gap-2">
+                                    <FaEraser /> Reset All
                                 </button>
                                 <button
                                     onClick={() => setShowAddItem(!showAddItem)}
-                                    className="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-amber-600 transition-all flex items-center gap-2"
+                                    className="bg-indigo-600 text-white px-5 py-3 rounded-2xl text-[10px] font-black uppercase hover:scale-105 transition-all shadow-lg flex items-center gap-2"
                                 >
-                                    <FaPlusCircle /> Add New Item
+                                    <FaPlusCircle /> {showAddItem ? 'Hide' : 'Add New'}
                                 </button>
                             </div>
                         </div>
 
+                        {/* 2. Add New Item Form */}
                         {showAddItem && (
-                            <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-6 mb-8 animate-fadeIn">
-                                <h3 className="text-lg font-black uppercase text-amber-800 mb-4">Create New Inventory Item</h3>
-                                <form onSubmit={handleCreateInventoryItem} className="flex flex-wrap gap-4 items-end">
-                                    <div className="flex-1 min-w-[200px]">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Item Name</label>
+                            <div className="bg-white/80 backdrop-blur-sm border-2 border-white rounded-3xl p-8 shadow-2xl animate-slideDown">
+                                <h3 className="text-lg font-black uppercase text-indigo-900 mb-6 flex items-center gap-2">
+                                    <FaPlusCircle className="text-indigo-600" /> Create New Inventory Category
+                                </h3>
+                                <form onSubmit={handleCreateInventoryItem} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-2 block">Item Name</label>
                                         <input
                                             type="text"
                                             required
                                             value={inventoryForm.itemName}
                                             onChange={e => setInventoryForm({ ...inventoryForm, itemName: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
-                                            placeholder="e.g. Total Active Bags"
+                                            className="w-full bg-white border-2 border-gray-100 rounded-2xl px-5 py-4 font-bold text-gray-800 focus:border-indigo-500 outline-none transition-all"
+                                            placeholder="e.g. Plastic Sleeves"
                                         />
                                     </div>
-                                    <div className="w-[120px]">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Initial Stock</label>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-2 block">Starting Stock</label>
                                         <input
                                             type="number"
                                             required
                                             value={inventoryForm.startingStock}
                                             onChange={e => setInventoryForm({ ...inventoryForm, startingStock: Number(e.target.value) })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
-                                            placeholder="0"
+                                            className="w-full bg-white border-2 border-gray-100 rounded-2xl px-5 py-4 font-bold text-gray-800 focus:border-indigo-500 outline-none transition-all"
                                         />
                                     </div>
-                                    <div className="w-[120px]">
-                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Unit</label>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-gray-500 mb-2 block">Unit</label>
                                         <select
                                             value={inventoryForm.unit}
                                             onChange={e => setInventoryForm({ ...inventoryForm, unit: e.target.value })}
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800"
+                                            className="w-full bg-white border-2 border-gray-100 rounded-2xl px-5 py-4 font-bold text-gray-800 focus:border-indigo-500 outline-none transition-all"
                                         >
                                             <option value="bags">Bags</option>
                                             <option value="pockets">Pockets</option>
@@ -1938,167 +2124,187 @@ const Dashboard = () => {
                                             <option value="nos">Nos</option>
                                         </select>
                                     </div>
-                                    <button
-                                        type="submit"
-                                        className="bg-amber-600 text-white px-8 py-3 rounded-xl font-black uppercase hover:bg-amber-700 transition-all shadow-lg"
-                                    >
-                                        Create
-                                    </button>
+                                    <div className="md:col-span-4 flex justify-end">
+                                        <button type="submit" className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-xl active:scale-95 transition-all">
+                                            Initialize Category
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {inventory.map(item => (
-                                <div key={item._id} className="bg-white rounded-3xl p-8 shadow-xl">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-                                            <FaWarehouse className="text-2xl text-white" />
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs font-bold uppercase text-gray-400">Starting Stock</p>
-                                            <p className="text-lg font-black text-gray-500">{item.startingStock} {item.unit}</p>
-                                        </div>
-                                    </div>
-                                    <h3 className="text-xl font-black uppercase text-gray-800 mb-4">{item.itemName}</h3>
-                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6">
-                                        <p className="text-xs font-bold uppercase text-blue-600 mb-1">Current Stock</p>
-                                        <p className="text-5xl font-black text-blue-700">{item.currentStock}</p>
-                                        <p className="text-sm font-bold text-blue-500">{item.unit}</p>
-                                    </div>
-                                    <div className="flex gap-4 mt-4">
-                                        <button
-                                            onClick={() => {
-                                                const qty = prompt(`How much ${item.unit} to USE?`, '1');
-                                                if (qty && !isNaN(qty)) handleInventoryUpdate(item._id, 'use', Number(qty));
-                                            }}
-                                            className="flex-1 bg-red-100 text-red-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-red-200 transition-all shadow-sm active:scale-95"
-                                        >
-                                            <FaMinus /> Use
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                const qty = prompt(`How much ${item.unit} to ADD?`, '1');
-                                                if (qty && !isNaN(qty)) handleInventoryUpdate(item._id, 'add', Number(qty));
-                                            }}
-                                            className="flex-1 bg-green-100 text-green-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-green-200 transition-all shadow-sm active:scale-95"
-                                        >
-                                            <FaPlus /> Add
-                                        </button>
-                                    </div>
-                                    {/* Usage History */}
-                                    {item.usageHistory && item.usageHistory.length > 0 && (
-                                        <div className="mt-6 pt-6 border-t border-gray-100">
-                                            <p className="text-xs font-bold uppercase text-gray-400 mb-3">Recent Activity</p>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto">
-                                                {item.usageHistory.slice(-5).reverse().map((h, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between text-xs">
-                                                        <span className={`font-bold ${h.type === 'use' ? 'text-red-500' : 'text-green-500'}`}>
-                                                            {h.type === 'use' ? '-' : '+'}{h.quantity} {item.unit}
-                                                        </span>
-                                                        <span className="text-gray-400">{new Date(h.date).toLocaleDateString()}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+
+                        {/* 3. Master List Table */}
+                        <div className="bg-white/90 backdrop-blur-sm rounded-[2rem] p-8 shadow-2xl overflow-hidden border border-white">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                    <FaWarehouse className="text-amber-600" />
                                 </div>
-                            ))}
+                                {/* --- MANUAL BLOG FORM --- */}
+                                <div className="glass-box" style={{ padding: '20px', marginTop: '20px', background: 'rgba(255, 255, 255, 0.1)' }}>
+                                    <h3 style={{ color: '#fff' }}>🍄 Post New Mushroom Blog</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Blog Title"
+                                            value={blogData.title}
+                                            onChange={(e) => setBlogData({ ...blogData, title: e.target.value })}
+                                            style={{ padding: '10px', borderRadius: '5px', border: 'none' }}
+                                        />
+                                        <textarea
+                                            placeholder="Mushroom Growing Secrets..."
+                                            value={blogData.content}
+                                            onChange={(e) => setBlogData({ ...blogData, content: e.target.value })}
+                                            style={{ padding: '10px', borderRadius: '5px', border: 'none', height: '80px' }}
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Anti-Gravity Image Link"
+                                            value={blogData.image}
+                                            onChange={(e) => setBlogData({ ...blogData, image: e.target.value })}
+                                            style={{ padding: '10px', borderRadius: '5px', border: 'none' }}
+                                        />
+                                        <button onClick={handleBlogSubmit} style={{ background: '#FFD700', padding: '10px', fontWeight: 'bold', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                                            PUBLISH BLOG
+                                        </button>
+                                    </div>
+                                </div>
+                                <h3 className="text-xl font-black uppercase text-gray-800">Inventory Master List</h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b-2 border-gray-100">
+                                            <th className="py-4 text-left text-[10px] font-black uppercase text-gray-400">Edit</th>
+                                            <th className="py-4 text-left text-[10px] font-black uppercase text-gray-400">Item Name</th>
+                                            <th className="py-4 text-center text-[10px] font-black uppercase text-gray-400">Stock Status</th>
+                                            <th className="py-4 text-center text-[10px] font-black uppercase text-gray-400">Initial</th>
+                                            <th className="py-4 text-left text-[10px] font-black uppercase text-gray-400">Unit</th>
+                                            <th className="py-4 text-right text-[10px] font-black uppercase text-gray-400">Quick Tools</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {inventory.map((item) => (
+                                            <tr key={item._id} className="border-b border-gray-50 hover:bg-gray-50 transition-all font-bold">
+                                                <td className="py-5">
+                                                    <button onClick={() => setEditingProduct(item)} className="text-blue-500 hover:scale-125 transition-all"><FaBox /></button>
+                                                </td>
+                                                <td className="py-5 text-gray-800 uppercase text-sm tracking-tight">{item.itemName}</td>
+                                                <td className="py-5 text-center">
+                                                    <span className={`text-xl font-black ${item.currentStock < (item.startingStock * 0.2) ? 'text-red-500 animate-pulse' : 'text-indigo-600'}`}>
+                                                        {item.currentStock}
+                                                    </span>
+                                                </td>
+                                                <td className="py-5 text-center text-xs text-gray-400">{item.startingStock}</td>
+                                                <td className="py-5 text-[10px] font-black text-gray-500 uppercase">{item.unit}</td>
+                                                <td className="py-5">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => {
+                                                            const q = prompt("Use Amount:", "1");
+                                                            if (q) handleInventoryUpdate(item._id, 'use', Number(q));
+                                                        }} className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase hover:bg-red-100 border border-red-100">- Use</button>
+                                                        <button onClick={() => {
+                                                            const q = prompt("Add Amount:", "1");
+                                                            if (q) handleInventoryUpdate(item._id, 'add', Number(q));
+                                                        }} className="bg-green-50 text-green-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase hover:bg-green-100 border border-green-100">+ Add</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
-                        {/* DAILY SEED INTAKE TABLE */}
-                        <div className="bg-white rounded-3xl p-8 shadow-xl mt-8">
-                            <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3 font-['Kavivanar']">
-                                <FaSeedling className="text-green-600" /> Daily Seed Intake Detail
+                        {/* 4. Daily Intake History (Seeds Primary) */}
+                        <div className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-10 shadow-2xl border-4 border-white">
+                            <h3 className="text-2xl font-black uppercase text-gray-800 mb-8 flex items-center gap-4">
+                                <div className="p-3 bg-green-100 rounded-2xl"><FaSeedling className="text-green-600" /></div>
+                                Daily Seed Intake Detail
                             </h3>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
-                                        <tr className="border-b text-xs text-gray-400 uppercase font-black">
+                                        <tr className="border-b-2 text-[10px] text-gray-400 uppercase font-black tracking-widest italic">
                                             <th className="py-4 text-left">Date</th>
-                                            <th className="py-4 text-left">Update Type</th>
-                                            <th className="py-4 text-left">Quantity (kg)</th>
+                                            <th className="py-4 text-left">Type</th>
+                                            <th className="py-4 text-left">Quantity</th>
                                             <th className="py-4 text-left">Notes</th>
-                                            <th className="py-4 text-left">Action</th>
+                                            <th className="py-4 text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {inventory.find(i => i.itemName === 'Seeds')?.usageHistory?.slice(-15).reverse().map((h, idx) => (
-                                            <tr key={idx} className="border-b border-gray-50">
-                                                <td className="py-4 font-bold text-sm text-gray-600">{formatDate(h.date)}</td>
-                                                <td className="py-2">
-                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${h.type === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                        {h.type === 'add' ? 'Stock Added' : 'Stock Used'}
+                                        {inventory.find(i => i.itemName === 'Seeds')?.usageHistory?.slice(-20).reverse().map((h, idx) => (
+                                            <tr key={h._id || idx} className="border-b border-gray-100 hover:bg-gray-50 transition-all">
+                                                <td className="py-5">
+                                                    {editingSeedIdx === idx ? (
+                                                        <input
+                                                            type="date"
+                                                            value={editedData[`seed-${idx}`]?.date || new Date(h.date).toISOString().split('T')[0]}
+                                                            onChange={(e) => setEditedData(prev => ({ ...prev, [`seed-${idx}`]: { ...prev[`seed-${idx}`], date: e.target.value } }))}
+                                                            className="bg-gray-50 border rounded-xl px-3 py-2 text-xs font-bold"
+                                                        />
+                                                    ) : (
+                                                        <span className="font-bold text-sm text-gray-600">{formatDate(h.date)}</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-5">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${h.type === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {h.type === 'add' ? 'Added' : 'Used'}
                                                     </span>
                                                 </td>
-                                                <td className={`py-4 font-black ${h.type === 'add' ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {h.type === 'add' ? '+' : '-'}{h.quantity} kg
+                                                <td className="py-5">
+                                                    {editingSeedIdx === idx ? (
+                                                        <input
+                                                            type="number"
+                                                            value={editedData[`seed-${idx}`]?.quantity ?? h.quantity}
+                                                            onChange={(e) => setEditedData(prev => ({ ...prev, [`seed-${idx}`]: { ...prev[`seed-${idx}`], quantity: Number(e.target.value) } }))}
+                                                            className="w-20 bg-gray-50 border rounded-xl px-3 py-2 text-xs font-bold"
+                                                        />
+                                                    ) : (
+                                                        <span className={`font-black text-sm ${h.type === 'add' ? 'text-green-600' : 'text-red-500'}`}>
+                                                            {h.type === 'add' ? '+' : '-'}{h.quantity} kg
+                                                        </span>
+                                                    )}
                                                 </td>
-                                                <td className="py-4 text-gray-400 text-xs italic">
+                                                <td className="py-5">
                                                     {editingSeedIdx === idx ? (
                                                         <input
                                                             type="text"
                                                             value={editedData[`seed-${idx}`]?.notes || h.notes || ''}
-                                                            onChange={(e) => setEditedData(prev => ({
-                                                                ...prev,
-                                                                [`seed-${idx}`]: { ...prev[`seed-${idx}`], notes: e.target.value }
-                                                            }))}
-                                                            className={`w-full px-2 py-1 text-xs border-2 rounded ${editingSeedIdx === idx ? 'border-blue-500' : 'border-gray-300'}`}
-                                                            readOnly={editingSeedIdx !== idx}
+                                                            onChange={(e) => setEditedData(prev => ({ ...prev, [`seed-${idx}`]: { ...prev[`seed-${idx}`], notes: e.target.value } }))}
+                                                            className="w-full bg-gray-50 border rounded-xl px-3 py-2 text-xs font-bold"
                                                         />
                                                     ) : (
-                                                        h.notes || '-'
+                                                        <span className="text-gray-400 text-xs italic">{h.notes || '-'}</span>
                                                     )}
                                                 </td>
-                                                <td className="py-4 flex gap-2">
+                                                <td className="py-5 text-right">
                                                     {editingSeedIdx === idx ? (
-                                                        <>
+                                                        <div className="flex justify-end gap-2">
                                                             <button
                                                                 onClick={async () => {
                                                                     const item = inventory.find(i => i.itemName === 'Seeds');
-                                                                    const updatedNote = editedData[`seed-${idx}`]?.notes;
-                                                                    if (item && updatedNote !== undefined) {
-                                                                        await fetch(`http://localhost:5000/api/inventory/${item._id}/usage/${h._id}`, {
-                                                                            method: 'PATCH',
+                                                                    const up = editedData[`seed-${idx}`];
+                                                                    if (item && up) {
+                                                                        await fetch(`http://localhost:5000/api/inventory/usage/${h._id}`, {
+                                                                            method: 'PUT',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({
-                                                                                quantity: h.quantity,
-                                                                                notes: updatedNote
+                                                                                quantity: up.quantity ?? h.quantity,
+                                                                                notes: up.notes ?? h.notes,
+                                                                                date: up.date ?? h.date
                                                                             })
                                                                         });
                                                                         setEditingSeedIdx(null);
-                                                                        setEditedData(prev => {
-                                                                            const newData = { ...prev };
-                                                                            delete newData[`seed-${idx}`];
-                                                                            return newData;
-                                                                        });
                                                                         fetchData();
                                                                     }
                                                                 }}
                                                                 className="text-green-600 font-black text-[10px] uppercase hover:underline"
-                                                            >
-                                                                Save
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    setEditingSeedIdx(null);
-                                                                    setEditedData(prev => {
-                                                                        const newData = { ...prev };
-                                                                        delete newData[`seed-${idx}`];
-                                                                        return newData;
-                                                                    });
-                                                                }}
-                                                                className="text-orange-500 font-black text-[10px] uppercase hover:underline"
-                                                            >
-                                                                Reset
-                                                            </button>
-                                                        </>
+                                                            >Save</button>
+                                                            <button onClick={() => setEditingSeedIdx(null)} className="text-orange-500 font-black text-[10px] uppercase hover:underline">Reset</button>
+                                                        </div>
                                                     ) : (
-                                                        <button
-                                                            onClick={() => setEditingSeedIdx(idx)}
-                                                            className="text-blue-500 font-black text-[10px] uppercase hover:underline"
-                                                        >
-                                                            Edit
-                                                        </button>
+                                                        <button onClick={() => setEditingSeedIdx(idx)} className="text-blue-500 font-black text-[10px] uppercase hover:underline">Edit</button>
                                                     )}
                                                 </td>
                                             </tr>
@@ -2107,13 +2313,72 @@ const Dashboard = () => {
                                 </table>
                             </div>
                         </div>
+
+                        {/* Inventory Edit Modal Overlay */}
+                        {editingProduct && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fadeIn">
+                                <div className="bg-white rounded-[2.5rem] w-full max-w-lg p-10 shadow-3xl text-gray-800 border-4 border-white">
+                                    <h3 className="text-2xl font-black uppercase text-gray-800 mb-8 border-b-4 border-blue-500 pb-4 inline-block">Edit Product Profile</h3>
+                                    <form onSubmit={handleUpdateInventory} className="space-y-6">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase text-gray-400 mb-2 block">Display Name</label>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 font-bold text-gray-800 focus:border-blue-500 outline-none transition-all"
+                                                value={editingProduct.itemName}
+                                                onChange={e => setEditingProduct({ ...editingProduct, itemName: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-gray-400 mb-2 block">Starting Stock</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 font-bold text-gray-800"
+                                                    value={editingProduct.startingStock}
+                                                    onChange={e => setEditingProduct({ ...editingProduct, startingStock: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase text-gray-400 mb-2 block">Current Stock</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 font-bold text-gray-800"
+                                                    value={editingProduct.currentStock}
+                                                    onChange={e => setEditingProduct({ ...editingProduct, currentStock: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-8">
+                                            <button type="button" onClick={() => setEditingProduct(null)} className="bg-gray-100 text-gray-500 py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all">Cancel</button>
+                                            <button type="submit" className="bg-blue-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all">Update Info</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
 
             case 'loyalty':
                 return (
-                    <div className="space-y-8 animate-fadeIn">
-                        <div className="bg-white rounded-3xl p-8 shadow-xl">
+                    <div className="space-y-8 animate-fadeIn p-8 rounded-[2.5rem]" style={{ backgroundColor: '#CBCCCB', minHeight: '100vh' }}>
+
+                        {/* 📊 Summary Cards Section - Requested Style */}
+                        <div className="flex flex-wrap gap-6 mb-8">
+                            {/* Total Customer Count Card */}
+                            <div className="bg-[#333] text-white p-8 rounded-3xl min-w-[280px] shadow-2xl transition-transform hover:scale-105 border-b-8 border-indigo-500">
+                                <h3 className="text-gray-400 text-xs font-black uppercase tracking-widest mb-2">Total Unique Customers</h3>
+                                <p className="text-5xl font-black flex items-center gap-3">
+                                    {customers.length} <span className="text-3xl opacity-80">👤</span>
+                                </p>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase mt-4 tracking-tighter">Verified Database Entries</p>
+                            </div>
+
+                            {/* Optional: Add more cards like Total Sales here */}
+                        </div>
+
+                        <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] p-8 shadow-xl border border-white">
                             <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
                                 <h3 className="text-xl font-black uppercase text-gray-800 flex items-center gap-3">
                                     <FaGift className="text-amber-500" /> Smart Loyalty Hub
@@ -2137,14 +2402,81 @@ const Dashboard = () => {
                             <p className="text-sm text-gray-500 mb-8">
                                 Track regular customers. 10 Pockets = 1 Free Pocket! Points auto-update with each sale.
                             </p>
+
+                            {/* 🎖️ LOYALTY MASTER TABLE */}
+                            <div className="bg-white rounded-3xl p-8 shadow-sm border-2 border-gray-100 mt-8 mb-12">
+                                <h3 className="text-xl font-black uppercase text-gray-800 mb-6 flex items-center gap-3">
+                                    <FaHistory className="text-indigo-500" /> Customer Loyalty Master List
+                                </h3>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b-2 border-gray-100 italic">
+                                                <th className="py-4 text-left text-[10px] font-black uppercase text-gray-400">Customer</th>
+                                                <th className="py-4 text-center text-[10px] font-black uppercase text-gray-400">Current Pockets</th>
+                                                <th className="py-4 text-center text-[10px] font-black uppercase text-gray-400">Total Lifetime</th>
+                                                <th className="py-4 text-center text-[10px] font-black uppercase text-gray-400">Free Rewards</th>
+                                                <th className="py-4 text-right text-[10px] font-black uppercase text-gray-400">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {customers.map((c) => (
+                                                <tr key={c._id} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
+                                                    <td className="py-4">
+                                                        <p className="font-black text-gray-800 uppercase text-sm">{c.name}</p>
+                                                        <p className="text-[10px] text-gray-400">{c.contactNumber}</p>
+                                                    </td>
+                                                    <td className="py-4 text-center font-black text-indigo-600 text-lg">
+                                                        {c.cycleCount}/10
+                                                    </td>
+                                                    <td className="py-4 text-center font-bold text-gray-400 text-sm">
+                                                        {c.totalLifetime || 0}
+                                                    </td>
+                                                    <td className="py-4 text-center">
+                                                        {(c.freePocketsClaimed - (c.rewardsRedeemed || 0)) > 0 ? (
+                                                            <button
+                                                                onClick={() => handleClaim(c.contactNumber)}
+                                                                style={{
+                                                                    backgroundColor: '#007bff',
+                                                                    color: 'white',
+                                                                    padding: '8px 15px',
+                                                                    borderRadius: '5px',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: 'bold',
+                                                                    fontSize: '11px'
+                                                                }}
+                                                            >
+                                                                🎁 {(c.freePocketsClaimed - (c.rewardsRedeemed || 0))} FREE POCKET READY! (Click to Claim)
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[10px] font-black uppercase text-gray-300 tracking-widest">No Rewards</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleReset(c._id)}
+                                                            className="text-red-300 hover:text-red-500 transition-all p-2"
+                                                            title="Hard Reset Loyalty"
+                                                        >
+                                                            <FaEraser size={14} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {customers.map(customer => (
                                     <div
                                         key={customer._id}
-                                        className={`rounded-3xl p-6 border-2 transition-all ${customer.loyaltyCount >= 10 ? 'bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-400 shadow-lg' : 'bg-gray-50 border-gray-200'}`}
+                                        className={`rounded-3xl p-6 border-2 transition-all ${customer.cycleCount >= 10 ? 'bg-gradient-to-br from-indigo-50 to-blue-100 border-blue-400 shadow-lg' : 'bg-gray-50 border-gray-200'}`}
                                     >
                                         <div className="flex items-center gap-4 mb-5">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${customer.loyaltyCount >= 10 ? 'bg-amber-500' : 'bg-gray-300'}`}>
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${customer.cycleCount >= 10 ? 'bg-indigo-600' : 'bg-gray-300'}`}>
                                                 <FaUser className="text-xl text-white" />
                                             </div>
                                             <div className="flex-1">
@@ -2157,56 +2489,61 @@ const Dashboard = () => {
                                         </div>
                                         <div className="flex items-center justify-between mb-4">
                                             <div>
-                                                <p className="text-xs font-bold uppercase text-gray-400">Cycle (0-20)</p>
-                                                <p className="text-4xl font-black text-gray-800">{customer.loyaltyCycleCount}</p>
+                                                <p className="text-xs font-bold uppercase text-gray-400">Current Cycle</p>
+                                                <p className="text-4xl font-black text-gray-800">{(Number(customer.cycleCount) || 0)}<span className="text-xs text-gray-400">/10</span></p>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-xs font-bold uppercase text-gray-400">Total Lifetime</p>
-                                                <p className="text-2xl font-black text-gray-600">{customer.lifetimePockets}</p>
-                                            </div>
+                                            {(customer.freePocketsClaimed - (customer.rewardsRedeemed || 0)) > 0 && (
+                                                <div className="bg-amber-400 text-amber-900 px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1 shadow-sm">
+                                                    <FaGift size={12} /> {(customer.freePocketsClaimed - (customer.rewardsRedeemed || 0))} Available
+                                                </div>
+                                            )}
                                         </div>
                                         {/* Progress Bar */}
                                         <div className="bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
                                             <div
-                                                className="bg-gradient-to-r from-amber-400 to-yellow-500 h-full rounded-full transition-all"
-                                                style={{ width: `${(customer.loyaltyCycleCount / 20) * 100}%` }}
+                                                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all"
+                                                style={{ width: `${((Number(customer.cycleCount) || 0) / 10) * 100}%` }}
                                             ></div>
                                         </div>
-                                        {customer.loyaltyCycleCount >= 20 ? (
+
+                                        {(customer.freePocketsClaimed - (customer.rewardsRedeemed || 0)) > 0 ? (
                                             <div className="flex flex-col gap-3">
-                                                <div className="bg-amber-500 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
-                                                    🎁 2 FREE POCKETS EARNED!
+                                                <div className="bg-blue-600 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
+                                                    🎁 {customer.freePocketsClaimed - (customer.rewardsRedeemed || 0)} FREE POCKET(S) READY!
                                                 </div>
                                                 <button
                                                     onClick={() => handleResetLoyalty(customer._id)}
                                                     className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-black transition-all"
                                                 >
-                                                    Free Pocket Given (Reset)
+                                                    Mark 1 Reward as Claimed
                                                 </button>
-                                            </div>
-                                        ) : customer.loyaltyCycleCount >= 10 ? (
-                                            <div className="flex flex-col gap-3">
-                                                <div className="bg-green-500 text-white py-3 px-4 rounded-xl text-center font-black uppercase text-sm animate-pulse">
-                                                    🎁 1 FREE POCKET EARNED!
-                                                </div>
                                                 <button
-                                                    onClick={() => handleResetLoyalty(customer._id)}
-                                                    className="w-full bg-gray-900 text-white py-3 rounded-xl font-black uppercase text-xs hover:bg-black transition-all"
+                                                    onClick={() => handleReset(customer._id)}
+                                                    className="w-full bg-red-50 text-red-600 py-3 rounded-xl font-black uppercase text-xs hover:bg-red-100 transition-all mt-2 border border-red-100"
                                                 >
-                                                    Free Pocket Given (Reset)
+                                                    🗑️ Wipe Local History
                                                 </button>
                                             </div>
                                         ) : (
                                             <div>
                                                 <p className="text-center text-sm text-gray-500 mb-3">
-                                                    <span className="font-bold text-amber-600">{10 - (customer.loyaltyCycleCount % 10)}</span> more for 1 FREE Pocket!
+                                                    <span className="font-bold text-indigo-600">{10 - ((Number(customer.cycleCount) || 0) % 10)}</span> more for FREE!
                                                 </p>
-                                                <button
-                                                    onClick={() => handleResetLoyalty(customer._id)}
-                                                    className="w-full bg-white border border-gray-200 text-gray-400 py-3 rounded-xl font-black uppercase text-xs hover:text-gray-600 transition-all"
-                                                >
-                                                    Manual Reset
-                                                </button>
+                                                <div className="flex flex-col gap-2">
+                                                    <button
+                                                        onClick={() => handleResetLoyalty(customer._id)}
+                                                        className="w-full bg-white border border-gray-200 text-gray-400 py-3 rounded-xl font-black uppercase text-xs hover:text-gray-600 transition-all opacity-50"
+                                                        disabled
+                                                    >
+                                                        No Rewards Ready
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReset(customer._id)}
+                                                        className="w-full bg-transparent text-gray-400 py-2 rounded-xl font-bold uppercase text-[10px] hover:text-red-500 transition-all"
+                                                    >
+                                                        Hard Reset
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                     </div>

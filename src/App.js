@@ -9,6 +9,7 @@ import Training from './pages/Training';
 import Products from './pages/Products';
 import Booking from './pages/Booking';
 import Admin from './pages/Admin';
+import AdminBlog from './pages/AdminBlog';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import ProtectedRoute from './Component/ProtectedRoute';
@@ -42,6 +43,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-blog"
+          element={
+            <ProtectedRoute>
+              <AdminBlog />
             </ProtectedRoute>
           }
         />

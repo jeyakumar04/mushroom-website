@@ -7,6 +7,9 @@ import udyamCert from '../assets/udyam-cert.png';
 import tnauCert from '../assets/tnau-cert.jpg';
 import aboutHero from '../assets/mushroom2.png';
 import mushroom2 from '../assets/mushroom2.png';
+import agri1 from '../assets/agri_1.jpg'; // Placeholder - User needs to add this file
+import agri2 from '../assets/agri_2.jpg'; // Placeholder - User needs to add this file
+import agri3 from '../assets/agri_3.jpg'; // Placeholder - User needs to add this file
 
 const About = () => {
 
@@ -241,6 +244,43 @@ const About = () => {
                             </div>
                         </div>
 
+                    </div>
+
+                    {/* MEDIA RECOGNITION - AGRI DOCTOR */}
+                    <div className="mt-24">
+                        <div className="text-center mb-12">
+                            <span className="text-tjp-gold text-sm tracking-[0.3em] uppercase font-bold bg-white/5 py-2 px-6 rounded-full border border-tjp-gold/20">Media Spotlight</span>
+                            <h3 className="text-3xl md:text-4xl font-bold text-white mt-6 mb-4">Featured in <span className="text-green-400">Agri-Doctor</span></h3>
+                            <p className="text-[#CBCCCB] max-w-2xl mx-auto">
+                                Recognized for our innovative approach and success story in the August 2025 edition of Agri-Doctor magazine.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Article Page 1 */}
+                            <div className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-tjp-gold/50 transition-all duration-500 shadow-2xl">
+                                <img src={agri1} alt="Agri-Doctor Feature Page 1" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                                    <p className="text-white font-bold text-sm uppercase tracking-wider">Our Journey</p>
+                                </div>
+                            </div>
+
+                            {/* Article Page 2 */}
+                            <div className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-tjp-gold/50 transition-all duration-500 shadow-2xl">
+                                <img src={agri2} alt="Agri-Doctor Feature Page 2" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                                    <p className="text-white font-bold text-sm uppercase tracking-wider">Cultivation Process</p>
+                                </div>
+                            </div>
+
+                            {/* Article Page 3 */}
+                            <div className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-tjp-gold/50 transition-all duration-500 shadow-2xl">
+                                <img src={agri3} alt="Agri-Doctor Feature Page 3" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-6">
+                                    <p className="text-white font-bold text-sm uppercase tracking-wider">Future Goals</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

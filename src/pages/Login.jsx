@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaLock, FaUser, FaShieldAlt, FaArrowRight } from 'react-icons/fa';
 import Footer from '../Component/Footer';
@@ -116,6 +116,33 @@ const Login = () => {
         }
     };
 
+    // --- WHATSAPP STATUS CHECK & QR CODE ---
+    const [qrCode, setQrCode] = useState(null);
+    const [waStatus, setWaStatus] = useState('checking');
+
+    useEffect(() => {
+        let interval;
+        const checkStatus = async () => {
+            try {
+                const res = await fetch('/api/admin/whatsapp-status');
+                const data = await res.json();
+                setWaStatus(data.status);
+                if (data.status === 'scan_needed' && data.qrCode) {
+                    setQrCode(data.qrCode);
+                } else if (data.status === 'connected') {
+                    setQrCode(null);
+                }
+            } catch (e) {
+                setWaStatus('error');
+            }
+        };
+
+        checkStatus(); // Initial check
+        interval = setInterval(checkStatus, 5000); // Poll every 5s
+
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="bg-[#CBCCCB] min-h-screen font-sans text-gray-900 flex flex-col pt-20">
             <main className="flex-grow flex items-center justify-center px-4 py-20 relative overflow-hidden">
@@ -123,8 +150,10 @@ const Login = () => {
 
                 <div className="max-w-md w-full relative z-10">
                     <div className="text-center mb-10">
-                        <div className="w-20 h-20 bg-white/50 border border-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                            <FaShieldAlt className="text-3xl text-gray-800 animate-pulse-slow" />
+                        <div className="w-20 h-20 bg-white/50 border border-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl relative">
+                            <FaShieldAlt className={`text-3xl text-gray-800 ${waStatus === 'connected' ? '' : 'animate-pulse'}`} />
+                            {/* Status Indicator Dot */}
+                            <div className={`absolute top-0 right-0 w-4 h-4 rounded-full border-2 border-white ${waStatus === 'connected' ? 'bg-green-500' : waStatus === 'scan_needed' ? 'bg-red-500 animate-ping' : 'bg-yellow-500'}`} title={`WhatsApp Status: ${waStatus}`}></div>
                         </div>
                         <h1 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase mb-2">
                             Admin <span className="text-green-800">Portal</span>
@@ -133,6 +162,27 @@ const Login = () => {
                             {step === 1 ? 'Secure Gateway Access' : step === 2 ? 'Phone Verification' : 'Identity Verification Required'}
                         </p>
                     </div>
+
+                    {/* WHATSAPP STATUS FEEDBACK */}
+                    {waStatus !== 'connected' && waStatus !== 'scan_needed' && (
+                        <div className="mb-6 bg-yellow-50 border border-yellow-200 p-4 rounded-xl flex items-center justify-center gap-3 animate-pulse">
+                            <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-yellow-700 font-bold text-xs uppercase tracking-wider">
+                                {waStatus === 'initializing' ? 'Initializing WhatsApp...' : 'Reconnecting to Server...'}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* QR CODE MODAL / OVERLAY */}
+                    {qrCode && waStatus === 'scan_needed' && (
+                        <div className="mb-8 bg-white p-6 rounded-2xl shadow-xl text-center border-2 border-red-100 animate-slide-up">
+                            <h3 className="text-red-600 font-black uppercase text-xs tracking-widest mb-4">⚠️ WhatsApp Disconnected</h3>
+                            <div className="bg-gray-100 p-4 rounded-xl inline-block mb-4">
+                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCode)}`} alt="Scan QR" className="w-48 h-48 mix-blend-multiply" />
+                            </div>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase">Scan with WhatsApp (Linked Devices) to Enable OTP</p>
+                        </div>
+                    )}
 
                     <div className="bg-white/80 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-600/40 to-transparent"></div>
@@ -204,6 +254,7 @@ const Login = () => {
                                 {error && (
                                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 text-xs font-bold text-center animate-shake">
                                         {error}
+                                        {waStatus === 'scan_needed' && <p className="mt-1 text-[9px] uppercase">Client Disconnected. Please scan QR above.</p>}
                                     </div>
                                 )}
 
@@ -215,8 +266,8 @@ const Login = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={isLoading || !isAuthorized}
-                                    className={`w-full py-5 font-black text-lg rounded-2xl transition-all duration-300 uppercase tracking-widest flex items-center justify-center gap-4 group italic ${isAuthorized ? 'bg-green-700 text-white shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                    disabled={isLoading || !isAuthorized || waStatus === 'scan_needed'}
+                                    className={`w-full py-5 font-black text-lg rounded-2xl transition-all duration-300 uppercase tracking-widest flex items-center justify-center gap-4 group italic ${isAuthorized && waStatus !== 'scan_needed' ? 'bg-green-700 text-white shadow-xl' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                                 >
                                     {isLoading ? 'Sending...' : 'Send OTP'}
                                     {!isLoading && <FaArrowRight className="group-hover:translate-x-2 transition-transform" />}

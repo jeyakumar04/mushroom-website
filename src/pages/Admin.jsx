@@ -70,16 +70,24 @@ const Admin = () => {
             const data = await res.json();
             if (res.ok) {
                 // Set data for the bill component to render
-                const saleSnapshot = { ...manualSale };
-                const customerSnapshot = { ...data.customer };
-                setBillData({ sale: saleSnapshot, customer: customerSnapshot });
+                const saleSnapshot = { ...manualSale, pricePerPocket: manualSale.pricePerPocket };
+                const loyaltyData = data.loyaltyUpdate || {};
+
+                setBillData({
+                    sale: saleSnapshot,
+                    customer: {
+                        loyaltyCount: loyaltyData.currentCycle || 0
+                    }
+                });
 
                 fetchData();
                 setManualSale({ customerName: '', contactNumber: '', pricePerPocket: 50, quantity: 1 });
 
                 // Small delay to ensure Bill component renders before capture
                 setTimeout(async () => {
-                    await generateAndSendBill(saleSnapshot, customerSnapshot);
+                    await generateAndSendBill(saleSnapshot, {
+                        loyaltyCount: loyaltyData.currentCycle || 0
+                    });
                 }, 500);
             }
         } catch (err) {
@@ -129,11 +137,15 @@ const Admin = () => {
     const resetLoyalty = async (id) => {
         if (!window.confirm("Reset loyalty count?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/customers/${id}/reset`, {
+            const res = await fetch(`http://localhost:5000/api/loyalty/reset`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ customerId: id })
             });
-            if (res.ok) fetchData();
+            if (res.ok) {
+                alert('✅ Loyalty Reset Successful!');
+                fetchData();
+            }
         } catch (err) { alert('Reset failed'); }
     };
 
@@ -196,33 +208,55 @@ const Admin = () => {
                             {/* Customer Loyalty List */}
                             <div className="lg:col-span-2 space-y-6">
                                 <h2 className="text-xl font-black uppercase italic flex items-center gap-3">
-                                    <FaHistory className="text-[#F4D03F]" /> Loyalty <span className="text-[#F4D03F]">Track</span>
+                                    <FaHistory className="text-[#F4D03F]" /> ANTI-GRAVITY <span className="text-[#F4D03F]">LOYALTY TRACK</span>
                                 </h2>
                                 <div className="space-y-4">
                                     {customers.map(customer => (
-                                        <div key={customer._id} className="glass-card p-6 rounded-3xl border border-white/5 flex items-center justify-between group hover:border-[#F4D03F]/30 transition-all">
-                                            <div className="flex items-center gap-5">
-                                                <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
-                                                    <FaUser className="text-[#F4D03F]" />
+                                        <div key={customer._id} className={`glass-card p-6 rounded-3xl border transition-all ${customer.cycleCount >= 10 ? 'border-[#F4D03F] bg-[#F4D03F]/5' : 'border-white/5'}`}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-5">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${customer.cycleCount >= 10 ? 'bg-[#F4D03F] border-[#F4D03F]' : 'bg-white/5 border-white/10'}`}>
+                                                        <FaUser className={customer.cycleCount >= 10 ? 'text-[#022C22]' : 'text-[#F4D03F]'} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-black uppercase italic text-sm">{customer.name}</h3>
+                                                        <p className="text-[10px] text-gray-500 flex items-center gap-2">{customer.contactNumber} <FaWhatsapp className="text-green-500" /></p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h3 className="font-black uppercase italic text-sm">{customer.name}</h3>
-                                                    <p className="text-[10px] text-gray-500 flex items-center gap-2">{customer.contactNumber} <FaWhatsapp className="text-green-500" /></p>
+
+                                                <div className="flex items-center gap-8">
+                                                    <div className="text-center">
+                                                        <span className="text-[8px] font-black text-gray-500 uppercase block mb-1">Current Cycle</span>
+                                                        <span className="text-2xl font-black text-[#F4D03F]">{(Number(customer.cycleCount) || 0)}</span>
+                                                        <span className="text-[10px] text-gray-600 font-bold ml-1">/10</span>
+                                                    </div>
+
+                                                    {customer.cycleCount >= 10 ? (
+                                                        <div className="bg-[#F4D03F] text-[#022C22] px-4 py-2 rounded-xl text-[8px] font-black uppercase animate-pulse flex items-center gap-2">
+                                                            <FaGift /> FREE POCKET READY
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-[9px] font-bold text-gray-500">
+                                                            {10 - (customer.cycleCount || 0)} more
+                                                        </div>
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => resetLoyalty(customer._id)}
+                                                        className="w-10 h-10 bg-red-500/10 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-lg"
+                                                        title="Claim Reward & Reset Cycle"
+                                                    >
+                                                        <FaEraser size={14} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-10">
-                                                <div className="text-center">
-                                                    <span className="text-[9px] font-black text-gray-600 uppercase block mb-1">Pockets</span>
-                                                    <span className="text-2xl font-black text-[#F4D03F]">{customer.loyaltyCount}</span>
-                                                </div>
-                                                {customer.loyaltyCount >= 10 && (
-                                                    <div className="bg-[#F4D03F] text-[#022C22] px-4 py-2 rounded-xl text-[8px] font-black uppercase animate-pulse flex items-center gap-2">
-                                                        <FaGift /> FREE POCKET ELIGIBLE
-                                                    </div>
-                                                )}
-                                                <button onClick={() => resetLoyalty(customer._id)} className="w-10 h-10 bg-red-500/10 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
-                                                    <FaEraser size={14} />
-                                                </button>
+
+                                            {/* Progress Bar Mini */}
+                                            <div className="mt-4 bg-white/5 h-1.5 rounded-full overflow-hidden">
+                                                <div
+                                                    className="bg-gradient-to-r from-[#F4D03F] to-yellow-600 h-full rounded-full transition-all duration-500"
+                                                    style={{ width: `${Math.min(((Number(customer.cycleCount) || 0) / 10) * 100, 100)}%` }}
+                                                ></div>
                                             </div>
                                         </div>
                                     ))}
@@ -346,6 +380,13 @@ const Admin = () => {
                             <FaTachometerAlt className="group-hover:rotate-12 transition-transform" />
                             Open New Dashboard
                             <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                        <Link
+                            to="/admin-blog"
+                            className="inline-flex items-center gap-3 mt-4 px-8 py-4 bg-white/10 border border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-white hover:text-[#022C22] transition-all group"
+                        >
+                            <FaPlusCircle className="group-hover:rotate-90 transition-transform" />
+                            Post New Blog
                         </Link>
                     </div>
 

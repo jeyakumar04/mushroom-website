@@ -62,33 +62,55 @@ const DigitalBill = forwardRef(({ saleData, customerData }, ref) => {
                 </div>
             </div>
 
-            {/* Loyalty Tracker (Strict Hide if < 50) */}
+            {/* Loyalty Tracker (Strict Anti-gravity Logic) */}
             {totalAmount >= 50 ? (
-                <div className="bg-white/5 text-white rounded-lg p-2.5 mb-1.5 shadow-lg border border-white/10 backdrop-blur-md">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                        <div className="w-1 h-1 bg-yellow-400 rounded-full animate-pulse"></div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-yellow-500">Loyalty Tracker</span>
+                <div className="bg-white/5 text-white rounded-lg p-3 mb-1.5 shadow-lg border border-white/10 backdrop-blur-md">
+                    <div className="flex items-center justify-between mb-1.5 border-b border-white/10 pb-1">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(250,204,21,0.8)]"></div>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-yellow-500">TJP Mushroom Farming</span>
+                        </div>
+                        <span className="text-[7px] font-bold text-gray-400 uppercase">Track ID: {customerData.totalLifetime}</span>
                     </div>
-                    <p className="text-[10px] font-bold leading-tight text-gray-200">
-                        வணக்கம் <span className="text-yellow-400 font-black">{saleData.customerName}</span>! நீங்கள் இதுவரை <span className="text-yellow-400">{customerData.loyaltyCount}</span> பாக்கெட்டுகள் வாங்கியுள்ளீர்கள்.
-                    </p>
-                    <div className="mt-1 pt-1 border-t border-white/10">
-                        <p className="text-[8px] font-medium text-green-200 italic">
-                            இன்னும் <span className="text-yellow-400 font-black">{remainingQty}</span> பாக்கெட்டுகள் வாங்கினால், 1 பாக்கெட் இலவசம்!
+
+                    {customerData.reachedCycle && (
+                        <div className="bg-gradient-to-r from-yellow-400/20 to-orange-400/20 border border-yellow-400/50 rounded-lg p-2 mb-2 text-center shadow-inner">
+                            <p className="text-[11px] font-black text-yellow-400 uppercase animate-pulse leading-none">
+                                🎁 LOYALTY REWARD!
+                            </p>
+                            <p className="text-[9px] font-bold text-white mt-0.5">
+                                You Earned {customerData.rewardsEarned} FREE POCKET(S)! 🍄
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="space-y-1">
+
+                        <div className="flex justify-between text-[10px]">
+                            <span className="text-gray-300 font-bold uppercase tracking-tighter">Current Cycle</span>
+                            <span className="text-yellow-400 font-black">{customerData.loyaltyCount}/10</span>
+                        </div>
+
+                        <div className="w-full bg-white/10 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                            <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-full rounded-full transition-all duration-1000" style={{ width: `${(customerData.loyaltyCount / 10) * 100}%` }}></div>
+                        </div>
+
+                        <p className="text-[9px] text-green-300 font-bold italic mt-2 text-center opacity-80 uppercase tracking-tighter">
+                            Next Free Pocket in: <span className="text-white font-black">{10 - customerData.loyaltyCount} Pockets</span>
                         </p>
                     </div>
                 </div>
             ) : null}
 
             {/* Huge Bold Footer */}
-            <div className="text-center">
+            <div className="text-center mt-2">
                 <p className="text-[8px] font-black text-gray-400 italic mb-1">"இயற்கையோடு இணைந்த சுவை, உடலிற்கு மருந்து!"</p>
                 <div className="border-t border-white/10 pt-2">
                     <p className="text-[14px] font-black text-white uppercase tracking-tight leading-tight">
-                        116A, T.Puthupatti, North Street, Ellaipatti (PO), Sivagangai - 630562
+                        Pulimalaipatty,Melur ,Madurai
                     </p>
                     <p className="text-[12px] font-black text-green-400 tracking-[0.1em] mt-1">
-                        PH: +91 95005 91897
+                        PH: +91 95005 91897  PH:+91 91596 59711
                     </p>
                 </div>
             </div>

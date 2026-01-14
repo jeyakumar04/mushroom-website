@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const dns = require('dns');
+const http = require('http');
 
 // Fix for Node 18+ SRV lookup issues
 if (dns.setDefaultResultOrder) {
@@ -92,6 +93,20 @@ const syncSaleToLoyalty = async (customerPhone, pocketsSold, customerName) => {
 };
 
 const app = express();
+const server = http.createServer(app);
+
+// --- BLOG SCHEMA & MODEL ---
+const blogSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    content: { type: String, required: true },
+    image: { type: String }, // Paste Anti-Gravity Link here
+    category: { type: String, default: 'Growing Tips' },
+    date: { type: Date, default: Date.now }
+});
+const Blog = mongoose.model('Blog', blogSchema);
+
+
+
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'tjp_secret_key_2026';
 
@@ -322,6 +337,30 @@ app.post('/api/water/spray', auth, async (req, res) => {
 
 // ... (other routes)
 
+// --- BLOG ROUTES ---
+
+// 1. POST: Save new blog from Admin Page
+app.post('/api/blogs/add', auth, async (req, res) => {
+    try {
+        const { title, content, image, category } = req.body;
+        const newBlog = new Blog({ title, content, image, category });
+        await newBlog.save();
+        res.status(201).json({ success: true, message: "Blog Published!" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to post blog" });
+    }
+});
+
+// 2. GET: Fetch all blogs for the Website
+app.get('/api/blogs', async (req, res) => {
+    try {
+        const blogs = await Blog.find().sort({ date: -1 });
+        res.status(200).json(blogs);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch blogs" });
+    }
+});
+
 // --- SEND DIGITAL BILL (SERVER-SIDE) ---
 app.post('/api/send-digital-bill', async (req, res) => {
     try {
@@ -437,7 +476,9 @@ app.post('/api/admin/request-otp', async (req, res) => {
 
             res.json({ success: true, message: 'OTP sent to Admin WhatsApp numbers' });
         } else {
-            res.status(503).json({ success: false, message: 'WhatsApp OTP delivery failed. Please check server WhatsApp connection.' });
+            console.warn(`≡ƒ¢æ WhatsApp Failover: returning success anyway so user can enter OTP from terminal.`);
+            // FAILOVER: Still allow login if user has terminal access
+            res.json({ success: true, message: 'WhatsApp failed, but OTP generated. Check Server Terminal.' });
         }
     } catch (error) {
         console.error('≡ƒöÑ OTP Request Server Error:', error);
@@ -462,11 +503,11 @@ app.post('/api/admin/verify-otp', async (req, res) => {
             admin = await Admin.findOne({ username: 'admin' });
         }
 
-        // --- SHORT-TERM SESSION (24 HOURS) ---
+        // --- PERMANENT SESSION (1 YEAR) ---
         const token = jwt.sign(
             { id: admin._id, otpVerified: true },
             JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: '365d' }
         );
 
         // Delete OTP after successful verification
@@ -477,6 +518,9 @@ app.post('/api/admin/verify-otp', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
+
+
 
 // --- BOOKINGS ---
 app.post('/api/bookings', async (req, res) => {
@@ -507,6 +551,11 @@ app.patch('/api/bookings/:id/status', auth, async (req, res) => {
         res.status(500).json({ message: 'Status update failed' });
     }
 });
+
+
+
+
+
 
 // 1. 🌌 TJP ANTI-GRAVITY ULTIMATE FIX
 app.post('/api/sales', auth, async (req, res) => {
@@ -771,6 +820,15 @@ app.get('/api/climate', auth, async (req, res) => {
     }
 });
 
+app.get('/api/public/stats', async (req, res) => {
+    try {
+        const count = await Customer.countDocuments();
+        res.json({ customerCount: count });
+    } catch (error) {
+        res.status(500).json({ customerCount: 0 });
+    }
+});
+
 // Generic Edit/Delete for Models
 app.patch('/api/edit/:model/:id', auth, async (req, res) => {
     try {
@@ -782,6 +840,7 @@ app.patch('/api/edit/:model/:id', auth, async (req, res) => {
         else if (model === 'climate') Model = Climate;
         else if (model === 'alerts') Model = Alert;
         else if (model === 'batches') Model = Batch;
+        else if (model === 'blogs') Model = Blog;
         else return res.status(400).json({ message: 'Invalid model' });
 
         const updated = await Model.findByIdAndUpdate(id, req.body, { new: true });
@@ -800,6 +859,7 @@ app.delete('/api/delete/:model/:id', auth, async (req, res) => {
         else if (model === 'climate') Model = Climate;
         else if (model === 'alerts') Model = Alert;
         else if (model === 'batches') Model = Batch;
+        else if (model === 'blogs') Model = Blog;
         else return res.status(400).json({ message: 'Invalid model' });
 
         await Model.findByIdAndDelete(id);
@@ -2642,6 +2702,8 @@ const startServer = (port) => {
 
     const shutdown = async () => {
         console.log('\n≡ƒ¢æ Shutting down TJP Server gracefully...');
+        const { destroyClient } = require('./services/whatsappService');
+        await destroyClient(); // Ensure WhatsApp lock is released
         server.close(async () => {
             console.log('≡ƒôí Closing MongoDB Connection...');
             await mongoose.connection.close();
