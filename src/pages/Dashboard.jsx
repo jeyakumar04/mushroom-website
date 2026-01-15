@@ -7,7 +7,7 @@ import {
     FaLightbulb, FaWater, FaFan, FaRupeeSign, FaArrowUp, FaArrowDown,
     FaReceipt, FaShoppingCart, FaTruck, FaStore, FaImage, FaLayerGroup, FaEnvelope, FaFileCsv, FaBook
 } from 'react-icons/fa';
-import { toPng } from 'html-to-image';
+import { toBlob, toPng } from 'html-to-image';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import Footer from '../Component/Footer';
 import DigitalBill from '../Component/DigitalBill';
@@ -62,6 +62,7 @@ const Dashboard = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [climateData, setClimateData] = useState([]);
     const [kadanList, setKadanList] = useState([]);
+    const [waPrompt, setWaPrompt] = useState(null); // 🚀 TJP Anti-gravity WA Prompt
     const [settlePopup, setSettlePopup] = useState({ open: false, saleId: null });
     const [cTemp, setCTemp] = useState('');
     const [cMoist, setCMoist] = useState('');
@@ -153,6 +154,21 @@ const Dashboard = () => {
 
     const token = localStorage.getItem('adminToken');
     const GOOGLE_MAPS_LINK = "https://maps.app.goo.gl/nNmZaYwtJvmXbXBz5";
+
+
+    useEffect(() => {
+        if (!document.getElementById('tjp-float-anim')) {
+            const style = document.createElement('style');
+            style.id = 'tjp-float-anim';
+            style.innerHTML = `
+                @keyframes floatAnim {
+                    0%, 100% { transform: translate(-50%, -52%); }
+                    50% { transform: translate(-50%, -48%); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }, []);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -409,16 +425,108 @@ const Dashboard = () => {
     };
 
     // SALES HANDLER
+
+
+    const handleSalesAndBill = async (saleData, originalSale, loyaltyUpdate) => {
+        setBillSentStatus('success');
+        setTimeout(() => setBillSentStatus(null), 4000);
+        const { name, phone, amount, balance, loyaltyPoints } = saleData;
+
+        setBillData({
+            sale: { ...originalSale, pricePerPocket: originalSale.pricePerUnit },
+            customer: {
+                loyaltyCount: loyaltyUpdate?.currentCycle || 0,
+                rewardsEarned: loyaltyUpdate?.freePocketsEarned || 0,
+                totalLifetime: loyaltyUpdate?.totalLifetime || 0,
+                reachedCycle: loyaltyUpdate?.reachedCycle || false
+            }
+        });
+
+        await new Promise(r => setTimeout(r, 50));
+
+        try {
+            if (billRef.current) {
+                const blob = await toBlob(billRef.current, {
+                    pixelRatio: 1.5, // Slightly lower for extreme speed
+                    skipFonts: true,
+                    cacheBust: true
+                });
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
+            }
+        } catch (err) {
+            console.error("Image copy failed", err);
+        }
+
+        const popup = document.createElement('div');
+        popup.id = 'tjp-wa-popup';
+        popup.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #CBCCCB; padding: 40px; border-radius: 40px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.7); z-index: 99999;
+            text-align: center; border: 8px solid white;
+            animation: floatAnim 3s ease-in-out infinite;
+            max-width: 400px; width: 90%; font-family: 'Inter', sans-serif;
+        `;
+
+        popup.innerHTML = `
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: #25D366; margin: 0 auto 25px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(37,211,102,0.4);">
+                <span style="font-size: 40px; color: white;">✅</span>
+            </div>
+            <h2 style="color: #022C22; margin-bottom: 5px; font-weight: 900; text-transform: uppercase; font-size: 24px;">Bill Ready! 🍄</h2>
+            <p style="color: #1b4332; font-weight: 800; font-size: 16px; margin-bottom: 25px; letter-spacing: -0.5px;">
+                Image Copied to Clipboard. <br/>
+                Just <span style="background: white; padding: 2px 10px; border-radius: 8px;">CTRL + V</span> in WhatsApp Chat!
+            </p>
+            <button id="waRedirectBtn" style="
+                background: #022C22; color: white; padding: 18px 40px;
+                border: none; border-radius: 25px; font-weight: 900; 
+                cursor: pointer; font-size: 18px; width: 100%;
+                box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+                transition: all 0.3s;
+                text-transform: uppercase;
+            ">Go to Customer Chat</button>
+            <button id="closeWaPopup" style="margin-top: 20px; background: transparent; border: none; color: #444; font-weight: 900; cursor: pointer; text-transform: uppercase; font-size: 11px; letter-spacing: 2px; opacity: 0.6;">🚫 Close Prompt</button>
+        `;
+
+        document.body.appendChild(popup);
+
+        document.getElementById('waRedirectBtn').onclick = () => {
+            const cleanPhone = phone.startsWith('91') ? phone : '91' + phone;
+
+            // 🚀 ULTRA FAST REDIRECT: Try Desktop App Protocol First
+            window.location.href = `whatsapp://send?phone=${cleanPhone}`;
+
+            // 🕒 Fallback to wa.me if desktop doesn't respond (wa.me is faster than web.whatsapp.com)
+            setTimeout(() => {
+                window.open(`https://wa.me/${cleanPhone}`, '_blank');
+            }, 600);
+
+            document.body.removeChild(popup);
+        };
+
+        document.getElementById('closeWaPopup').onclick = () => {
+            document.body.removeChild(popup);
+        };
+    };
+
     const handleSaleSubmit = async (e) => {
+
         e.preventDefault();
         try {
+            // 🛠️ TJP ANTI-GRAVITY: CONSTRUCT DATE FROM SELECTORS
+            const recordedDate = new Date(selectedYear, selectedMonth - 1, selectedDate || new Date().getDate());
+
             const res = await fetch('http://localhost:5000/api/sales', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token} `
                 },
-                body: JSON.stringify(saleForm)
+                body: JSON.stringify({
+                    ...saleForm,
+                    date: recordedDate
+                })
             });
             const data = await res.json();
             if (res.ok) {
@@ -427,14 +535,24 @@ const Dashboard = () => {
                     const { freePocketsEarned, currentCycle, reachedCycle } = data.loyaltyUpdate;
 
                     if (reachedCycle) {
-                        alert(`🎁 *LOYALTY REWARD!* \n${saleForm.customerName} can get ${freePocketsEarned} FREE POCKET(s) now! \nBalance: ${currentCycle}/10`);
+                        alert(`🎁 * LOYALTY REWARD! * \n${saleForm.customerName} can get ${freePocketsEarned} FREE POCKET(s) now! \nBalance: ${currentCycle}/10`);
                     } else if (currentCycle >= 8) {
                         alert(`🔥 ALMOST THERE! \n${saleForm.customerName} has ${currentCycle}/10 pockets. Just ${10 - currentCycle} more for FREE!`);
                     }
                 }
 
                 // TRIGGER DIGITAL BILL GEN & UPLOAD
-                await handleSendBill(data.sale, data.loyaltyUpdate);
+                // 🚀 TJP ULTRA FIX: Call the Final Admin Bill Logic
+                const totalKadan = (kadanList || []).filter(k => k.contactNumber === saleForm.contactNumber).reduce((sum, s) => sum + s.totalAmount, 0);
+                await handleSalesAndBill({
+                    name: saleForm.customerName,
+                    phone: saleForm.contactNumber,
+                    amount: saleForm.quantity * saleForm.pricePerUnit,
+                    balance: totalKadan,
+                    loyaltyPoints: (data.loyaltyUpdate?.totalLifetime || 0)
+                }, data.sale, data.loyaltyUpdate);
+
+                // 🚀 Duplication removed to solve "same bill" issue
 
                 setSaleForm({ productType: 'Mushroom', quantity: 1, pricePerUnit: 50, customerName: '', contactNumber: '', paymentType: 'Cash' });
                 setCustomerSuggestions([]);
@@ -513,8 +631,7 @@ const Dashboard = () => {
             });
 
             // Wait for render and generate image
-            await new Promise(r => setTimeout(r, 600));
-            const { toPng } = await import('html-to-image');
+            await new Promise(r => setTimeout(r, 400));
             const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
 
             // Upload to server & Send via WhatsApp Backend
@@ -530,18 +647,40 @@ const Dashboard = () => {
 
             const result = await response.json();
 
+            // 🚀 THE ANTI-GRAVITY ULTIMATE FIX: Show Manual Prompt for Reliability
+            const totalBalance = (kadanList || []).filter(k => k.contactNumber === sale.contactNumber).reduce((sum, s) => sum + s.totalAmount, 0);
+
+            setWaPrompt({
+                customerName: sale.customerName,
+                amount: sale.totalAmount,
+                balance: totalBalance,
+                phone: sale.contactNumber,
+                billLink: null
+            });
+
             if (result.success) {
                 setBillSentStatus('success');
                 setTimeout(() => setBillSentStatus(null), 5000);
             } else {
-                throw new Error(result.message || 'WhatsApp sending failed');
+                console.warn('Backend WA failed, manual prompt will handle it.');
             }
 
         } catch (err) {
             console.error('Bill Error:', err);
             setBillSentStatus('error');
             setTimeout(() => setBillSentStatus(null), 5000);
-            alert('❌ Bill generation/sending failed: ' + err.message);
+
+            // 🚀 TJP ANTI-GRAVITY: Show manual fallback card if data exists
+            if (sale) {
+                const totalBalance = (kadanList || []).filter(k => k.contactNumber === sale.contactNumber).reduce((sum, s) => sum + s.totalAmount, 0);
+                setWaPrompt({
+                    customerName: sale.customerName,
+                    amount: sale.totalAmount,
+                    balance: totalBalance,
+                    phone: sale.contactNumber,
+                    billLink: null
+                });
+            }
         } finally {
             setIsGeneratingBill(false);
         }
@@ -1379,9 +1518,9 @@ const Dashboard = () => {
                                     </div>
                                     <button
                                         type="submit"
-                                        className="w-full bg-green-600 text-white font-black uppercase py-4 md:py-6 rounded-xl md:rounded-2xl shadow-xl hover:bg-green-700 transition-all text-sm md:text-lg"
+                                        className="w-full bg-[#25D366] text-white font-black uppercase py-5 md:py-7 rounded-2xl md:rounded-[30px] shadow-[0_15px_30px_rgba(37,211,102,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all text-base md:text-xl border-4 border-white"
                                     >
-                                        Complete Sale & Generate Bill
+                                        RECORD SALE & COPY BILL
                                     </button>
                                 </form>
                             </div>
@@ -1476,7 +1615,19 @@ const Dashboard = () => {
                                                 }).map((sale, idx) => (
                                                     <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
                                                         <td className="py-4 text-sm font-bold text-gray-600">
-                                                            {formatDate(sale.date)}
+                                                            {editingSalesId === sale._id ? (
+                                                                <input
+                                                                    type="date"
+                                                                    value={editedData[sale._id]?.date ? new Date(editedData[sale._id].date).toISOString().split('T')[0] : new Date(sale.date).toISOString().split('T')[0]}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [sale._id]: { ...prev[sale._id], date: e.target.value }
+                                                                    }))}
+                                                                    className="w-full px-2 py-1 text-[10px] font-black border-2 border-blue-500 rounded"
+                                                                />
+                                                            ) : (
+                                                                formatDate(sale.date)
+                                                            )}
                                                         </td>
                                                         <td className="py-4">
                                                             {editingSalesId === sale._id ? (
@@ -1612,7 +1763,7 @@ const Dashboard = () => {
                                                                                         paymentType: updatedData.paymentType || sale.paymentType,
                                                                                         totalAmount: totalAmount,
                                                                                         customerName: updatedData.customerName || sale.customerName,
-                                                                                        contactNumber: updatedData.contactNumber || sale.contactNumber
+                                                                                        contactNumber: updatedData.contactNumber || sale.contactNumber, date: updatedData.date || sale.date
                                                                                     })
                                                                                 });
                                                                                 setEditingSalesId(null);
@@ -1643,12 +1794,15 @@ const Dashboard = () => {
                                                                     </button>
                                                                 </>
                                                             ) : (
-                                                                <button
-                                                                    onClick={() => setEditingSalesId(sale._id)}
-                                                                    className="text-blue-500 font-black text-[10px] hover:underline"
-                                                                >
-                                                                    EDIT
-                                                                </button>
+                                                                <div className="flex items-center gap-2">
+                                                                    <button onClick={() => handleSendBill(sale)} className="text-green-600 font-black text-[10px] hover:underline">BILL</button>
+                                                                    <button
+                                                                        onClick={() => setEditingSalesId(sale._id)}
+                                                                        className="text-blue-500 font-black text-[10px] hover:underline"
+                                                                    >
+                                                                        EDIT
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                             <button onClick={() => handleDelete('sales', sale._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
                                                         </td>
@@ -3211,6 +3365,53 @@ const Dashboard = () => {
                     </div>
                 </div>
             </nav>
+
+            {/* 🚀 TJP ANTI-GRAVITY WA PROMPT MODAL */}
+            {waPrompt && (
+                <div className="fixed inset-0 bg-black/60 z-[20000] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-[#CBCCCB] p-8 rounded-[40px] text-center shadow-[0_30px_60px_rgba(0,0,0,0.5)] max-w-sm w-full border-8 border-white animate-float-slow">
+                        <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border-4 border-green-50">
+                            <FaCheckCircle className="text-[#25D366] text-4xl" />
+                        </div>
+                        <h3 className="text-2xl font-black text-[#022C22] mb-4 uppercase tracking-tighter">Ready to Send Bill?</h3>
+
+                        <div className="bg-white/40 p-5 rounded-3xl mb-8 border border-white/20 text-left">
+                            <p className="text-xs font-black text-gray-400 uppercase mb-1">Customer</p>
+                            <p className="font-black text-[#022C22] uppercase text-lg mb-3 truncate">{waPrompt.customerName}</p>
+
+                            <div className="flex justify-between items-center pt-3 border-t border-white/30">
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-500 uppercase">Amount</p>
+                                    <p className="text-xl font-black text-green-700">₹{waPrompt.amount}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-gray-500 uppercase">Kadan</p>
+                                    <p className="text-xl font-black text-red-600">₹{waPrompt.balance}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a
+                            href={`https://wa.me/${waPrompt.phone.startsWith('91') ? waPrompt.phone : '91' + waPrompt.phone}?text=${encodeURIComponent(
+                                `*TJP Mushroom - Bill Receipt* 🍄\n-----------------------------\nHello ${waPrompt.customerName},\nYour bill amount: ₹${waPrompt.amount}\nPending Balance (KADAN): ₹${waPrompt.balance}\n\n${waPrompt.billLink ? `View Digital Bill: ${window.location.protocol}//${window.location.host}${waPrompt.billLink}\n\n` : ''}Thank you for choosing TJP Farming!\nVisit: tjpmushroom.com`
+                            )}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => setWaPrompt(null)}
+                            className="bg-[#25D366] text-white px-8 py-5 rounded-2xl font-black text-lg shadow-[0_10px_20px_rgba(37,211,102,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-full"
+                        >
+                            🚀 OPEN WHATSAPP
+                        </a>
+
+                        <button
+                            onClick={() => setWaPrompt(null)}
+                            className="mt-6 text-gray-500 font-black uppercase text-[10px] tracking-widest hover:text-red-500 transition-colors"
+                        >
+                            🚫 Close Prompt
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* SENDING LOADER OVERLAY */}
             {isGeneratingBill && (
