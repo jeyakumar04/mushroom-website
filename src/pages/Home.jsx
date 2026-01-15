@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaSun, FaStar, FaLayerGroup } from 'react-icons/fa';
 import heroImage from '../assets/home-hero.jpg';
 import Footer from '../Component/Footer';
-import packingImg from '../assets/packing.jpeg';
+import packingImg from '../assets/packing.jpg';
 import farmingImg from '../assets/farming.jpeg';
 import logo from '../assets/logo-final.png';
 
