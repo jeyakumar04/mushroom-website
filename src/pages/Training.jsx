@@ -5,7 +5,7 @@ import { FaGraduationCap, FaCertificate, FaHandshake, FaArrowRight, FaMicroscope
 
 const Training = () => {
     // Professional High-Quality Hero Image (Agricultural Education)
-    const trainingHero = "https://images.unsplash.com/photo-1592150621344-c792317530b1?auto=format&fit=crop&q=80&w=2070";
+    const trainingHero = "/assets/training_4.jpg";
     const [selectedCert, setSelectedCert] = useState(null);
 
     return (
