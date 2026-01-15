@@ -4,7 +4,7 @@ import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWat
 import heroImage from '../assets/home-hero.jpg';
 import Footer from '../Component/Footer';
 import packingImg from '../assets/packing.jpg';
-import farmingImg from '../assets/farming.jpeg';
+import farmingImg from '../assets/farming.jpg';
 import logo from '../assets/logo-final.png';
 
 const Home = () => {
