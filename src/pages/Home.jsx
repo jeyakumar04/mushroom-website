@@ -21,7 +21,7 @@ const Home = () => {
       .then(data => {
         setCustomerCount(data.customerCount || 32);
       })
-      .catch(() => setCustomerCount(450)); // Fallback
+      .catch(() => setCustomerCount(32)); // Fallback
   }, []);
 
   useEffect(() => {
