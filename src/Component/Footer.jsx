@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaFacebookF, FaInstagram, FaWhatsapp, FaLeaf, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
 
-import logo from '../assets/logo-final.png';
+const logo = '/assets/logo-final.png';
 
 const Footer = () => {
     return (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import logo from '../assets/logo-final.png';
+const logo = '/assets/logo-final.png';
 import { FaInstagram, FaFacebookF, FaWhatsapp, FaPhoneAlt, FaLock, FaBars, FaTimes, FaMapMarkerAlt, FaEnvelope } from 'react-icons/fa';
 
 const Navbar = () => {

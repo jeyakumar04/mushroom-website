@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import logo from '../assets/logo-final.png';
+const logo = '/assets/logo-final.png';
 
 const DigitalBill = forwardRef(({ saleData, customerData }, ref) => {
     if (!saleData || !customerData) return null;

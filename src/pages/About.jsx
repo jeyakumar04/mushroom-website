@@ -2,14 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaLeaf, FaHeart, FaUsers, FaSeedling, FaAward, FaHandshake, FaCheckCircle } from 'react-icons/fa';
 import Footer from '../Component/Footer';
-import fssaiCert from '../assets/fssai.png';
-import udyamCert from '../assets/udyam-cert.png';
-import tnauCert from '../assets/tnau-cert.jpg';
-import aboutHero from '../assets/mushroom2.png';
-import mushroom2 from '../assets/mushroom2.png';
-import agri1 from '../assets/agri_1.jpg'; // Placeholder - User needs to add this file
-import agri2 from '../assets/agri_2.jpg'; // Placeholder - User needs to add this file
-import agri3 from '../assets/agri_3.jpg'; // Placeholder - User needs to add this file
+const fssaiCert = '/assets/fssai.png';
+const udyamCert = '/assets/udyam-cert.png';
+const tnauCert = '/assets/tnau-cert.jpg';
+const aboutHero = '/assets/mushroom2.png';
+const mushroom2 = '/assets/mushroom2.png';
+const agri1 = '/assets/agri_1.jpg'; // Placeholder - User needs to add this file
+const agri2 = '/assets/agri_2.jpg'; // Placeholder - User needs to add this file
+const agri3 = '/assets/agri_3.jpg'; // Placeholder - User needs to add this file
 
 const About = () => {
 

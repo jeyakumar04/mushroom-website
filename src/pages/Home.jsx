@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaSun, FaStar, FaLayerGroup } from 'react-icons/fa';
-import heroImage from '../assets/home-hero.jpg';
+const heroImage = '/assets/home-hero.jpg';
 import Footer from '../Component/Footer';
-import packingImg from '../assets/packing.jpg';
-import farmingImg from '../assets/farming.jpg';
-import logo from '../assets/logo-final.png';
+const packingImg = '/assets/packing.jpg';
+const farmingImg = '/assets/farming.jpg';
+const logo = '/assets/logo-final.png';
 
 const Home = () => {
   const [offset, setOffset] = useState(0);
