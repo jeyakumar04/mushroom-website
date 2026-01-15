@@ -7,9 +7,9 @@ const udyamCert = '/assets/udyam-cert.png';
 const tnauCert = '/assets/tnau-cert.jpg';
 const aboutHero = '/assets/mushroom2.png';
 const mushroom2 = '/assets/mushroom2.png';
-const agri1 = '/assets/agri_1.jpg'; // Placeholder - User needs to add this file
-const agri2 = '/assets/agri_2.jpg'; // Placeholder - User needs to add this file
-const agri3 = '/assets/agri_3.jpg'; // Placeholder - User needs to add this file
+const agri1 = '/assets/agri_1.jpg';
+const agri2 = '/assets/agri_2.jpg';
+const agri3 = '/assets/agri_3.jpg';
 
 const About = () => {
 
