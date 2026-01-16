@@ -3,12 +3,11 @@ import { Link } from 'react-router-dom';
 import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaStar, FaLayerGroup } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 
-const heroImage = '/assets/home-hero.jpg';
-const packingImg = '/assets/packing.jpg';
-const farmingImg = '/assets/farming.jpg';
-const logo = '/assets/logo-final.png';
-
 const Home = () => {
+  const heroImage = '/assets/home-hero.jpg';
+  const packingImg = '/assets/packing.jpg';
+  const farmingImg = '/assets/farming.jpg';
+  const logo = '/assets/logo-final.png';
   const [offset, setOffset] = useState(0);
 
 

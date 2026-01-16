@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaInstagram, FaFacebookF, FaWhatsapp, FaPhoneAlt, FaLock, FaBars, FaTimes, FaMapMarkerAlt, FaEnvelope } from 'react-icons/fa';
 
-const logo = '/assets/logo-final.png';
-
 const Navbar = () => {
+  const logo = '/assets/logo-final.png';
   const [isOpen, setIsOpen] = useState(false);
 
   return (

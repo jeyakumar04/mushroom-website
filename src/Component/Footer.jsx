@@ -2,9 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaFacebookF, FaInstagram, FaWhatsapp, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
 
-const logo = '/assets/logo-final.png';
-
 const Footer = () => {
+    const logo = '/assets/logo-final.png';
     return (
         <footer className="bg-[#022C22] text-white pt-16 pb-8 border-t border-tjp-gold/50">
             <div className="max-w-7xl mx-auto px-4 md:px-12">
