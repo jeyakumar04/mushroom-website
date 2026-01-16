@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react';
-const logo = '/assets/logo-final.png';
 
 const DigitalBill = forwardRef(({ saleData, customerData }, ref) => {
+    const logo = '/assets/logo-final.png';
     if (!saleData || !customerData) return null;
 
     const date = new Date().toLocaleDateString('en-IN', {
