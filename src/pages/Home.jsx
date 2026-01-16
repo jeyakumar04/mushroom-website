@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaSun, FaStar, FaLayerGroup } from 'react-icons/fa';
-const heroImage = '/assets/home-hero.jpg';
+import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaStar, FaLayerGroup } from 'react-icons/fa';
 import Footer from '../Component/Footer';
+
+const heroImage = '/assets/home-hero.jpg';
 const packingImg = '/assets/packing.jpg';
 const farmingImg = '/assets/farming.jpg';
 const logo = '/assets/logo-final.png';
@@ -223,7 +224,7 @@ const Home = () => {
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
               TJP Mushroom Farming is a trusted producer of fresh oyster mushrooms in Pulimalaipatty, Melur, Madurai, dedicated to growing high-quality, chemical-free mushrooms using sustainable farming practices.
               <br /><br />
-              Founded by two brothers, <span className="text-white font-bold">Jeyakumar</span> (M.Sc. CS) and <span className="text-white font-bold">Parthasarathy</span> (B.Sc. CS), we combine technical precision with a passion for organic excellence to deliver the freshest harvest directly to your doorstep.
+              Founded by two brothers, <span className="text-white font-bold">Jeyakumar T</span> (M.Sc. CS) and <span className="text-white font-bold">Parthasarathy T</span> (B.Sc. CS), we combine technical precision with a passion for organic excellence to deliver the freshest harvest directly to your doorstep.
             </p>
 
             <div className="flex gap-8 flex-wrap">
