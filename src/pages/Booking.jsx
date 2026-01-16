@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaShieldAlt, FaCalendarAlt, FaUser, FaMapMarkerAlt, FaPhone, FaArrowLeft, FaMoneyBillWave, FaGooglePay, FaUpload, FaWhatsapp } from 'react-icons/fa';
+import { FaShieldAlt, FaCalendarAlt, FaUser, FaMapMarkerAlt, FaPhone, FaArrowLeft, FaMoneyBillWave, FaGooglePay, FaUpload } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 
 const Booking = () => {

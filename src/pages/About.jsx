@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaLeaf, FaHeart, FaUsers, FaSeedling, FaAward, FaHandshake, FaCheckCircle } from 'react-icons/fa';
+import { FaLeaf, FaHeart, FaUsers, FaSeedling, FaHandshake, FaCheckCircle } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 const fssaiCert = '/assets/fssai.png';
 const udyamCert = '/assets/udyam-cert.png';

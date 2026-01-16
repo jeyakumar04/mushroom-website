@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaPaperPlane, FaWhatsapp, FaInstagram, FaFacebookF } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 import CryptoJS from 'crypto-js';
