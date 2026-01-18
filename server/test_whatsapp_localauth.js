@@ -3,7 +3,7 @@
 
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app';
 
 async function testWhatsAppStatus() {
     console.log('🔍 Testing WhatsApp LocalAuth Implementation...\n');

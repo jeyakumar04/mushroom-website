@@ -33,7 +33,7 @@ content = content.replace(
         };
 
         try {
-            const res = await fetch('http://localhost:5000/api/climate', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/climate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ token }` },
                 body: JSON.stringify(payload)

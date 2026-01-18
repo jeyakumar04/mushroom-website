@@ -810,7 +810,7 @@ const Dashboard = () => {
     const handleAlertDelete = async (id) => {
         if (!window.confirm("Delete this alarm permanently?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/alerts/${id}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/alerts/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -834,7 +834,7 @@ const Dashboard = () => {
     const handleInventoryUpdate = async (itemId, type, quantity, notes = '') => {
         try {
             const endpoint = type === 'use' ? 'use' : 'add';
-            const res = await fetch(`http://localhost:5000/api/inventory/${itemId}/${endpoint}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/${itemId}/${endpoint}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -855,7 +855,7 @@ const Dashboard = () => {
     const handleUpdateInventory = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`http://localhost:5000/api/inventory/${editingProduct._id}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/${editingProduct._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -877,7 +877,7 @@ const Dashboard = () => {
     const handleResetInventory = async () => {
         if (!window.confirm("ΓÜá∩╕Å DANGER: Motha inventory data-vaiyum erase panni fresh-ah start pannaatuma? Indha step-ai undo panna mudiyaadhu!")) return;
         try {
-            const res = await fetch('http://localhost:5000/api/inventory/reset-all', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/reset-all', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -897,7 +897,7 @@ const Dashboard = () => {
     const resetLoyalty = async (id) => {
         if (!window.confirm("Reset loyalty count?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/customers/${id}/reset`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/customers/${id}/reset`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -909,7 +909,7 @@ const Dashboard = () => {
     const handleBatchSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/batches', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/batches', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -931,7 +931,7 @@ const Dashboard = () => {
         const qty = prompt("Enter harvested quantity (kg):", "2");
         if (!qty) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/batches/${id}/harvest`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/batches/${id}/harvest`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1057,7 +1057,7 @@ const Dashboard = () => {
         if (!month || !year) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/api/export/${section}?month=${month}&year=${year}`, {
+            const response = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/export/${section}?month=${month}&year=${year}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -1339,7 +1339,7 @@ const Dashboard = () => {
                                                             <button
                                                                 onClick={async () => {
                                                                     if (window.confirm(`Settle ₹${k.totalAmount} via CASH?`)) {
-                                                                        const res = await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                        const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/${k._id}/settle`, {
                                                                             method: 'PATCH',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({ settledBy: 'Cash' })
@@ -1356,7 +1356,7 @@ const Dashboard = () => {
                                                             <button
                                                                 onClick={async () => {
                                                                     if (window.confirm(`Settle ₹${k.totalAmount} via GPAY?`)) {
-                                                                        const res = await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                        const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/${k._id}/settle`, {
                                                                             method: 'PATCH',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({ settledBy: 'GPay' })
@@ -1753,7 +1753,7 @@ const Dashboard = () => {
                                                                                 const pricePerUnit = updatedData.pricePerUnit || sale.pricePerUnit;
                                                                                 const totalAmount = quantity * pricePerUnit;
 
-                                                                                await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
+                                                                                await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/sales/${sale._id}`, {
                                                                                     method: 'PATCH',
                                                                                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                     body: JSON.stringify({
@@ -2025,7 +2025,7 @@ const Dashboard = () => {
                                                                     onClick={async () => {
                                                                         const updateBody = editedData[exp._id];
                                                                         if (updateBody) {
-                                                                            await fetch(`http://localhost:5000/api/edit/expenditure/${exp._id}`, {
+                                                                            await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/expenditure/${exp._id}`, {
                                                                                 method: 'PATCH',
                                                                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                 body: JSON.stringify(updateBody)
@@ -2419,7 +2419,7 @@ const Dashboard = () => {
                                                                     const item = inventory.find(i => i.itemName === 'Seeds');
                                                                     const up = editedData[`seed-${idx}`];
                                                                     if (item && up) {
-                                                                        await fetch(`http://localhost:5000/api/inventory/usage/${h._id}`, {
+                                                                        await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/usage/${h._id}`, {
                                                                             method: 'PUT',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({
@@ -2826,7 +2826,7 @@ const Dashboard = () => {
                                                                     onClick={async () => {
                                                                         const updatedData = editedData[c._id];
                                                                         if (updatedData) {
-                                                                            await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
+                                                                            await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/climate/${c._id}`, {
                                                                                 method: 'PATCH',
                                                                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                 body: JSON.stringify({ notes: updatedData.notes })
@@ -2939,7 +2939,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('http://localhost:5000/api/admin/send-monthly-report', {
+                                                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/send-monthly-report', {
                                                     method: 'POST',
                                                     headers: { 'Authorization': `Bearer ${token}` }
                                                 });
@@ -3042,7 +3042,7 @@ const Dashboard = () => {
                                     {reportArchives.map((report, idx) => (
                                         <a
                                             key={idx}
-                                            href={`http://localhost:5000${report.url}`}
+                                            href={`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app${report.url}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-5 p-6 bg-gray-50 rounded-2xl border-2 border-gray-100 hover:border-blue-400 hover:shadow-xl transition-all group"
@@ -3119,7 +3119,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('http://localhost:5000/api/settings/water-check', {
+                                                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/settings/water-check', {
                                                     method: 'POST',
                                                     headers: { 'Authorization': `Bearer ${token}` }
                                                 });
@@ -3136,7 +3136,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('http://localhost:5000/api/water/spray', {
+                                                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/water/spray', {
                                                     method: 'POST',
                                                     headers: { 'Authorization': `Bearer ${token}` }
                                                 });

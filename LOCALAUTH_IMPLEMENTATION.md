@@ -101,7 +101,7 @@ Please check VS Code Timeline and restore the following if they were present:
    - Session persists even after PC restart
 
 3. **Check WhatsApp Status:**
-   - Visit: `http://localhost:5000/api/admin/whatsapp-status`
+   - Visit: `https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/whatsapp-status`
    - Status: `connected` = Ready
    - Status: `scan_needed` = QR code available
 

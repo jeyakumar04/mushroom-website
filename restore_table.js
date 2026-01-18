@@ -35,7 +35,7 @@ const correctTableBody = `<tbody>
                                                                 if (newNotes === null) return;
 
                                                                 try {
-                                                                    await fetch(\`http://localhost:5000/api/edit/climate/\${c._id}\`, {
+                                                                    await fetch(\`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/climate/\${c._id}\`, {
                                                                         method: 'PATCH',
                                                                         headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${token}\` },
                                                                         body: JSON.stringify({
