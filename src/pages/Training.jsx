@@ -113,7 +113,7 @@ const Training = () => {
                             <div className="absolute inset-0 bg-tjp-gold blur-[100px] opacity-10 rounded-full animate-pulse-slow"></div>
                             <div className="relative glass-card p-4 rounded-[3rem] border border-white/10 transform -rotate-2 hover:rotate-0 transition-transform duration-700 shadow-2xl">
                                 <img
-                                    src="/uploads/uploaded_image_4_1768417621406.jpg"
+                                    src="/assets/training.png"
                                     alt="Training Session"
                                     className="rounded-[2.5rem] w-full h-[500px] object-cover"
                                 />
@@ -121,10 +121,10 @@ const Training = () => {
                             {/* Certificate Preview Badge */}
                             <div
                                 className="absolute -bottom-6 -right-6 w-48 h-48 bg-white p-2 rounded-2xl shadow-2xl transform rotate-12 hover:rotate-0 transition-all duration-500 overflow-hidden cursor-pointer border-4 border-tjp-gold"
-                                onClick={() => setSelectedCert("/uploads/uploaded_image_1_1768417621406.png")}
+                                onClick={() => setSelectedCert("/assets/tnau-cert.jpg")}
                             >
                                 <img
-                                    src="/uploads/uploaded_image_1_1768417621406.png"
+                                    src="/assets/tnau-cert.jpg"
                                     alt="TNAU Certificate"
                                     className="w-full h-full object-cover"
                                 />
