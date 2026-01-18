@@ -30,7 +30,7 @@ const Contact = () => {
             const secretKey = 'tjp_encryption_key_2026';
             const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(formData), secretKey).toString();
 
-            const res = await fetch('http://localhost:5000/api/contact', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/contact', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ payload: encryptedData })

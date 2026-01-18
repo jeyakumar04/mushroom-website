@@ -12,7 +12,7 @@ const AdminBlog = () => {
     const fetchBlogs = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/blogs');
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/blogs');
             const data = await res.json();
             setBlogs(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -43,13 +43,13 @@ const AdminBlog = () => {
             let res;
             const token = localStorage.getItem('adminToken');
             if (isEditing) {
-                res = await fetch(`/api/edit/blogs/${editId}`, {
+                res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/blogs/${editId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(payload)
                 });
             } else {
-                res = await fetch('/api/blogs/add', {
+                res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/blogs/add', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(payload)
@@ -86,7 +86,7 @@ const AdminBlog = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this blog?")) return;
         try {
-            const res = await fetch(`/api/delete/blogs/${id}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/delete/blogs/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
             });
@@ -198,7 +198,7 @@ const AdminBlog = () => {
                                                 formData.append('image', file);
 
                                                 try {
-                                                    const res = await fetch('/api/upload', {
+                                                    const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/upload', {
                                                         method: 'POST',
                                                         body: formData
                                                     });

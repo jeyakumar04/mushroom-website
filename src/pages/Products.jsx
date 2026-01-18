@@ -66,7 +66,7 @@ const Products = () => {
 
         try {
             // Save to Atlas
-            const response = await fetch('http://localhost:5000/api/orders', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/orders', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dbOrder)

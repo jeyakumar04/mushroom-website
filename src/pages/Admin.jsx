@@ -35,11 +35,11 @@ const Admin = () => {
         try {
             const headers = { 'Authorization': `Bearer ${token}` };
             const [bookRes, orderRes, invRes, statRes, custRes] = await Promise.all([
-                fetch('http://localhost:5000/api/bookings', { headers }),
-                fetch('http://localhost:5000/api/orders', { headers }),
-                fetch('http://localhost:5000/api/inventory', { headers }),
-                fetch('http://localhost:5000/api/admin/stats', { headers }),
-                fetch('http://localhost:5000/api/customers', { headers })
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/bookings', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/orders', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/stats', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/customers', { headers })
             ]);
 
             const [bData, oData, iData, sData, cData] = await Promise.all([
@@ -59,7 +59,7 @@ const Admin = () => {
     const handleManualSale = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/sales/manual', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/manual', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ const Admin = () => {
             link.click();
 
             // 2. Upload to server to get a URL
-            const uploadRes = await fetch('http://localhost:5000/api/upload-bill', {
+            const uploadRes = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/upload-bill', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -137,7 +137,7 @@ const Admin = () => {
     const resetLoyalty = async (id) => {
         if (!window.confirm("Reset loyalty count?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/loyalty/reset`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/loyalty/reset`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ customerId: id })
@@ -152,7 +152,7 @@ const Admin = () => {
     const toggleBookingStatus = async (booking) => {
         const newStatus = booking.status === 'Pending' ? 'Confirmed' : 'Pending';
         try {
-            const res = await fetch(`http://localhost:5000/api/bookings/${booking._id}/status`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/bookings/${booking._id}/status`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

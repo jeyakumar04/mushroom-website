@@ -16,7 +16,7 @@ const Home = () => {
 
   useEffect(() => {
     // Fetch real count from API relative to host
-    fetch('/api/public/stats')
+    fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/public/stats')
       .then(res => res.json())
       .then(data => {
         setCustomerCount(data.customerCount || 32);
