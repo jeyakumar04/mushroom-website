@@ -197,7 +197,7 @@ const Home = () => {
               <h4 className="text-2xl font-black text-white mb-2 tracking-tight group-hover:text-tjp-gold transition-colors">Family Pack</h4>
               <p className="text-gray-400 text-sm mb-6 font-medium leading-relaxed">1kg Pack - Organic & Chemical-free Daily harvest.</p>
               <div className="flex items-center justify-between border-t border-white/5 pt-6">
-                <span className="text-3xl font-black text-white tracking-tighter">₹50<span className="text-sm font-bold text-gray-500 ml-1">/PKT</span></span>
+                <span className="text-3xl font-black text-white tracking-tighter">₹250<span className="text-sm font-bold text-gray-500 ml-1">/PKT</span></span>
                 <Link to="/products" className="bg-tjp-gold/10 hover:bg-tjp-gold hover:text-black text-tjp-gold p-4 rounded-2xl transition-all duration-500 shadow-xl group-hover:rotate-12">
                   <FaArrowRight className="text-xl" />
                 </Link>
