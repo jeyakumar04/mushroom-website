@@ -50,10 +50,50 @@ const NotificationLog = mongoose.model('NotificationLog', notificationLogSchema)
 
 const { sendDigitalBill, sendLoyaltyNotification, sendMessage, sendImage, getLatestQr, isClientReady, ADMIN_1, ADMIN_2 } = require('./services/whatsappService');
 const { sendVoiceCall } = require('./services/voiceService');
-const { sendMonthlyReport, sendDailyReport } = require('./services/reportService');
+const { sendMonthlyReport, sendDailyReport, sendYearlyReport } = require('./services/reportService');
 const { sendSMSOtp } = require('./services/smsService');
 const { sendOtpEmail, sendNotificationEmail } = require('./services/emailService');
 const cron = require('node-cron');
+
+// --- 📣 CENTRALIZED ADMIN NOTIFICATION HELPER ---
+const notifyAdmins = async (title, message, skipEmail = false) => {
+    const adminEmail = process.env.EMAIL_USER || 'jpfarming10@gmail.com';
+    const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',').map(p => p.trim());
+
+    console.log(`📣 Notifying Admins: ${title}`);
+
+    // 1. Send Email (Only if not skipped)
+    if (!skipEmail) {
+        try {
+            const html = `
+                <div style="font-family: Arial, sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #022C22; border-bottom: 2px solid #F4D03F; padding-bottom: 10px;">🍄 TJP ALERT: ${title}</h2>
+                    <p style="font-size: 16px; line-height: 1.5; color: #333;">${message.replace(/\n/g, '<br>')}</p>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="font-size: 12px; color: #888;">Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                    <p style="font-size: 12px; color: #888;">TJP Mushroom Farming Automation System</p>
+                </div>
+            `;
+            await sendNotificationEmail(adminEmail, `🚨 ${title}`, html);
+            await NotificationLog.create({ type: 'Email', recipient: adminEmail, title, message: 'Admin Notification (Email) Sent', status: 'Sent' });
+        } catch (err) {
+            console.error("Email Notify Error:", err);
+        }
+    } else {
+        console.log(`📬 Email skipped for: ${title}`);
+    }
+
+    // 2. Send WhatsApp (Secondary)
+    for (const phone of adminPhones) {
+        try {
+            const waMsg = `🔔 *TJP ALERT: ${title}*\n\n${message}`;
+            await sendMessage(phone, waMsg);
+            await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title, message: 'Admin Notification (WA) Sent', status: 'Sent' });
+        } catch (err) {
+            console.error(`WhatsApp Notify Error (${phone}):`, err);
+        }
+    }
+};
 
 // --- 🔄 POCKET SYNC FUNCTION (Limit 10) ---
 const syncSaleToLoyalty = async (customerPhone, pocketsSold, customerName) => {
@@ -255,6 +295,12 @@ app.post('/api/settings/soaking', auth, async (req, res) => {
             { value: startTime },
             { upsert: true, new: true }
         );
+        // Reset sent flag for the new timer
+        await Settings.findOneAndUpdate(
+            { key: 'soakingAlertSent' },
+            { value: false },
+            { upsert: true }
+        );
         res.json({ message: 'Soaking start time saved', startTime });
     } catch (error) {
         res.status(500).json({ message: 'Failed to save soaking time' });
@@ -310,9 +356,8 @@ app.post('/api/water/refill', auth, async (req, res) => {
         await log.save();
 
         // Notify admin about water refill
-        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-        const msg = `≡ƒÆº *TJP WATER UPDATE*\n\nTank Refilled to *5000L* (100%)\nStatus: Full Γ£à`;
-        for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
+        const msg = `Tank Refilled to *5000L* (100%)\nStatus: Full ✅`;
+        await notifyAdmins("WATER REFILL", msg);
 
         res.json({ message: 'Tank Refilled to 5000L', currentLevel: capacity });
     } catch (err) {
@@ -356,9 +401,8 @@ app.post('/api/water/spray', auth, async (req, res) => {
         await log.save();
 
         // Notify admin about water spray update
-        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
-        const msg = `≡ƒÆº *TJP WATER UPDATE*\n\nManual Spray Triggered ≡ƒÜ┐\nRemaining Level: *${currentLevel}L* (${Math.round((currentLevel / capacity) * 100)}%)`;
-        for (const p of adminPhones) await sendMessage(p.trim(), msg, 'admin');
+        const msg = `Manual Spray Triggered 🚿\nRemaining Level: *${currentLevel}L* (${Math.round((currentLevel / capacity) * 100)}%)`;
+        await notifyAdmins("WATER SPRAY", msg);
 
         res.json({ message: 'Manual spray triggered', currentLevel, percentage: Math.round((currentLevel / capacity) * 100) });
     } catch (err) {
@@ -655,6 +699,9 @@ ${loyaltyUpdate && loyaltyUpdate.freePocketsEarned > 0 ? `வாழ்த்த�
             sendMessage(contactNumber, billMsg);
         }
 
+        // Notify Admins about the sale via WhatsApp ONLY (Email skipped to save storage)
+        await notifyAdmins("NEW SALE COMPLETED", billMsg.replace(/🍄 \*TJP BILL\*/, ""), true);
+
         res.status(201).json({ success: true, sale: newSale, loyaltyUpdate, message: billMsg });
 
     } catch (error) {
@@ -723,20 +770,30 @@ app.post('/api/send-bill', auth, async (req, res) => {
 
         // 2. Send via WhatsApp
         const caption = `🍄 *TJP DIGITAL BILL*\n\nவணக்கம் ${customerName}! 👋\nஉங்கள் காளான் பில் இங்கே இணைக்கப்பட்டுள்ளது.\n\n"இயற்கையோடு இணைந்த சுவை!" 🌱\n📍 Location: TJP Farm`;
-        const result = await sendImage(contactNumber, image, caption, 'business');
+        const result = await sendImage(contactNumber, image, caption);
 
         const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
         const imageUrl = `${baseUrl}/public/uploads/${fileName}`;
 
+        // Log to History
+        await NotificationLog.create({
+            type: 'WhatsApp',
+            recipient: contactNumber,
+            title: 'Digital Bill',
+            message: `Bill sent to ${customerName}`,
+            status: result.success ? 'Sent' : 'Failed',
+            error: result.success ? null : result.error
+        });
+
         res.json({
-            success: true,
-            message: result.success ? 'Bill sent successfully!' : 'Bill saved but WhatsApp link issue',
+            success: result.success,
+            message: result.success ? 'Bill sent successfully!' : `WhatsApp Failed: ${result.error}`,
             imageUrl,
             waResult: result
         });
     } catch (error) {
         console.error('Bill Process Error:', error);
-        res.status(500).json({ message: 'Server error processing bill' });
+        res.status(500).json({ success: false, message: 'Server error processing bill: ' + error.message });
     }
 });
 
@@ -869,7 +926,19 @@ app.patch('/api/edit/:model/:id', auth, async (req, res) => {
     try {
         const { model, id } = req.params;
         let Model;
-        if (model === 'sales') Model = Sales;
+        let updateData = { ...req.body };
+
+        if (model === 'sales') {
+            Model = Sales;
+            // 🛠️ TJP ANTI-GRAVITY: SYNC PAYMENT STATUS
+            if (updateData.paymentType) {
+                updateData.paymentStatus = (updateData.paymentType === 'Credit') ? 'Unpaid' : 'Paid';
+            }
+            // Ensure date is a proper Date object if provided
+            if (updateData.date) {
+                updateData.date = new Date(updateData.date);
+            }
+        }
         else if (model === 'expenditure') Model = Expenditure;
         else if (model === 'inventory') Model = Inventory;
         else if (model === 'climate') Model = Climate;
@@ -878,9 +947,10 @@ app.patch('/api/edit/:model/:id', auth, async (req, res) => {
         else if (model === 'blogs') Model = Blog;
         else return res.status(400).json({ message: 'Invalid model' });
 
-        const updated = await Model.findByIdAndUpdate(id, req.body, { new: true });
+        const updated = await Model.findByIdAndUpdate(id, updateData, { new: true });
         res.json(updated);
     } catch (error) {
+        console.error("Update Error:", error);
         res.status(500).json({ message: 'Update failed' });
     }
 });
@@ -1784,13 +1854,10 @@ app.post('/api/batches/:id/start-soak', auth, async (req, res) => {
         await batch.save();
 
         // --- SOAKING INTIMATION NOTIFICATION ---
-        const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',');
         const finishTime = new Date(batch.soakingTime.getTime() + 18 * 60 * 60 * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const intimationMsg = `≡ƒº╝ *TJP SOAKING STARTED*\n\nBatch: *${batch.batchName}*\nStart Time: ${batch.soakingTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n≡ƒÜ¿ *18-Hour Alert Schedule:* \nTarget Finish: *${finishTime}*\n\nSystem will notify you automatically when complete! ≡ƒìä`;
+        const intimationMsg = `Batch: *${batch.batchName}*\nStart Time: ${batch.soakingTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\n🚨 *18-Hour Alert Schedule:* \nTarget Finish: *${finishTime}*\n\nSystem will notify you automatically when complete! 🍄`;
 
-        for (const phone of adminPhones) {
-            await sendMessage(phone.trim(), intimationMsg, 'admin');
-        }
+        await notifyAdmins("SOAKING STARTED", intimationMsg);
 
         res.json({ message: 'Soaking started and intimation sent', soakingTime: batch.soakingTime, finishTime });
     } catch (error) {
@@ -1965,31 +2032,21 @@ const startAlarmScheduler = () => {
             // 1. Check Daily Alerts (HH:MM)
             const activeAlerts = await Alert.find({ scheduledTime: currentTime, isActive: true, type: 'daily' });
             for (const alert of activeAlerts) {
-                const message = `≡ƒöö *TJP ALARM* ≡ƒöö\n\nTitle: ${alert.title}\nMessage: ${alert.message}\nTime: ${alert.scheduledTime}`;
-                for (const phone of adminPhones) {
-                    try {
-                        await sendMessage(phone, message, 'admin');
-                        await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: alert.title, message: alert.message });
-                        if (alert.title.includes('WATER')) {
-                            await sendVoiceCall(phone, `Sir, TJP Mushroom Alert. ${alert.title}. ${alert.message}`);
-                            await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: alert.title, message: `System Call triggered` });
-                        }
-                    } catch (e) {
-                        await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: alert.title, status: 'Failed', error: e.message });
+                await notifyAdmins(`ALARM: ${alert.title}`, `${alert.message}\nScheduled: ${alert.scheduledTime}`);
+                if (alert.title.includes('WATER')) {
+                    for (const phone of adminPhones) {
+                        await sendVoiceCall(phone, `Sir, TJP Mushroom Alert. ${alert.title}. ${alert.message}`);
                     }
                 }
             }
 
             // --- FAN AUTOMATION ---
             if (currentTime === '06:00') {
-                const msg = `≡ƒÆ¿ *TJP FAN AUTOMATION*\n\nStatus: *INTAKE ON* (IN) Γ£à\nTime: 06:00 AM`;
-                for (const p of adminPhones) await sendMessage(p, msg);
+                await notifyAdmins("FAN AUTOMATION", "Status: *INTAKE ON* (IN) ✅\nTime: 06:00 AM");
             } else if (currentTime === '06:30') {
-                const msg = `≡ƒÆ¿ *TJP FAN AUTOMATION*\n\nStatus: *EXHAUST ON* (OUT) ≡ƒöä\nTime: 06:30 AM`;
-                for (const p of adminPhones) await sendMessage(p, msg);
+                await notifyAdmins("FAN AUTOMATION", "Status: *EXHAUST ON* (OUT) 🔄\nTime: 06:30 AM");
             } else if (currentTime === '07:00') {
-                const msg = `≡ƒÆ¿ *TJP FAN AUTOMATION*\n\nStatus: *ALL FANS OFF* ≡ƒ¢æ\nTime: 07:00 AM`;
-                for (const p of adminPhones) await sendMessage(p, msg);
+                await notifyAdmins("FAN AUTOMATION", "Status: *ALL FANS OFF* 🛑\nTime: 07:00 AM");
             }
 
             // --- TANK REFILL ALERT (Every 2 Days) ---
@@ -2000,37 +2057,49 @@ const startAlarmScheduler = () => {
                     const diffDays = Math.floor((now - lastRefill) / (1000 * 60 * 60 * 24));
 
                     if (diffDays >= 2) {
-                        const msg = `≡ƒÆº *TJP WATER ALERT*\n\nStatus: *REFILL TANK* ΓÜá∩╕Å\nLast filled: ${lastRefill.toLocaleDateString()}\nDays passed: ${diffDays}`;
-                        const alertNumbers = ['9159659711', '9500591897'];
-                        for (const phone of alertNumbers) {
-                            await sendMessage(phone, msg);
-                            await sendVoiceCall(phone, "Sir, TJP Water Alert. Please refill the tank. Two days have passed since last refill.");
+                        const msg = `Status: *REFILL TANK* ⚠️\nLast filled: ${lastRefill.toLocaleDateString()}\nDays passed: ${diffDays}`;
+                        await notifyAdmins("WATER REFILL ALERT", msg);
+                        for (const phone of adminPhones) {
+                            await sendVoiceCall(phone, "Sir, TJP Water Alert. Please refill the tank.");
                         }
                     }
                 }
             }
 
-            // 3. Check Soaking Alert (18 hours check)
+            // 3. Check Soaking Alert (1: From Batches)
             const soakingBatches = await Batch.find({ soakingStatus: 'Soaking', soakingAlertSent: false });
             for (const batch of soakingBatches) {
                 const alertTime = new Date(new Date(batch.soakingTime).getTime() + 18 * 60 * 60 * 1000);
                 if (now >= alertTime) {
-                    const msg = `≡ƒÜ¿ TJP SOAKING ALERT! ≡ƒÜ¿\nBatch: ${batch.batchName}\ncompleted 18 hours.`;
-
-                    // Trigger IFTTT Webhook for Voice Call
                     const { sendIFTTTCall } = require('./services/voiceService');
                     await sendIFTTTCall(`Sir, TJP Soaking Alert for Batch ${batch.batchName} is complete.`);
-
                     for (const phone of adminPhones) {
-                        await sendMessage(phone, msg);
-                        await NotificationLog.create({ type: 'WhatsApp', recipient: phone, title: 'Soaking Alert', message: msg });
-                        // Also doing standard voice call if configured
                         await sendVoiceCall(phone, `Sir, TJP Mushroom Soaking Alert. Batch ${batch.batchName} has completed 18 hours.`);
-                        await NotificationLog.create({ type: 'VoiceCall', recipient: phone, title: 'Soaking Alert', message: `Call for batch ${batch.batchName}` });
                     }
+
+                    await notifyAdmins("SOAKING COMPLETE", `Batch: ${batch.batchName}\nCompleted: 18 hours.\nTime: ${now.toLocaleTimeString()}`);
+
                     batch.soakingAlertSent = true;
                     batch.soakingStatus = 'Completed';
                     await batch.save();
+                }
+            }
+
+            // 4. Check Soaking Alert (2: From Global Setting - Smart Hub)
+            const globalSoakSetting = await Settings.findOne({ key: 'soakingStartTime' });
+            if (globalSoakSetting && globalSoakSetting.value) {
+                const soakAlertSent = await Settings.findOne({ key: 'soakingAlertSent' });
+                const isSent = soakAlertSent ? soakAlertSent.value === true : false;
+
+                if (!isSent) {
+                    const alertTime = new Date(new Date(globalSoakSetting.value).getTime() + 18 * 60 * 60 * 1000);
+                    if (now >= alertTime) {
+                        for (const phone of adminPhones) {
+                            await sendVoiceCall(phone, `Sir, TJP Smart Hub Alert. The 18 hour soaking cycle is complete.`);
+                        }
+                        await notifyAdmins("SMART HUB: SOAKING COMPLETE", `The global 18-hour soaking timer has finished.\nTime: ${now.toLocaleTimeString()}`);
+                        await Settings.findOneAndUpdate({ key: 'soakingAlertSent' }, { value: true }, { upsert: true });
+                    }
                 }
             }
         } catch (error) { console.error('Scheduler Error:', error); }
@@ -2086,36 +2155,24 @@ app.get('/api/test-alarm', async (req, res) => {
 });
 
 app.get('/api/test-all', async (req, res) => {
-    const adminPhones = (process.env.ADMIN_PHONE || '9500591897,9159659711').split(',').map(p => p.trim());
-
-    const scenarios = [
-        {
-            msg: "≡ƒ¢æ *CRITICAL: Climate Control*\n\nΓÜá∩╕Å High Temperature Alert! (32┬░C)\nAction: Exhaust Fan Turned ON automatically.\nMist system activated."
-        },
-        {
-            msg: "≡ƒÆº *WATER LEVEL LOW*\n\nΓÜá∩╕Å Water Drum 1 is below 20%.\nPlease refill immediately to ensure misting works."
-        },
-        {
-            msg: "≡ƒìä *BED TRACKING*\n\n≡ƒôà Batch A-1 Recommendation:\nIt is Day 16. Inspect beds for pinhead formation today."
-        },
-        {
-            msg: "≡ƒÄë *LOYALTY REWARD*\n\nUser *Ravi* has reached 10 pockets!\nEligible for 1 FREE pocket."
-        }
-    ];
-
     try {
-        let count = 0;
-        for (const phone of adminPhones) {
-            for (const scenario of scenarios) {
-                await sendMessage(phone, scenario.msg);
-                // Small delay to prevent spam block
-                await new Promise(r => setTimeout(r, 2000));
-            }
-            count++;
+        const scenarios = [
+            { title: "HIGH TEMPERATURE ALERT", msg: "High Temperature detected (32°C). Action: Exhaust Fan Turned ON automatically." },
+            { title: "WATER LEVEL CRITICAL", msg: "Water Drum 1 is below 20%. Please refill immediately." },
+            { title: "BED PREP REMINDER", msg: "It is Day 16 for Batch A-1. Inspect beds for pinhead formation today." }
+        ];
+
+        console.log("🚀 Testing Admin Notifications (Email + WA)...");
+
+        for (const scenario of scenarios) {
+            await notifyAdmins(scenario.title, scenario.msg);
+            await new Promise(r => setTimeout(r, 1000));
         }
-        res.json({ message: `Sent ${scenarios.length} sample alerts to ${count} admins!` });
+
+        res.json({ success: true, message: `Sent ${scenarios.length} test alerts via Email and WhatsApp!` });
     } catch (error) {
-        res.status(500).json({ message: 'Full test failed' });
+        console.error("Test Notify Error:", error);
+        res.status(500).json({ success: false, message: 'Test failed: ' + error.message });
     }
 });
 
@@ -2660,6 +2717,28 @@ cron.schedule('59 23 28-31 * *', async () => {
         } catch (error) {
             console.error('Γ¥î Automated Report Error:', error);
         }
+    }
+});
+
+// --- YEARLY AUTOMATED REPORT SCHEDULER ---
+// Runs at 11:59 PM on December 31st
+cron.schedule('59 23 31 12 *', async () => {
+    console.log('🏆 New Year\'s Eve: Generating Annual Performance Report...');
+    try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const startDate = new Date(year, 0, 1);
+        const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+        const sales = await Sales.find({ date: { $gte: startDate, $lte: endDate } });
+        const expenditures = await Expenditure.find({ date: { $gte: startDate, $lte: endDate } });
+        const inventory = await Inventory.find();
+        const climate = await Climate.find({ date: { $gte: startDate, $lte: endDate } });
+        const customers = await Customer.find();
+
+        await sendYearlyReport(sales, expenditures, inventory, climate, customers, year);
+    } catch (error) {
+        console.error('❌ Yearly Report Automation Error:', error);
     }
 });
 

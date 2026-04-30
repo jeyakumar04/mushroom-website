@@ -193,7 +193,7 @@ node index.js
 ### Test 1: WhatsApp Connection
 ```bash
 # Check status
-curl http://localhost:5000/api/admin/whatsapp-status
+curl https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/whatsapp-status
 # Expected: {"status":"connected"}
 ```
 

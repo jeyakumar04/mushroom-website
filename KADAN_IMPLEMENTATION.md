@@ -162,7 +162,7 @@ case 'kadan':
             <div className="flex gap-4">
                 <button
                     onClick={async () => {
-                        await fetch(`http://localhost:5000/api/sales/${settlePopup.saleId}/settle`, {
+                        await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/${settlePopup.saleId}/settle`, {
                             method: 'PATCH',
                             headers: { 
                                 'Content-Type': 'application/json', 
@@ -179,7 +179,7 @@ case 'kadan':
                 </button>
                 <button
                     onClick={async () => {
-                        await fetch(`http://localhost:5000/api/sales/${settlePopup.saleId}/settle`, {
+                        await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/${settlePopup.saleId}/settle`, {
                             method: 'PATCH',
                             headers: { 
                                 'Content-Type': 'application/json', 

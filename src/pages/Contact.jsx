@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaClock, FaPaperPlane, FaWhatsapp, FaInstagram, FaFacebookF } from 'react-icons/fa';
 import Footer from '../Component/Footer';
-import CryptoJS from 'crypto-js';
 
 const Contact = () => {
     const [formData, setFormData] = useState({
@@ -16,36 +15,22 @@ const Contact = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = async (e) => {
+    const handleSendMessage = (e) => {
         e.preventDefault();
 
-        // 1. Honeypot check (Silent Security - No user input needed)
-        if (formData.website) {
-            console.log("Bot detected via Honeypot!");
+        if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+            alert("Please fill all fields");
             return;
         }
 
-        try {
-            // 2. Encrypt Data for Extra Security
-            const secretKey = 'tjp_encryption_key_2026';
-            const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(formData), secretKey).toString();
+        const messageContent = `New Enquiry:\nSubject: ${formData.subject}\nMessage: ${formData.message}`;
+        const encodedMessage = encodeURIComponent(messageContent);
 
-            const res = await fetch('http://localhost:5000/api/contact', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ payload: encryptedData })
-            });
+        const WHATSAPP_NUMBER = "+91 9500591897";
+        const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+        window.open(url, "_blank");
 
-            if (res.ok) {
-                alert('TJP Mushroom Farming-க்கு உங்கள் செய்தி அனுப்பப்பட்டது! விரைவில் உங்களைத் தொடர்பு கொள்கிறோம். ✨');
-                setFormData({ name: '', email: '', subject: '', message: '', website: '' });
-            } else {
-                alert('Message send panna mudiyala. Dayavu seidhu apram try pannunga.');
-            }
-        } catch (err) {
-            console.error(err);
-            alert('Something went wrong!');
-        }
+        setFormData({ name: '', email: '', subject: '', message: '', website: '' });
     };
 
     return (
@@ -160,7 +145,7 @@ const Contact = () => {
 
                                 <h2 className="text-3xl font-bold mb-8 relative z-10 uppercase tracking-tight">Send us a <span className="text-tjp-gold">Message</span></h2>
 
-                                <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                                <form onSubmit={handleSendMessage} className="space-y-6 relative z-10">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>

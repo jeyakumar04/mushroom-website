@@ -9,7 +9,7 @@ const axios = require('axios');
 const fs = require('path');
 const path = require('path');
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app';
 const colors = {
     green: '\x1b[32m',
     red: '\x1b[31m',

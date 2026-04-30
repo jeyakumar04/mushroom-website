@@ -7,16 +7,19 @@ const Blog = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/blogs')
-            .then(res => res.json())
-            .then(data => {
+        const fetchBlogs = async () => {
+            try {
+                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/blogs');
+                const data = await res.json();
                 setBlogs(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error("Error fetching blogs:", error);
+            } finally {
                 setLoading(false);
-            })
-            .catch(err => {
-                console.error("Failed to load blogs", err);
-                setLoading(false);
-            });
+            }
+        };
+
+        fetchBlogs();
     }, []);
 
     const formatDate = (dateString) => {

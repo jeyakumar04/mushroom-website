@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaShieldAlt, FaCalendarAlt, FaUser, FaMapMarkerAlt, FaPhone, FaArrowLeft, FaMoneyBillWave, FaGooglePay, FaUpload, FaWhatsapp } from 'react-icons/fa';
+import { FaShieldAlt, FaCalendarAlt, FaUser, FaMapMarkerAlt, FaPhone, FaArrowLeft, FaMoneyBillWave, FaGooglePay, FaUpload } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 
 const Booking = () => {
@@ -40,7 +40,7 @@ const Booking = () => {
         setError('');
 
         try {
-            const response = await fetch('http://localhost:5000/api/bookings', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),

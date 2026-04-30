@@ -30,7 +30,7 @@ const Login = () => {
         setError('');
 
         try {
-            const response = await fetch('/api/admin/login', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credentials)
@@ -67,7 +67,7 @@ const Login = () => {
         setError('');
 
         try {
-            const otpRes = await fetch('/api/admin/request-otp', {
+            const otpRes = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/request-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber })
@@ -93,7 +93,7 @@ const Login = () => {
         setError('');
 
         try {
-            const response = await fetch('/api/admin/verify-otp', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/verify-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber, otp })

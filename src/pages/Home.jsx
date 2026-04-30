@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaSun, FaStar, FaLayerGroup } from 'react-icons/fa';
-import heroImage from '../assets/home-hero.jpg';
+import { FaLeaf, FaHeartbeat, FaSeedling, FaArrowRight, FaTemperatureHigh, FaWater, FaStar, FaLayerGroup } from 'react-icons/fa';
 import Footer from '../Component/Footer';
-import packingImg from '../assets/packing.jpeg';
-import farmingImg from '../assets/farming.jpeg';
-import logo from '../assets/logo-final.png';
 
 const Home = () => {
+  const heroImage = '/assets/home-hero.jpg';
+  const packingImg = '/assets/packing.jpg';
+  const farmingImg = '/assets/farming.jpg';
+  const logo = '/assets/logo-final.png';
   const [offset, setOffset] = useState(0);
 
 
@@ -16,12 +16,12 @@ const Home = () => {
 
   useEffect(() => {
     // Fetch real count from API relative to host
-    fetch('/api/public/stats')
+    fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/public/stats')
       .then(res => res.json())
       .then(data => {
         setCustomerCount(data.customerCount || 32);
       })
-      .catch(() => setCustomerCount(450)); // Fallback
+      .catch(() => setCustomerCount(32)); // Fallback
   }, []);
 
   useEffect(() => {
@@ -197,7 +197,7 @@ const Home = () => {
               <h4 className="text-2xl font-black text-white mb-2 tracking-tight group-hover:text-tjp-gold transition-colors">Family Pack</h4>
               <p className="text-gray-400 text-sm mb-6 font-medium leading-relaxed">1kg Pack - Organic & Chemical-free Daily harvest.</p>
               <div className="flex items-center justify-between border-t border-white/5 pt-6">
-                <span className="text-3xl font-black text-white tracking-tighter">₹50<span className="text-sm font-bold text-gray-500 ml-1">/PKT</span></span>
+                <span className="text-3xl font-black text-white tracking-tighter">₹250<span className="text-sm font-bold text-gray-500 ml-1">/PKT</span></span>
                 <Link to="/products" className="bg-tjp-gold/10 hover:bg-tjp-gold hover:text-black text-tjp-gold p-4 rounded-2xl transition-all duration-500 shadow-xl group-hover:rotate-12">
                   <FaArrowRight className="text-xl" />
                 </Link>
@@ -223,7 +223,7 @@ const Home = () => {
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
               TJP Mushroom Farming is a trusted producer of fresh oyster mushrooms in Pulimalaipatty, Melur, Madurai, dedicated to growing high-quality, chemical-free mushrooms using sustainable farming practices.
               <br /><br />
-              Founded by two brothers, <span className="text-white font-bold">Jeyakumar</span> (M.Sc. CS) and <span className="text-white font-bold">Parthasarathy</span> (B.Sc. CS), we combine technical precision with a passion for organic excellence to deliver the freshest harvest directly to your doorstep.
+              Founded by two brothers, <span className="text-white font-bold">Jeyakumar T</span> (M.Sc. CS) and <span className="text-white font-bold">Parthasarathy T</span> (B.Sc. CS), we combine technical precision with a passion for organic excellence to deliver the freshest harvest directly to your doorstep.
             </p>
 
             <div className="flex gap-8 flex-wrap">

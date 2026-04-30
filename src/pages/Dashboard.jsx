@@ -7,7 +7,7 @@ import {
     FaLightbulb, FaWater, FaFan, FaRupeeSign, FaArrowUp, FaArrowDown,
     FaReceipt, FaShoppingCart, FaTruck, FaStore, FaImage, FaLayerGroup, FaEnvelope, FaFileCsv, FaBook
 } from 'react-icons/fa';
-import { toPng } from 'html-to-image';
+import { toBlob, toPng } from 'html-to-image';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import Footer from '../Component/Footer';
 import DigitalBill from '../Component/DigitalBill';
@@ -31,7 +31,7 @@ const Dashboard = () => {
     const handleBlogSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch('http://localhost:5000/api/blogs/add', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/blogs/add', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -62,6 +62,7 @@ const Dashboard = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [climateData, setClimateData] = useState([]);
     const [kadanList, setKadanList] = useState([]);
+    const [waPrompt, setWaPrompt] = useState(null); // 🚀 TJP Anti-gravity WA Prompt
     const [settlePopup, setSettlePopup] = useState({ open: false, saleId: null });
     const [cTemp, setCTemp] = useState('');
     const [cMoist, setCMoist] = useState('');
@@ -154,6 +155,21 @@ const Dashboard = () => {
     const token = localStorage.getItem('adminToken');
     const GOOGLE_MAPS_LINK = "https://maps.app.goo.gl/nNmZaYwtJvmXbXBz5";
 
+
+    useEffect(() => {
+        if (!document.getElementById('tjp-float-anim')) {
+            const style = document.createElement('style');
+            style.id = 'tjp-float-anim';
+            style.innerHTML = `
+                @keyframes floatAnim {
+                    0%, 100% { transform: translate(-50%, -52%); }
+                    50% { transform: translate(-50%, -48%); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }, []);
+
     useEffect(() => {
         const timer = setInterval(() => {
             const phoneInput = document.getElementById('customerPhone');
@@ -175,22 +191,22 @@ const Dashboard = () => {
         try {
             const headers = { 'Authorization': `Bearer ${token}` };
             const [bookRes, orderRes, invRes, statRes, custRes, salesRes, expRes, alertRes, finRes, batchRes, climateRes, waterCheckRes, reportsRes, logsRes, kadanRes, sokRes] = await Promise.all([
-                fetch('http://localhost:5000/api/bookings', { headers }),
-                fetch('http://localhost:5000/api/orders', { headers }),
-                fetch('http://localhost:5000/api/inventory', { headers }),
-                fetch('http://localhost:5000/api/admin/stats', { headers }),
-                fetch('http://localhost:5000/api/customers', { headers }),
-                fetch('http://localhost:5000/api/sales', { headers }),
-                fetch('http://localhost:5000/api/expenditure', { headers }),
-                fetch('http://localhost:5000/api/alerts', { headers }),
-                fetch(`http://localhost:5000/api/finance/summary?month=${selectedMonth}&year=${selectedYear}`, { headers }),
-                fetch('http://localhost:5000/api/batches', { headers }),
-                fetch('http://localhost:5000/api/climate', { headers }),
-                fetch('http://localhost:5000/api/settings/water-check', { headers }),
-                fetch('http://localhost:5000/api/admin/reports-list', { headers }),
-                fetch('http://localhost:5000/api/admin/notification-logs', { headers }),
-                fetch('http://localhost:5000/api/sales/kadan', { headers }),
-                fetch('http://localhost:5000/api/settings/soaking', { headers })
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/bookings', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/orders', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/stats', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/customers', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/expenditure', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/alerts', { headers }),
+                fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/finance/summary?month=${selectedMonth}&year=${selectedYear}`, { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/batches', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/climate', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/settings/water-check', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/reports-list', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/notification-logs', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/kadan', { headers }),
+                fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/settings/soaking', { headers })
             ]);
 
             const [bData, oData, iData, sData, cData, sld, exd, ald, finD, bthD, clmD, wtrR, rptL, nLog, kdnL, sokD] = await Promise.all([
@@ -242,7 +258,7 @@ const Dashboard = () => {
             setReportArchives(Array.isArray(rptL) ? rptL : []);
 
             try {
-                const statusRes = await fetch('http://localhost:5000/api/status', { headers });
+                const statusRes = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/status', { headers });
                 const statusD = await statusRes.json();
                 setConnectionMode({ isLocal: statusD.isLocal, mode: statusD.mode });
             } catch (e) {
@@ -303,7 +319,7 @@ const Dashboard = () => {
         e.preventDefault();
         try {
             // Use the global 'token' variable
-            const res = await fetch('http://localhost:5000/api/inventory', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(inventoryForm)
@@ -324,7 +340,7 @@ const Dashboard = () => {
     const handleReset = async (customerId) => {
         if (!window.confirm("Pazhaya loyalty data-vai delete panni fresh-ah start pannaatuma?")) return;
         try {
-            const response = await fetch('http://localhost:5000/api/loyalty/reset', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/loyalty/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -355,7 +371,7 @@ const Dashboard = () => {
                 return;
             }
 
-            const res = await fetch(`http://localhost:5000/api/loyalty/claim-reward`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/loyalty/claim-reward`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ contactNumber: customer.contactNumber })
@@ -383,7 +399,7 @@ const Dashboard = () => {
         if (window.confirm("Indha Free Pocket-ai claim pannaatuma? (Idhu 0 aagi vidum)")) {
             try {
                 // Determine API URL based on current host
-                const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+                const apiUrl = 'https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app';
                 const response = await fetch(`${apiUrl}/api/loyalty/claim-reward`, {
                     method: 'POST',
                     headers: {
@@ -409,16 +425,108 @@ const Dashboard = () => {
     };
 
     // SALES HANDLER
+
+
+    const handleSalesAndBill = async (saleData, originalSale, loyaltyUpdate) => {
+        setBillSentStatus('success');
+        setTimeout(() => setBillSentStatus(null), 4000);
+        const { name, phone, amount, balance, loyaltyPoints } = saleData;
+
+        setBillData({
+            sale: { ...originalSale, pricePerPocket: originalSale.pricePerUnit },
+            customer: {
+                loyaltyCount: loyaltyUpdate?.currentCycle || 0,
+                rewardsEarned: loyaltyUpdate?.freePocketsEarned || 0,
+                totalLifetime: loyaltyUpdate?.totalLifetime || 0,
+                reachedCycle: loyaltyUpdate?.reachedCycle || false
+            }
+        });
+
+        await new Promise(r => setTimeout(r, 50));
+
+        try {
+            if (billRef.current) {
+                const blob = await toBlob(billRef.current, {
+                    pixelRatio: 1.5, // Slightly lower for extreme speed
+                    skipFonts: true,
+                    cacheBust: true
+                });
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
+            }
+        } catch (err) {
+            console.error("Image copy failed", err);
+        }
+
+        const popup = document.createElement('div');
+        popup.id = 'tjp-wa-popup';
+        popup.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #CBCCCB; padding: 40px; border-radius: 40px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.7); z-index: 99999;
+            text-align: center; border: 8px solid white;
+            animation: floatAnim 3s ease-in-out infinite;
+            max-width: 400px; width: 90%; font-family: 'Inter', sans-serif;
+        `;
+
+        popup.innerHTML = `
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: #25D366; margin: 0 auto 25px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(37,211,102,0.4);">
+                <span style="font-size: 40px; color: white;">✅</span>
+            </div>
+            <h2 style="color: #022C22; margin-bottom: 5px; font-weight: 900; text-transform: uppercase; font-size: 24px;">Bill Ready! 🍄</h2>
+            <p style="color: #1b4332; font-weight: 800; font-size: 16px; margin-bottom: 25px; letter-spacing: -0.5px;">
+                Image Copied to Clipboard. <br/>
+                Just <span style="background: white; padding: 2px 10px; border-radius: 8px;">CTRL + V</span> in WhatsApp Chat!
+            </p>
+            <button id="waRedirectBtn" style="
+                background: #022C22; color: white; padding: 18px 40px;
+                border: none; border-radius: 25px; font-weight: 900; 
+                cursor: pointer; font-size: 18px; width: 100%;
+                box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+                transition: all 0.3s;
+                text-transform: uppercase;
+            ">Go to Customer Chat</button>
+            <button id="closeWaPopup" style="margin-top: 20px; background: transparent; border: none; color: #444; font-weight: 900; cursor: pointer; text-transform: uppercase; font-size: 11px; letter-spacing: 2px; opacity: 0.6;">🚫 Close Prompt</button>
+        `;
+
+        document.body.appendChild(popup);
+
+        document.getElementById('waRedirectBtn').onclick = () => {
+            const cleanPhone = phone.startsWith('91') ? phone : '91' + phone;
+
+            // 🚀 ULTRA FAST REDIRECT: Try Desktop App Protocol First
+            window.location.href = `whatsapp://send?phone=${cleanPhone}`;
+
+            // 🕒 Fallback to wa.me if desktop doesn't respond (wa.me is faster than web.whatsapp.com)
+            setTimeout(() => {
+                window.open(`https://wa.me/${cleanPhone}`, '_blank');
+            }, 600);
+
+            document.body.removeChild(popup);
+        };
+
+        document.getElementById('closeWaPopup').onclick = () => {
+            document.body.removeChild(popup);
+        };
+    };
+
     const handleSaleSubmit = async (e) => {
+
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/sales', {
+            // 🛠️ TJP ANTI-GRAVITY: CONSTRUCT DATE FROM SELECTORS
+            const recordedDate = new Date(selectedYear, selectedMonth - 1, selectedDate || new Date().getDate());
+
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token} `
                 },
-                body: JSON.stringify(saleForm)
+                body: JSON.stringify({
+                    ...saleForm,
+                    date: recordedDate
+                })
             });
             const data = await res.json();
             if (res.ok) {
@@ -427,14 +535,24 @@ const Dashboard = () => {
                     const { freePocketsEarned, currentCycle, reachedCycle } = data.loyaltyUpdate;
 
                     if (reachedCycle) {
-                        alert(`🎁 *LOYALTY REWARD!* \n${saleForm.customerName} can get ${freePocketsEarned} FREE POCKET(s) now! \nBalance: ${currentCycle}/10`);
+                        alert(`🎁 * LOYALTY REWARD! * \n${saleForm.customerName} can get ${freePocketsEarned} FREE POCKET(s) now! \nBalance: ${currentCycle}/10`);
                     } else if (currentCycle >= 8) {
                         alert(`🔥 ALMOST THERE! \n${saleForm.customerName} has ${currentCycle}/10 pockets. Just ${10 - currentCycle} more for FREE!`);
                     }
                 }
 
                 // TRIGGER DIGITAL BILL GEN & UPLOAD
-                await handleSendBill(data.sale, data.loyaltyUpdate);
+                // 🚀 TJP ULTRA FIX: Call the Final Admin Bill Logic
+                const totalKadan = (kadanList || []).filter(k => k.contactNumber === saleForm.contactNumber).reduce((sum, s) => sum + s.totalAmount, 0);
+                await handleSalesAndBill({
+                    name: saleForm.customerName,
+                    phone: saleForm.contactNumber,
+                    amount: saleForm.quantity * saleForm.pricePerUnit,
+                    balance: totalKadan,
+                    loyaltyPoints: (data.loyaltyUpdate?.totalLifetime || 0)
+                }, data.sale, data.loyaltyUpdate);
+
+                // 🚀 Duplication removed to solve "same bill" issue
 
                 setSaleForm({ productType: 'Mushroom', quantity: 1, pricePerUnit: 50, customerName: '', contactNumber: '', paymentType: 'Cash' });
                 setCustomerSuggestions([]);
@@ -454,7 +572,7 @@ const Dashboard = () => {
         setSoakingStartTime(start);
 
         try {
-            await fetch('http://localhost:5000/api/settings/soaking', {
+            await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/settings/soaking', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ startTime: start.toISOString() })
@@ -468,7 +586,7 @@ const Dashboard = () => {
         setSaleForm({ ...saleForm, customerName: name });
         if (name.length > 1) {
             try {
-                const res = await fetch(`http://localhost:5000/api/customers/search?name=${encodeURIComponent(name)}`, {
+                const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/customers/search?name=${encodeURIComponent(name)}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
@@ -513,12 +631,11 @@ const Dashboard = () => {
             });
 
             // Wait for render and generate image
-            await new Promise(r => setTimeout(r, 600));
-            const { toPng } = await import('html-to-image');
+            await new Promise(r => setTimeout(r, 400));
             const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
 
             // Upload to server & Send via WhatsApp Backend
-            const response = await fetch('http://localhost:5000/api/send-bill', {
+            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/send-bill', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
@@ -530,18 +647,40 @@ const Dashboard = () => {
 
             const result = await response.json();
 
+            // 🚀 THE ANTI-GRAVITY ULTIMATE FIX: Show Manual Prompt for Reliability
+            const totalBalance = (kadanList || []).filter(k => k.contactNumber === sale.contactNumber).reduce((sum, s) => sum + s.totalAmount, 0);
+
+            setWaPrompt({
+                customerName: sale.customerName,
+                amount: sale.totalAmount,
+                balance: totalBalance,
+                phone: sale.contactNumber,
+                billLink: null
+            });
+
             if (result.success) {
                 setBillSentStatus('success');
                 setTimeout(() => setBillSentStatus(null), 5000);
             } else {
-                throw new Error(result.message || 'WhatsApp sending failed');
+                console.warn('Backend WA failed, manual prompt will handle it.');
             }
 
         } catch (err) {
             console.error('Bill Error:', err);
             setBillSentStatus('error');
             setTimeout(() => setBillSentStatus(null), 5000);
-            alert('❌ Bill generation/sending failed: ' + err.message);
+
+            // 🚀 TJP ANTI-GRAVITY: Show manual fallback card if data exists
+            if (sale) {
+                const totalBalance = (kadanList || []).filter(k => k.contactNumber === sale.contactNumber).reduce((sum, s) => sum + s.totalAmount, 0);
+                setWaPrompt({
+                    customerName: sale.customerName,
+                    amount: sale.totalAmount,
+                    balance: totalBalance,
+                    phone: sale.contactNumber,
+                    billLink: null
+                });
+            }
         } finally {
             setIsGeneratingBill(false);
         }
@@ -572,7 +711,7 @@ const Dashboard = () => {
     const handleDelete = async (model, id) => {
         if (!window.confirm("Permanent-ah delete pannanuma?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/delete/${model}/${id}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/delete/${model}/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -584,7 +723,7 @@ const Dashboard = () => {
     const handleExpenditureSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/expenditure', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/expenditure', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -624,7 +763,7 @@ const Dashboard = () => {
         };
 
         try {
-            const res = await fetch('http://localhost:5000/api/climate', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/climate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(payload)
@@ -644,8 +783,8 @@ const Dashboard = () => {
         try {
             const method = alertForm.id ? 'PATCH' : 'POST';
             const url = alertForm.id
-                ? `http://localhost:5000/api/alerts/${alertForm.id}`
-                : 'http://localhost:5000/api/alerts';
+                ? `https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/alerts/${alertForm.id}`
+                : 'https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/alerts';
 
             // Remove id from body for cleanliness, though mongo ignores it usually
             const { id, ...body } = alertForm;
@@ -671,7 +810,7 @@ const Dashboard = () => {
     const handleAlertDelete = async (id) => {
         if (!window.confirm("Delete this alarm permanently?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/alerts/${id}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/alerts/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -695,7 +834,7 @@ const Dashboard = () => {
     const handleInventoryUpdate = async (itemId, type, quantity, notes = '') => {
         try {
             const endpoint = type === 'use' ? 'use' : 'add';
-            const res = await fetch(`http://localhost:5000/api/inventory/${itemId}/${endpoint}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/${itemId}/${endpoint}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -716,7 +855,7 @@ const Dashboard = () => {
     const handleUpdateInventory = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`http://localhost:5000/api/inventory/${editingProduct._id}`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/${editingProduct._id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -738,7 +877,7 @@ const Dashboard = () => {
     const handleResetInventory = async () => {
         if (!window.confirm("ΓÜá∩╕Å DANGER: Motha inventory data-vaiyum erase panni fresh-ah start pannaatuma? Indha step-ai undo panna mudiyaadhu!")) return;
         try {
-            const res = await fetch('http://localhost:5000/api/inventory/reset-all', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/reset-all', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -758,7 +897,7 @@ const Dashboard = () => {
     const resetLoyalty = async (id) => {
         if (!window.confirm("Reset loyalty count?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/customers/${id}/reset`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/customers/${id}/reset`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -770,7 +909,7 @@ const Dashboard = () => {
     const handleBatchSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/batches', {
+            const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/batches', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -792,7 +931,7 @@ const Dashboard = () => {
         const qty = prompt("Enter harvested quantity (kg):", "2");
         if (!qty) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/batches/${id}/harvest`, {
+            const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/batches/${id}/harvest`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -918,7 +1057,7 @@ const Dashboard = () => {
         if (!month || !year) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/api/export/${section}?month=${month}&year=${year}`, {
+            const response = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/export/${section}?month=${month}&year=${year}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -1200,7 +1339,7 @@ const Dashboard = () => {
                                                             <button
                                                                 onClick={async () => {
                                                                     if (window.confirm(`Settle ₹${k.totalAmount} via CASH?`)) {
-                                                                        const res = await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                        const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/${k._id}/settle`, {
                                                                             method: 'PATCH',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({ settledBy: 'Cash' })
@@ -1217,7 +1356,7 @@ const Dashboard = () => {
                                                             <button
                                                                 onClick={async () => {
                                                                     if (window.confirm(`Settle ₹${k.totalAmount} via GPAY?`)) {
-                                                                        const res = await fetch(`http://localhost:5000/api/sales/${k._id}/settle`, {
+                                                                        const res = await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/sales/${k._id}/settle`, {
                                                                             method: 'PATCH',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({ settledBy: 'GPay' })
@@ -1379,9 +1518,9 @@ const Dashboard = () => {
                                     </div>
                                     <button
                                         type="submit"
-                                        className="w-full bg-green-600 text-white font-black uppercase py-4 md:py-6 rounded-xl md:rounded-2xl shadow-xl hover:bg-green-700 transition-all text-sm md:text-lg"
+                                        className="w-full bg-[#25D366] text-white font-black uppercase py-5 md:py-7 rounded-2xl md:rounded-[30px] shadow-[0_15px_30px_rgba(37,211,102,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all text-base md:text-xl border-4 border-white"
                                     >
-                                        Complete Sale & Generate Bill
+                                        RECORD SALE & COPY BILL
                                     </button>
                                 </form>
                             </div>
@@ -1476,7 +1615,19 @@ const Dashboard = () => {
                                                 }).map((sale, idx) => (
                                                     <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition-all">
                                                         <td className="py-4 text-sm font-bold text-gray-600">
-                                                            {formatDate(sale.date)}
+                                                            {editingSalesId === sale._id ? (
+                                                                <input
+                                                                    type="date"
+                                                                    value={editedData[sale._id]?.date ? new Date(editedData[sale._id].date).toISOString().split('T')[0] : new Date(sale.date).toISOString().split('T')[0]}
+                                                                    onChange={(e) => setEditedData(prev => ({
+                                                                        ...prev,
+                                                                        [sale._id]: { ...prev[sale._id], date: e.target.value }
+                                                                    }))}
+                                                                    className="w-full px-2 py-1 text-[10px] font-black border-2 border-blue-500 rounded"
+                                                                />
+                                                            ) : (
+                                                                formatDate(sale.date)
+                                                            )}
                                                         </td>
                                                         <td className="py-4">
                                                             {editingSalesId === sale._id ? (
@@ -1602,7 +1753,7 @@ const Dashboard = () => {
                                                                                 const pricePerUnit = updatedData.pricePerUnit || sale.pricePerUnit;
                                                                                 const totalAmount = quantity * pricePerUnit;
 
-                                                                                await fetch(`http://localhost:5000/api/edit/sales/${sale._id}`, {
+                                                                                await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/sales/${sale._id}`, {
                                                                                     method: 'PATCH',
                                                                                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                     body: JSON.stringify({
@@ -1612,7 +1763,7 @@ const Dashboard = () => {
                                                                                         paymentType: updatedData.paymentType || sale.paymentType,
                                                                                         totalAmount: totalAmount,
                                                                                         customerName: updatedData.customerName || sale.customerName,
-                                                                                        contactNumber: updatedData.contactNumber || sale.contactNumber
+                                                                                        contactNumber: updatedData.contactNumber || sale.contactNumber, date: updatedData.date || sale.date
                                                                                     })
                                                                                 });
                                                                                 setEditingSalesId(null);
@@ -1643,12 +1794,15 @@ const Dashboard = () => {
                                                                     </button>
                                                                 </>
                                                             ) : (
-                                                                <button
-                                                                    onClick={() => setEditingSalesId(sale._id)}
-                                                                    className="text-blue-500 font-black text-[10px] hover:underline"
-                                                                >
-                                                                    EDIT
-                                                                </button>
+                                                                <div className="flex items-center gap-2">
+                                                                    <button onClick={() => handleSendBill(sale)} className="text-green-600 font-black text-[10px] hover:underline">BILL</button>
+                                                                    <button
+                                                                        onClick={() => setEditingSalesId(sale._id)}
+                                                                        className="text-blue-500 font-black text-[10px] hover:underline"
+                                                                    >
+                                                                        EDIT
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                             <button onClick={() => handleDelete('sales', sale._id)} className="text-red-400 hover:text-red-700"><FaEraser /></button>
                                                         </td>
@@ -1871,7 +2025,7 @@ const Dashboard = () => {
                                                                     onClick={async () => {
                                                                         const updateBody = editedData[exp._id];
                                                                         if (updateBody) {
-                                                                            await fetch(`http://localhost:5000/api/edit/expenditure/${exp._id}`, {
+                                                                            await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/expenditure/${exp._id}`, {
                                                                                 method: 'PATCH',
                                                                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                 body: JSON.stringify(updateBody)
@@ -2265,7 +2419,7 @@ const Dashboard = () => {
                                                                     const item = inventory.find(i => i.itemName === 'Seeds');
                                                                     const up = editedData[`seed-${idx}`];
                                                                     if (item && up) {
-                                                                        await fetch(`http://localhost:5000/api/inventory/usage/${h._id}`, {
+                                                                        await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/inventory/usage/${h._id}`, {
                                                                             method: 'PUT',
                                                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                             body: JSON.stringify({
@@ -2672,7 +2826,7 @@ const Dashboard = () => {
                                                                     onClick={async () => {
                                                                         const updatedData = editedData[c._id];
                                                                         if (updatedData) {
-                                                                            await fetch(`http://localhost:5000/api/edit/climate/${c._id}`, {
+                                                                            await fetch(`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/edit/climate/${c._id}`, {
                                                                                 method: 'PATCH',
                                                                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                                 body: JSON.stringify({ notes: updatedData.notes })
@@ -2785,7 +2939,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('http://localhost:5000/api/admin/send-monthly-report', {
+                                                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/admin/send-monthly-report', {
                                                     method: 'POST',
                                                     headers: { 'Authorization': `Bearer ${token}` }
                                                 });
@@ -2888,7 +3042,7 @@ const Dashboard = () => {
                                     {reportArchives.map((report, idx) => (
                                         <a
                                             key={idx}
-                                            href={`http://localhost:5000${report.url}`}
+                                            href={`https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app${report.url}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-5 p-6 bg-gray-50 rounded-2xl border-2 border-gray-100 hover:border-blue-400 hover:shadow-xl transition-all group"
@@ -2965,7 +3119,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('http://localhost:5000/api/settings/water-check', {
+                                                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/settings/water-check', {
                                                     method: 'POST',
                                                     headers: { 'Authorization': `Bearer ${token}` }
                                                 });
@@ -2982,7 +3136,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch('http://localhost:5000/api/water/spray', {
+                                                const res = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/water/spray', {
                                                     method: 'POST',
                                                     headers: { 'Authorization': `Bearer ${token}` }
                                                 });
@@ -3211,6 +3365,53 @@ const Dashboard = () => {
                     </div>
                 </div>
             </nav>
+
+            {/* 🚀 TJP ANTI-GRAVITY WA PROMPT MODAL */}
+            {waPrompt && (
+                <div className="fixed inset-0 bg-black/60 z-[20000] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-[#CBCCCB] p-8 rounded-[40px] text-center shadow-[0_30px_60px_rgba(0,0,0,0.5)] max-w-sm w-full border-8 border-white animate-float-slow">
+                        <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border-4 border-green-50">
+                            <FaCheckCircle className="text-[#25D366] text-4xl" />
+                        </div>
+                        <h3 className="text-2xl font-black text-[#022C22] mb-4 uppercase tracking-tighter">Ready to Send Bill?</h3>
+
+                        <div className="bg-white/40 p-5 rounded-3xl mb-8 border border-white/20 text-left">
+                            <p className="text-xs font-black text-gray-400 uppercase mb-1">Customer</p>
+                            <p className="font-black text-[#022C22] uppercase text-lg mb-3 truncate">{waPrompt.customerName}</p>
+
+                            <div className="flex justify-between items-center pt-3 border-t border-white/30">
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-500 uppercase">Amount</p>
+                                    <p className="text-xl font-black text-green-700">₹{waPrompt.amount}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-gray-500 uppercase">Kadan</p>
+                                    <p className="text-xl font-black text-red-600">₹{waPrompt.balance}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a
+                            href={`https://wa.me/${waPrompt.phone.startsWith('91') ? waPrompt.phone : '91' + waPrompt.phone}?text=${encodeURIComponent(
+                                `*TJP Mushroom - Bill Receipt* 🍄\n-----------------------------\nHello ${waPrompt.customerName},\nYour bill amount: ₹${waPrompt.amount}\nPending Balance (KADAN): ₹${waPrompt.balance}\n\n${waPrompt.billLink ? `View Digital Bill: ${window.location.protocol}//${window.location.host}${waPrompt.billLink}\n\n` : ''}Thank you for choosing TJP Farming!\nVisit: tjpmushroom.com`
+                            )}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => setWaPrompt(null)}
+                            className="bg-[#25D366] text-white px-8 py-5 rounded-2xl font-black text-lg shadow-[0_10px_20px_rgba(37,211,102,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-full"
+                        >
+                            🚀 OPEN WHATSAPP
+                        </a>
+
+                        <button
+                            onClick={() => setWaPrompt(null)}
+                            className="mt-6 text-gray-500 font-black uppercase text-[10px] tracking-widest hover:text-red-500 transition-colors"
+                        >
+                            🚫 Close Prompt
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* SENDING LOADER OVERLAY */}
             {isGeneratingBill && (

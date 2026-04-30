@@ -220,4 +220,65 @@ const sendDailyReport = async (sales, expenditures) => {
     }
 };
 
-module.exports = { sendMonthlyReport, sendDailyReport };
+const sendYearlyReport = async (sales, expenditures, inventory, climate, customers, year) => {
+    try {
+        const reportEmail = process.env.REPORT_EMAIL || 'jpfarming10@gmail.com';
+        const smtpUser = process.env.SMTP_USER;
+        const smtpPass = process.env.SMTP_PASS;
+
+        if (!smtpUser || !smtpPass) return;
+
+        const workbook = XLSX.utils.book_new();
+
+        // Summarize data for the whole year
+        const salesWS = XLSX.utils.json_to_sheet(sales.map(s => ({
+            Date: new Date(s.date).toLocaleDateString(),
+            Product: s.productType,
+            Quantity: s.quantity,
+            Total: s.totalAmount,
+            Customer: s.customerName
+        })));
+        XLSX.utils.book_append_sheet(workbook, salesWS, "Annual Sales");
+
+        const expWS = XLSX.utils.json_to_sheet(expenditures.map(e => ({
+            Date: new Date(e.date).toLocaleDateString(),
+            Category: e.category,
+            Amount: e.amount
+        })));
+        XLSX.utils.book_append_sheet(workbook, expWS, "Annual Expenditure");
+
+        const fileName = `TJP_YEARLY_REPORT_${year}.xlsx`;
+        const filePath = path.join(__dirname, '..', 'public', 'reports', fileName);
+        if (!fs.existsSync(path.dirname(filePath))) fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        XLSX.writeFile(workbook, filePath);
+
+        const emailHTML = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; border: 2px solid #022C22; padding: 20px; border-radius: 15px;">
+                <h1 style="color: #022C22; text-align: center;">🏆 TJP ANNUAL REPORT ${year}</h1>
+                <p style="text-align: center; color: #666;">High-level summary of your mushroom farm performance.</p>
+                <div style="background: #f4f4f4; padding: 15px; border-radius: 10px; margin-top: 20px;">
+                    <p><strong>Total Sales:</strong> ₹${sales.reduce((sum, s) => sum + s.totalAmount, 0).toLocaleString()}</p>
+                    <p><strong>Total Expenses:</strong> ₹${expenditures.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}</p>
+                </div>
+            </div>
+        `;
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: smtpUser, pass: smtpPass }
+        });
+
+        await transporter.sendMail({
+            from: `"TJP Analytics" <${smtpUser}>`,
+            to: reportEmail,
+            subject: `🏆 TJP Annual Report - ${year}`,
+            html: emailHTML,
+            attachments: [{ filename: fileName, path: filePath }]
+        });
+        console.log(`✅ Yearly Report for ${year} Sent`);
+    } catch (error) {
+        console.error('❌ Yearly Report Error:', error);
+    }
+};
+
+module.exports = { sendMonthlyReport, sendDailyReport, sendYearlyReport };

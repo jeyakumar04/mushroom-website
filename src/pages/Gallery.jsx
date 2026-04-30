@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaInstagram, FaLeaf, FaMicroscope, FaHandHoldingHeart, FaUsers, FaGraduationCap } from 'react-icons/fa';
+import { FaInstagram, FaLeaf, FaMicroscope, FaHandHoldingHeart, FaGraduationCap } from 'react-icons/fa';
 import Footer from '../Component/Footer';
 
 const Gallery = () => {
@@ -9,35 +9,35 @@ const Gallery = () => {
     const images = [
         {
             id: 1,
-            url: '/uploads/uploaded_image_0_1768417494350.jpg',
+            url: '/assets/gallery/uploaded_image_0_1768417494350.jpg',
             title: 'TJP Mushroom Benefits Info',
             category: 'Research',
             icon: <FaHandHoldingHeart />
         },
         {
             id: 2,
-            url: '/uploads/uploaded_image_1_1768417494350.jpg',
+            url: '/assets/gallery/uploaded_image_1_1768417494350.jpg',
             title: 'Fresh Mushroom Clusters',
             category: 'Harvest',
             icon: <FaLeaf />
         },
         {
             id: 3,
-            url: '/uploads/uploaded_image_2_1768417494350.jpg',
+            url: '/assets/gallery/uploaded_image_2_1768417494350.jpg',
             title: 'Cultivation Bag Setup',
             category: 'Farming',
             icon: <FaMicroscope />
         },
         {
             id: 4,
-            url: '/uploads/uploaded_image_3_1768417494350.jpg',
+            url: '/assets/gallery/uploaded_image_3_1768417494350.jpg',
             title: 'Vertical Farming Rows',
             category: 'Farming',
             icon: <FaLeaf />
         },
         {
             id: 5,
-            url: '/uploads/uploaded_image_4_1768417494350.png',
+            url: '/assets/gallery/uploaded_image_4_1768417494350.png',
             title: 'Premium Oyster Harvest',
             category: 'Harvest',
             icon: <FaHandHoldingHeart />
@@ -45,49 +45,49 @@ const Gallery = () => {
         // --- NEW TRAINING IMAGES ---
         {
             id: 6,
-            url: '/uploads/uploaded_image_0_1768417621406.jpg',
+            url: '/assets/gallery/uploaded_image_0_1768417621406.jpg',
             title: 'Hands-on Substrate Prep',
             category: 'Training',
             icon: <FaGraduationCap />
         },
         {
             id: 7,
-            url: '/uploads/uploaded_image_1_1768417621406.png',
+            url: '/assets/gallery/uploaded_image_1_1768417621406.png',
             title: 'TNAU Certification',
             category: 'Training',
             icon: <FaLeaf />
         },
         {
             id: 8,
-            url: '/uploads/uploaded_image_2_1768417621406.jpg',
+            url: '/assets/gallery/uploaded_image_2_1768417621406.jpg',
             title: 'Student Demonstration',
             category: 'Training',
             icon: <FaMicroscope />
         },
         {
             id: 9,
-            url: '/uploads/uploaded_image_3_1768417621406.jpg',
+            url: '/assets/gallery/uploaded_image_3_1768417621406.jpg',
             title: 'Training Group Photo',
             category: 'Training',
             icon: <FaHandHoldingHeart />
         },
         {
             id: 10,
-            url: '/uploads/uploaded_image_4_1768417621406.jpg',
+            url: '/assets/gallery/uploaded_image_4_1768417621406.jpg',
             title: 'Classroom Explanation',
             category: 'Training',
             icon: <FaGraduationCap />
         },
         {
             id: 11,
-            url: '/uploads/uploaded_image_0_1768417790816.jpg',
+            url: '/assets/gallery/uploaded_image_0_1768417790816.jpg',
             title: 'Rural Training Workshop',
             category: 'Training',
             icon: <FaGraduationCap />
         },
         {
             id: 12,
-            url: '/uploads/uploaded_image_1_1768417790816.jpg',
+            url: '/assets/gallery/uploaded_image_1_1768417790816.jpg',
             title: 'Prepared Cultivation Bags',
             category: 'Farming',
             icon: <FaMicroscope />

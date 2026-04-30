@@ -147,22 +147,37 @@ const sendMessage = async (contactNumber, message) => {
  */
 const sendImage = async (contactNumber, imageBase64, caption) => {
     try {
-        if (!isReady) return { success: false, error: 'Client not ready' };
+        if (!isReady) {
+            console.error('❌ WhatsApp SendImage Failed: Client not ready');
+            return { success: false, error: 'Client not ready' };
+        }
         const { MessageMedia } = require('whatsapp-web.js');
         let cleanNumber = contactNumber.replace(/\D/g, '');
         if (cleanNumber.length === 10) cleanNumber = `91${cleanNumber}`;
         const chatId = `${cleanNumber}@c.us`;
-        const media = new MessageMedia('image/png', imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'bill.png');
 
-        // Wake up session
-        try {
-            const chat = await client.getChatById(chatId);
-            await chat.sendStateTyping();
-        } catch (e) { }
+        // Ensure Base64 is clean
+        const base64Content = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+        const media = new MessageMedia('image/png', base64Content, 'bill.png');
 
-        await client.sendMessage(chatId, media, { caption });
-        return { success: true };
+        console.log(`📤 Attempting to send WhatsApp Bill to: ${cleanNumber}`);
+
+        // Retry logic for images
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const chat = await client.getChatById(chatId);
+                // 🚀 TJP ANTI-GRAVITY FIX: Use chat.sendMessage to bypass client-level 'markedUnread' error
+                await chat.sendMessage(media, { caption });
+                console.log(`✅ WhatsApp Bill sent to: ${cleanNumber} (Attempt ${attempt})`);
+                return { success: true };
+            } catch (err) {
+                console.warn(`⚠️ Attempt ${attempt} failed for ${cleanNumber}: ${err.message}`);
+                if (attempt === 2) throw err;
+                await new Promise(r => setTimeout(r, 2000));
+            }
+        }
     } catch (error) {
+        console.error(`🔥 WhatsApp SendImage CRITICAL FAIL for ${contactNumber}:`, error.message);
         return { success: false, error: error.message };
     }
 };
@@ -195,7 +210,13 @@ module.exports = {
     isClientReady: () => isReady,
     getLatestQr: () => latestQR,
     destroyClient: async () => {
-        if (client) await client.destroy();
+        try {
+            if (client && client.pupBrowser) {
+                await client.destroy();
+            }
+        } catch (e) {
+            console.error('Error destroying WA client:', e.message);
+        }
     },
     client,
     ADMIN_1,
