@@ -47,41 +47,24 @@ const Products = () => {
         setIsOrdering(true);
     };
 
-    const handleWhatsAppOrder = async (e) => {
+    const handleOrder = (e) => {
         e.preventDefault();
 
-        const totalPrice = selectedProduct.price * orderData.qty;
-
-        const dbOrder = {
-            customerName: orderData.name,
-            contactNumber: orderData.phone,
-            address: orderData.address,
-            products: [{
-                name: selectedProduct.name,
-                quantity: orderData.qty,
-                price: selectedProduct.price
-            }],
-            totalPrice: totalPrice
-        };
-
-        try {
-            // Save to Atlas
-            const response = await fetch('https://juicy-valenka-tjp-mushroom-9ef17e36.koyeb.app/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dbOrder)
-            });
-
-            if (response.ok) {
-                // Open WhatsApp
-                const message = `🚀 *New Order from TJP Mushroom Farm*%0A%0A*Customer:* ${orderData.name}%0A*Product:* ${selectedProduct.name}%0A*Quantity:* ${orderData.qty}%0A*Total Amount:* ₹${totalPrice}%0A*Delivery Address:* ${orderData.address}%0A%0A_Please confirm my order!_`;
-                window.open(`https://wa.me/919500591897?text=${message}`, '_blank');
-                setIsOrdering(false);
-                setOrderData({ name: '', qty: 1, address: '', phone: '' });
-            }
-        } catch (error) {
-            alert("Connection error. Please try again.");
+        if (!orderData.name || !orderData.phone || !orderData.qty || !orderData.address) {
+            alert("Please fill all fields");
+            return;
         }
+
+        const message = `New Order:\nName: ${orderData.name}\nPhone: ${orderData.phone}\nQuantity: ${orderData.qty}\nAddress: ${orderData.address}`;
+        const encodedMessage = encodeURIComponent(message);
+        
+        const WHATSAPP_NUMBER = "+91 9500591897";
+        const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+        
+        window.open(url, "_blank");
+
+        setIsOrdering(false);
+        setOrderData({ name: '', qty: 1, address: '', phone: '' });
     };
 
     return (
@@ -162,7 +145,7 @@ const Products = () => {
                             Confirm <span className="text-[#F4D03F]">Order</span>
                         </h2>
 
-                        <form onSubmit={handleWhatsAppOrder} className="space-y-6">
+                        <form onSubmit={handleOrder} className="space-y-6">
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest ml-1">Name</label>
